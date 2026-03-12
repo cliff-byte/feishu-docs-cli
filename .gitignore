@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+tmp-*.js
+
+# Development artifacts
+findings.md
+progress.md
+task_plan.md
+DESIGN.md
+ITERATION.md
+docs/block-type-analysis.md
+测试常用元素.*
