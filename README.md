@@ -1,8 +1,8 @@
 # feishu-docs-cli
 
-CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
+[中文文档](./README.zh.md)
 
-让 AI Agent（Claude Code、Codex、Trae 等）通过 shell 命令读写飞书云文档和知识库。
+CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 
 ## Features
 
@@ -15,7 +15,8 @@ CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 - **Search** documents by keyword
 - **Share** — manage collaborators (list, add, set public mode)
 - **List** files in cloud folders
-- Zero extra dependencies — only `@larksuiteoapi/node-sdk`
+- Written in TypeScript with strict mode
+- Zero extra runtime dependencies — only `@larksuiteoapi/node-sdk`
 - Agent-friendly output — pure text or JSON, no interactive UI
 
 ## Install
@@ -36,41 +37,55 @@ Requires Node.js >= 18.3.
 
 ### 1. Create a Feishu App
 
-Go to [Feishu Open Platform](https://open.feishu.cn/app) and create an app. Enable these scopes:
+1. Go to [Feishu Open Platform](https://open.feishu.cn/app) (or [Lark Developer](https://open.larksuite.com/app) for international)
+2. Click **Create Custom App**, fill in the app name and description
+3. After creation, go to the app's **Credentials & Basic Info** page. Copy the **App ID** (`cli_xxx`) and **App Secret** — you'll need them for environment variables
+4. Go to **Permissions & Scopes**, search and add the following scopes:
 
-- `wiki:wiki` — Knowledge base access
-- `docx:document` — Document read/write
-- `docx:document.block:convert` — Markdown to block conversion
-- `drive:drive` — File management (includes permission management)
-- `contact:contact.base:readonly` — User name resolution (@mentions)
-- `board:whiteboard:node:read` — Whiteboard content read
-- `bitable:app:readonly` — Bitable read access
+   | Scope | Description | Required |
+   |-------|-------------|----------|
+   | `wiki:wiki` | Knowledge base access | Yes |
+   | `docx:document` | Document read/write | Yes |
+   | `docx:document.block:convert` | Markdown to block conversion | Yes (for create/update) |
+   | `drive:drive` | File management & permission management | Yes |
+   | `contact:contact.base:readonly` | User name resolution (@mentions) | Recommended |
+   | `board:whiteboard:node:read` | Whiteboard content read | Optional |
+   | `bitable:app:readonly` | Bitable read access | Optional |
+
+5. Go to **Security Settings**, add the OAuth callback URL to the **Redirect URLs** allowlist:
+   - Default: `http://localhost:3456/callback`
+   - This must match exactly what you use during `feishu-docs login`
+
+6. **Publish the app version**: Go to **App Release** → **Create Version** → Submit for review → Approve (self-built apps in your org are usually auto-approved)
+
+> **Note**: For tenant-level access (e.g., CI/CD), the app must be granted access to specific docs or knowledge bases. Add the app as a collaborator, or use the admin console to authorize document scope.
 
 ### 2. Set Environment Variables
 
 ```bash
-export FEISHU_APP_ID="cli_xxx"
-export FEISHU_APP_SECRET="xxx"
+export FEISHU_APP_ID="cli_xxx"        # From step 3 above
+export FEISHU_APP_SECRET="xxx"         # From step 3 above
 ```
 
 ### 3. Login (for user-level access)
 
-Before running login, add the callback URL to your Feishu app's redirect allowlist.
-
-- Default callback URL: `http://localhost:3456/callback`
-- If your app has a different registered callback URL, pass the exact same value with `--redirect-uri` or `FEISHU_REDIRECT_URI`
+User-level access enables personal docs, search, and collaboration features.
 
 ```bash
 feishu-docs login
+```
 
+This opens a browser for OAuth authorization and saves the encrypted token to `~/.feishu-docs/auth.json`.
+
+If your app's registered redirect URL differs from the default (`http://localhost:3456/callback`), pass the exact same value:
+
+```bash
 # Match the exact redirect URI registered in Feishu Open Platform
 feishu-docs login --redirect-uri http://127.0.0.1:3456/callback
 
 # Or change only the port and keep the default localhost path
 feishu-docs login --port 4567
 ```
-
-This starts an OAuth flow and saves an encrypted token to `~/.feishu-docs/auth.json`.
 
 ## Usage
 
@@ -264,7 +279,41 @@ Overwrite operations (`update` without `--append`) automatically:
 
 Feishu also maintains version history — you can always roll back in the Feishu client.
 
-## Plan
+## Development
+
+```bash
+git clone https://github.com/cliff-byte/feishu-docs-cli.git
+cd feishu-docs-cli
+npm install
+
+# Type check
+npm run build:check
+
+# Build (outputs to dist/)
+npm run build
+
+# Run tests
+npm test
+
+# Run CLI from source
+npm run build && node bin/feishu-docs.js --help
+```
+
+### Project Structure
+
+```
+src/
+  types/          # Shared TypeScript type definitions
+  commands/       # CLI command handlers
+  services/       # API service layer
+  parser/         # Block-to-Markdown parser
+  utils/          # Validation, error handling, URL parsing
+test/             # Unit tests (node:test)
+bin/              # CLI entry point (JS shim → dist/)
+dist/             # Compiled output (git-ignored)
+```
+
+## Roadmap
 
 - [x] Feishu cloud document operations (read, create, update, delete, info)
 - [x] Knowledge base operations (spaces, tree, cat, wiki management, share, search)

@@ -1,25 +1,40 @@
 {
   "name": "feishu-docs-cli",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "CLI tool for AI Agents to read/write Feishu docs via shell commands",
   "type": "module",
   "bin": {
     "feishu-docs": "./bin/feishu-docs.js"
   },
+  "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
   "files": [
     "bin/",
-    "src/",
+    "dist/",
     "README.md",
+    "README.zh.md",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "build": "tsc",
+    "build:check": "tsc --noEmit",
+    "pretest": "npm run build:check",
+    "test": "tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cliff-byte/feishu-docs-cli.git"
   },
-  "keywords": ["feishu", "lark", "cli", "docs", "ai-agent", "claude", "codex"],
+  "keywords": [
+    "feishu",
+    "lark",
+    "cli",
+    "docs",
+    "ai-agent",
+    "claude",
+    "codex"
+  ],
   "author": "cliff-byte",
   "license": "MIT",
   "bugs": {
@@ -31,5 +46,9 @@
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.59.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }
