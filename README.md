@@ -243,22 +243,28 @@ feishu-docs whoami         # Show current auth status
 
 ## AI Agent Integration
 
-### Claude Code (CLAUDE.md)
+### Claude Code
 
-```markdown
-## Feishu Docs
+Install the built-in skill to teach Claude how to use feishu-docs:
 
-Read/write Feishu docs with feishu-docs-cli.
+```bash
+feishu-docs install-skill
+```
 
-Read:     feishu-docs read <url>
-Search:   feishu-docs search <keyword>
-Tree:     feishu-docs tree <space_id>
-Batch:    feishu-docs cat <space_id> --max-docs 10
-Create:   feishu-docs create <title> --wiki <space_id> --body <file>
-Update:   feishu-docs update <url> --body <file>
+This installs a skill file to `~/.claude/commands/feishu-docs.md`. After installation, use `/feishu-docs` in Claude Code to activate it.
 
-Env vars FEISHU_APP_ID and FEISHU_APP_SECRET are in .env.
-Run `feishu-docs login` first.
+### Other Agents
+
+Add these instructions to your agent's system prompt or configuration:
+
+```
+Read Feishu docs:    feishu-docs read <url>
+Search docs:         feishu-docs search <keyword>
+Browse wiki:         feishu-docs tree <space_id>
+Batch read:          feishu-docs cat <space_id> --max-docs 10
+Create doc:          feishu-docs create <title> --wiki <space_id> --body <file>
+Update doc:          feishu-docs update <url> --body <file>
+Use --json for structured output. Run feishu-docs --help for all commands.
 ```
 
 ### Programmatic Usage

@@ -17,6 +17,7 @@ import { meta as shareMeta } from "./commands/share.js";
 import { meta as infoMeta } from "./commands/info.js";
 import { meta as lsMeta } from "./commands/ls.js";
 import { meta as wikiMeta } from "./commands/wiki.js";
+import { meta as installSkillMeta } from "./commands/install-skill.js";
 import { handleError, CliError } from "./utils/errors.js";
 import {
   CommandMeta,
@@ -64,6 +65,9 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
   share add <url> <member> --role <role>   添加协作者
   share set <url> --public <mode>          修改分享设置
 
+Agent:
+  install-skill                            安装 Claude Code Skill
+
 全局选项:
   --auth <user|tenant|auto>   认证模式（默认 auto）
   --json                      输出 JSON 格式
@@ -98,6 +102,7 @@ const COMMANDS: Record<string, CommandMeta | SubcommandMeta> = {
   info: infoMeta,
   ls: lsMeta,
   wiki: wikiMeta,
+  "install-skill": installSkillMeta,
 };
 
 function extractGlobalOpts(values: Record<string, unknown>): GlobalOpts {

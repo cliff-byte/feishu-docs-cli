@@ -242,22 +242,28 @@ feishu-docs whoami         # 查看当前认证状态
 
 ## AI Agent 集成
 
-### Claude Code (CLAUDE.md)
+### Claude Code
 
-```markdown
-## 飞书文档
+安装内置 Skill，让 Claude 学会使用 feishu-docs：
 
-通过 feishu-docs-cli 读写飞书文档。
+```bash
+feishu-docs install-skill
+```
 
-读取:     feishu-docs read <url>
-搜索:     feishu-docs search <关键词>
-目录树:   feishu-docs tree <space_id>
-批量读取: feishu-docs cat <space_id> --max-docs 10
-创建:     feishu-docs create <标题> --wiki <space_id> --body <文件>
-更新:     feishu-docs update <url> --body <文件>
+Skill 文件会安装到 `~/.claude/commands/feishu-docs.md`。安装后在 Claude Code 中使用 `/feishu-docs` 即可激活。
 
-环境变量 FEISHU_APP_ID 和 FEISHU_APP_SECRET 在 .env 中。
-先执行 `feishu-docs login` 登录。
+### 其他 Agent
+
+将以下指令添加到 Agent 的系统提示词或配置中：
+
+```
+读取文档:     feishu-docs read <url>
+搜索文档:     feishu-docs search <关键词>
+浏览知识库:   feishu-docs tree <space_id>
+批量读取:     feishu-docs cat <space_id> --max-docs 10
+创建文档:     feishu-docs create <标题> --wiki <space_id> --body <文件>
+更新文档:     feishu-docs update <url> --body <文件>
+使用 --json 获取结构化输出。运行 feishu-docs --help 查看所有命令。
 ```
 
 ### 程序化调用

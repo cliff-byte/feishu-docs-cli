@@ -11,6 +11,7 @@
   "files": [
     "bin/",
     "dist/",
+    "skill/",
     "README.md",
     "README.zh.md",
     "LICENSE"
