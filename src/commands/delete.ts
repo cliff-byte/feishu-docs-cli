@@ -12,13 +12,11 @@ import {
   GlobalOpts,
   AuthInfo,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 /**
  * Check if a node has children in the knowledge base.
  */
 async function checkChildren(
-  client: lark.Client,
   authInfo: AuthInfo,
   spaceId: string,
   nodeToken: string,
@@ -57,8 +55,8 @@ export async function del(
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveDocument(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveDocument(authInfo, input);
 
   if (doc.objType === "doc") {
     throw new CliError(
@@ -70,7 +68,6 @@ export async function del(
   // Check for children — refuse unless --recursive
   if (doc.hasChild && doc.spaceId && doc.nodeToken) {
     const hasChildren = await checkChildren(
-      client,
       authInfo,
       doc.spaceId,
       doc.nodeToken,

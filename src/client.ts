@@ -1,8 +1,7 @@
 /**
- * Lark SDK client factory with auth mode support.
+ * Auth client factory and API utilities.
  */
 
-import * as lark from "@larksuiteoapi/node-sdk";
 import { resolveAuth, refreshUserToken, acquireRefreshLock } from "./auth.js";
 import { CliError, mapApiError } from "./utils/errors.js";
 import type {
@@ -13,31 +12,18 @@ import type {
   ApiResponse,
 } from "./types/index.js";
 
-const silentLogger: {
-  fatal: (...args: unknown[]) => void;
-  error: (...args: unknown[]) => void;
-  warn: (...args: unknown[]) => void;
-  info: (...args: unknown[]) => void;
-  debug: (...args: unknown[]) => void;
-  trace: (...args: unknown[]) => void;
-} = {
-  fatal: () => {},
-  error: () => {},
-  warn: () => {},
-  info: () => {},
-  debug: () => {},
-  trace: () => {},
-};
+const FEISHU_BASE = "https://open.feishu.cn";
+const LARK_BASE = "https://open.larksuite.com";
 
 /**
- * Create a configured Lark SDK client.
+ * Create auth context for API calls.
  * @param {object} options - { auth: 'user'|'tenant'|'auto', lark: boolean }
- * @returns {{ client: lark.Client, authInfo: object }}
+ * @returns {{ authInfo: AuthInfo }}
  */
 export async function createClient(
   options: Partial<GlobalOpts> = {},
   _refreshAttempt: number = 0,
-): Promise<{ client: lark.Client; authInfo: AuthInfo }> {
+): Promise<{ authInfo: AuthInfo }> {
   const authMode: AuthMode | string = options.auth || "auto";
   const useLark = options.lark || false;
   const resolved = await resolveAuth(authMode);
@@ -48,27 +34,13 @@ export async function createClient(
   if (!appId || !appSecret) {
     if (authInfo.mode === "user" && authInfo.userToken) {
       // User token from env, no app credentials needed for some APIs
-      // Create a minimal client
-      const client = new lark.Client({
-        appId: "placeholder",
-        appSecret: "placeholder",
-        domain: useLark ? lark.Domain.Lark : lark.Domain.Feishu,
-        logger: silentLogger,
-      });
-      return { client, authInfo };
+      return { authInfo };
     }
     throw new CliError(
       "AUTH_REQUIRED",
       "缺少 FEISHU_APP_ID 或 FEISHU_APP_SECRET",
     );
   }
-
-  const client = new lark.Client({
-    appId,
-    appSecret,
-    domain: useLark ? lark.Domain.Lark : lark.Domain.Feishu,
-    logger: silentLogger,
-  });
 
   // Auto-refresh user token if expired
   if (authInfo.mode === "user" && authInfo.expiresAt) {
@@ -105,7 +77,7 @@ export async function createClient(
               expiresAt: newTokens.expires_at,
               refreshToken: newTokens.refresh_token,
             };
-            return { client, authInfo: refreshedAuthInfo };
+            return { authInfo: refreshedAuthInfo };
           } finally {
             await releaseLock();
           }
@@ -121,7 +93,7 @@ export async function createClient(
               mode: "tenant",
               userToken: undefined,
             };
-            return { client, authInfo: tenantAuthInfo };
+            return { authInfo: tenantAuthInfo };
           }
           throw new CliError(
             "TOKEN_EXPIRED",
@@ -142,7 +114,7 @@ export async function createClient(
             mode: "tenant",
             userToken: undefined,
           };
-          return { client, authInfo: tenantAuthInfo };
+          return { authInfo: tenantAuthInfo };
         }
         throw new CliError(
           "TOKEN_EXPIRED",
@@ -155,31 +127,14 @@ export async function createClient(
     }
   }
 
-  return { client, authInfo };
-}
-
-/**
- * Build request options with appropriate auth header.
- */
-export function withAuth(authInfo: AuthInfo): {
-  headers?: { Authorization: string };
-} {
-  if (authInfo.mode === "user" && authInfo.userToken) {
-    return {
-      headers: { Authorization: `Bearer ${authInfo.userToken}` },
-    };
-  }
-  // tenant mode uses SDK's built-in tenant_access_token
-  return {};
+  return { authInfo };
 }
 
 /**
  * Resolve the API base URL based on whether we're using Lark or Feishu.
  */
 export function getApiBase(authInfo: AuthInfo): string {
-  return authInfo.useLark
-    ? "https://open.larksuite.com"
-    : "https://open.feishu.cn";
+  return authInfo.useLark ? LARK_BASE : FEISHU_BASE;
 }
 
 /**
@@ -234,7 +189,6 @@ async function resolveBearer(authInfo: AuthInfo): Promise<string> {
 
 /**
  * Direct fetch wrapper that correctly passes user/tenant token.
- * Use this instead of SDK methods for APIs where the SDK overrides the token.
  */
 export async function fetchWithAuth(
   authInfo: AuthInfo,
@@ -261,9 +215,9 @@ export async function fetchWithAuth(
   const fetchOpts: RequestInit & { body?: string } = {
     method: options.method || "GET",
     headers: {
-      Authorization: bearer,
       "Content-Type": "application/json",
       ...options.headers,
+      Authorization: bearer,
     },
   };
 
@@ -297,61 +251,4 @@ export async function fetchWithAuth(
   }
 
   return body;
-}
-
-/**
- * Extract Feishu API error code from various error shapes.
- */
-function extractErrorCode(err: unknown): number | undefined {
-  const e = err as {
-    code?: number;
-    response?: { data?: { code?: number }; code?: number };
-  };
-  return e?.code ?? e?.response?.data?.code ?? e?.response?.code;
-}
-
-/**
- * Execute an API call with retry for idempotent operations.
- */
-export async function apiCall<T>(
-  fn: () => Promise<T>,
-  {
-    retries = 3,
-    idempotent = true,
-  }: { retries?: number; idempotent?: boolean } = {},
-): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= (idempotent ? retries : 0); attempt++) {
-    try {
-      const res = await fn();
-      // Check SDK response code
-      const resWithCode = res as
-        | { code?: number; msg?: string }
-        | null
-        | undefined;
-      if (resWithCode?.code && resWithCode.code !== 0) {
-        throw mapApiError({ code: resWithCode.code, msg: resWithCode.msg });
-      }
-      return res;
-    } catch (err) {
-      lastError = err;
-      const code = extractErrorCode(err);
-
-      // Don't retry client errors (permission, not found, auth errors)
-      const NON_RETRYABLE = new Set([
-        131001, 131002, 131006, 131008, 99991400, 99991663,
-      ]);
-      if (code && NON_RETRYABLE.has(code)) {
-        throw mapApiError(err);
-      }
-
-      // Retry on network/server errors
-      if (attempt < retries && idempotent) {
-        const delay = 1000 * Math.pow(2, attempt);
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-    }
-  }
-  throw mapApiError(lastError);
 }

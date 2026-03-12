@@ -13,7 +13,6 @@ import {
   GlobalOpts,
   AuthInfo,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 export const meta: SubcommandMeta = {
   subcommands: {
@@ -87,7 +86,6 @@ function isScopeError(err: unknown): boolean {
 }
 
 async function resolveDocForShare(
-  client: lark.Client,
   authInfo: AuthInfo,
   input: string,
 ): Promise<{
@@ -95,7 +93,7 @@ async function resolveDocForShare(
   type: string;
   doc: Awaited<ReturnType<typeof resolveDocument>>;
 }> {
-  const doc = await resolveDocument(client, authInfo, input);
+  const doc = await resolveDocument(authInfo, input);
   // For wiki nodes, use the node_token with type "wiki" for permission APIs
   const token = doc.spaceId ? doc.parsed.token : doc.objToken;
   const type = doc.spaceId ? "wiki" : mapToDriveType(doc.objType);
@@ -111,11 +109,11 @@ async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
+  const { authInfo } = await createClient(globalOpts);
 
   let token: string, type: string;
   try {
-    ({ token, type } = await resolveDocForShare(client, authInfo, input));
+    ({ token, type } = await resolveDocForShare(authInfo, input));
   } catch (err) {
     if (isScopeError(err)) {
       throw new CliError(
@@ -171,8 +169,8 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
 
   validateMemberId(memberId);
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const { token, type } = await resolveDocForShare(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const { token, type } = await resolveDocForShare(authInfo, input);
   const memberType = detectMemberType(memberId);
   const perm = mapRole((args.role as string | undefined) || "view");
 
@@ -241,8 +239,8 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const { token, type } = await resolveDocForShare(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const { token, type } = await resolveDocForShare(authInfo, input);
 
   // Extract optional role from --public value like "tenant:edit"
   let mode = args.public as string;

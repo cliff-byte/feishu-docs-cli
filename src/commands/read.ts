@@ -2,13 +2,7 @@
  * read command: Read a Feishu document and output as Markdown.
  */
 
-import {
-  createClient,
-  withAuth,
-  apiCall,
-  fetchWithAuth,
-  getTenantToken,
-} from "../client.js";
+import { createClient, fetchWithAuth, getTenantToken } from "../client.js";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { BlockType } from "../parser/block-types.js";
 import { CliError } from "../utils/errors.js";
@@ -22,49 +16,42 @@ import {
   AuthInfo,
   Block,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 /**
  * Fetch raw text content of a document.
  */
 async function fetchRawContent(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
 ): Promise<string> {
-  const res = await apiCall(() =>
-    client.docx.v1.document.rawContent(
-      {
-        path: { document_id: documentId },
-      },
-      withAuth(authInfo),
-    ),
+  const res = await fetchWithAuth(
+    authInfo,
+    `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/raw_content`,
   );
-  return res?.data?.content || "";
+  return ((res?.data as Record<string, unknown>)?.content as string) || "";
 }
 
 /**
  * Batch get temporary download URLs for file tokens (images, files).
  */
 async function batchGetTmpUrls(
-  client: lark.Client,
   authInfo: AuthInfo,
   fileTokens: string[],
 ): Promise<Map<string, string>> {
   if (fileTokens.length === 0) return new Map();
 
-  const res = await apiCall(() =>
-    client.drive.v1.media.batchGetTmpDownloadUrl(
-      {
-        params: { file_tokens: fileTokens },
-      },
-      withAuth(authInfo),
-    ),
+  const res = await fetchWithAuth(
+    authInfo,
+    "/open-apis/drive/v1/medias/batch_get_tmp_download_url",
+    { params: { file_tokens: fileTokens } },
   );
 
   const urlMap = new Map<string, string>();
-  const items = res?.data?.tmp_download_urls || [];
-  for (const item of items as Array<Record<string, string>>) {
+  const data = res?.data as Record<string, unknown> | undefined;
+  const items = (data?.tmp_download_urls || []) as Array<
+    Record<string, string>
+  >;
+  for (const item of items) {
     urlMap.set(item.file_token, item.tmp_download_url);
   }
   return urlMap;
@@ -396,8 +383,8 @@ export async function read(
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveDocument(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveDocument(authInfo, input);
   let documentId = doc.objToken;
   let docType = doc.objType;
   let docTitle = doc.title;
@@ -429,13 +416,13 @@ export async function read(
 
   // --raw mode: fetch raw text only
   if (args.raw) {
-    const content = await fetchRawContent(client, authInfo, documentId);
+    const content = await fetchRawContent(authInfo, documentId);
     process.stdout.write(content + "\n");
     return;
   }
 
   // Fetch all blocks
-  const blocks = await fetchAllBlocks(client, authInfo, documentId);
+  const blocks = await fetchAllBlocks(authInfo, documentId);
 
   // --blocks mode: output raw JSON
   if (args.blocks) {
@@ -449,7 +436,7 @@ export async function read(
   let imageUrlMap = new Map<string, string>();
   if (fileTokens.length > 0) {
     try {
-      imageUrlMap = await batchGetTmpUrls(client, authInfo, fileTokens);
+      imageUrlMap = await batchGetTmpUrls(authInfo, fileTokens);
     } catch {
       process.stderr.write(
         "feishu-docs: warning: 获取图片/文件链接失败，链接将为空\n",
@@ -515,7 +502,7 @@ export async function read(
   if (args.withMeta) {
     let meta: Record<string, unknown> = {};
     try {
-      meta = await getDocumentInfo(client, authInfo, documentId);
+      meta = await getDocumentInfo(authInfo, documentId);
     } catch {
       // ignore metadata fetch errors
     }

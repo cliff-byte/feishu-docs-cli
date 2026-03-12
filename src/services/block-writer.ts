@@ -11,7 +11,6 @@ import { existsSync } from "node:fs";
 import { join, resolve, normalize } from "node:path";
 import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
-import * as lark from "@larksuiteoapi/node-sdk";
 import { fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { fetchAllBlocks } from "./doc-blocks.js";
@@ -48,7 +47,6 @@ export async function readBody(bodyArg: string): Promise<string> {
 // --- Document info helpers ---
 
 export async function getDocumentInfo(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
 ): Promise<{ title: string; revisionId: number }> {
@@ -65,7 +63,6 @@ export async function getDocumentInfo(
 }
 
 export async function getRootChildrenCount(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
 ): Promise<number> {
@@ -86,13 +83,12 @@ export async function getRootChildrenCount(
  * Clear all top-level children of a document (batch delete from end).
  */
 export async function clearDocument(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
   revisionId: number,
 ): Promise<number> {
   let rev = revisionId;
-  let remaining = await getRootChildrenCount(client, authInfo, documentId);
+  let remaining = await getRootChildrenCount(authInfo, documentId);
   let conflictRetries = 0;
   const MAX_CONFLICT_RETRIES = 5;
 
@@ -131,9 +127,9 @@ export async function clearDocument(
             "文档正在被并发编辑，清空操作失败，请稍后重试",
           );
         }
-        const doc = await getDocumentInfo(client, authInfo, documentId);
+        const doc = await getDocumentInfo(authInfo, documentId);
         rev = doc.revisionId;
-        remaining = await getRootChildrenCount(client, authInfo, documentId);
+        remaining = await getRootChildrenCount(authInfo, documentId);
       } else {
         throw err;
       }
@@ -146,11 +142,10 @@ export async function clearDocument(
 // --- Backup helpers ---
 
 export async function backupDocument(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
 ): Promise<{ filepath: string; blocks: Block[] }> {
-  const blocks = await fetchAllBlocks(client, authInfo, documentId);
+  const blocks = await fetchAllBlocks(authInfo, documentId);
 
   await mkdir(BACKUPS_DIR, { recursive: true, mode: 0o700 });
 

@@ -14,7 +14,6 @@ import {
   GlobalOpts,
   AuthInfo,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 interface WalkCtx {
   maxDocs: number;
@@ -47,7 +46,6 @@ function parseSize(sizeStr: string | number): number {
  * Recursively collect and output documents.
  */
 async function walkNodes(
-  client: lark.Client,
   authInfo: AuthInfo,
   spaceId: string,
   parentNodeToken: string | undefined,
@@ -72,15 +70,11 @@ async function walkNodes(
       // Still recurse into non-matching nodes that have children
       if (node.has_child) {
         ctx.currentDepth++;
-        await walkNodes(
-          client,
-          authInfo,
-          spaceId,
-          node.node_token,
-          nodePath,
-          ctx,
-        );
-        ctx.currentDepth--;
+        try {
+          await walkNodes(authInfo, spaceId, node.node_token, nodePath, ctx);
+        } finally {
+          ctx.currentDepth--;
+        }
       }
       continue;
     }
@@ -113,7 +107,7 @@ async function walkNodes(
       ctx.docsRead++;
     } else if (objType === "docx") {
       try {
-        const blocks = await fetchAllBlocks(client, authInfo, node.obj_token);
+        const blocks = await fetchAllBlocks(authInfo, node.obj_token);
         const md = blocksToMarkdown(blocks);
         const output = header + md + "\n";
 
@@ -148,15 +142,11 @@ async function walkNodes(
     // Recurse into children
     if (node.has_child) {
       ctx.currentDepth++;
-      await walkNodes(
-        client,
-        authInfo,
-        spaceId,
-        node.node_token,
-        nodePath,
-        ctx,
-      );
-      ctx.currentDepth--;
+      try {
+        await walkNodes(authInfo, spaceId, node.node_token, nodePath, ctx);
+      } finally {
+        ctx.currentDepth--;
+      }
     }
   }
 }
@@ -188,7 +178,7 @@ export async function cat(
 
   validateToken(spaceId, "space_id");
 
-  const { client, authInfo } = await createClient(globalOpts);
+  const { authInfo } = await createClient(globalOpts);
 
   const parentNode = (args.node as string | undefined) || undefined;
   if (parentNode) validateToken(parentNode, "node_token");
@@ -209,7 +199,7 @@ export async function cat(
     currentDepth: 0,
   };
 
-  await walkNodes(client, authInfo, spaceId, parentNode, "", ctx);
+  await walkNodes(authInfo, spaceId, parentNode, "", ctx);
 
   if (ctx.docsRead === 0) {
     process.stderr.write("feishu-docs: info: 未找到任何文档\n");

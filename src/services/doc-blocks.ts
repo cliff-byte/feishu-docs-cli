@@ -2,15 +2,13 @@
  * Shared document block fetching.
  */
 
-import * as lark from "@larksuiteoapi/node-sdk";
-import { apiCall, withAuth } from "../client.js";
+import { fetchWithAuth } from "../client.js";
 import { AuthInfo, Block } from "../types/index.js";
 
 /**
  * Fetch all blocks for a document.
  */
 export async function fetchAllBlocks(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
 ): Promise<Block[]> {
@@ -24,22 +22,17 @@ export async function fetchAllBlocks(
       ...(pageToken && { page_token: pageToken }),
     };
 
-    const res = await apiCall(() =>
-      client.docx.v1.documentBlock.list(
-        {
-          path: { document_id: documentId },
-          params,
-        },
-        withAuth(authInfo),
-      ),
+    const res = await fetchWithAuth(
+      authInfo,
+      `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks`,
+      { params },
     );
 
-    if (res?.data?.items) {
-      blocks.push(...(res.data.items as Block[]));
+    const data = res?.data as Record<string, unknown> | undefined;
+    if (data?.items) {
+      blocks.push(...(data.items as Block[]));
     }
-    pageToken = res?.data?.has_more
-      ? (res.data.page_token as string)
-      : undefined;
+    pageToken = data?.has_more ? (data.page_token as string) : undefined;
   } while (pageToken);
 
   return blocks;

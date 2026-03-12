@@ -13,7 +13,6 @@ import {
   GlobalOpts,
   AuthInfo,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 export const meta: CommandMeta = {
   options: {
@@ -38,7 +37,7 @@ export async function create(
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
+  const { authInfo } = await createClient(globalOpts);
 
   let bodyContent: string | undefined;
   if (args.body) {
@@ -52,7 +51,6 @@ export async function create(
     validateToken(args.wiki as string, "space_id");
     if (args.parent) validateToken(args.parent as string, "parent_node_token");
     return createInWiki(
-      client,
       authInfo,
       title,
       args.wiki as string,
@@ -67,7 +65,6 @@ export async function create(
   }
 
   return createDoc(
-    client,
     authInfo,
     title,
     args.folder as string | undefined,
@@ -77,7 +74,6 @@ export async function create(
 }
 
 async function createInWiki(
-  client: lark.Client,
   authInfo: AuthInfo,
   title: string,
   spaceId: string,
@@ -109,7 +105,7 @@ async function createInWiki(
   }
 
   if (bodyContent) {
-    const docInfo = await getDocumentInfo(client, authInfo, objToken);
+    const docInfo = await getDocumentInfo(authInfo, objToken);
     await convertAndWrite(authInfo, objToken, bodyContent, docInfo.revisionId);
   }
 
@@ -142,7 +138,6 @@ async function createInWiki(
 }
 
 async function createDoc(
-  client: lark.Client,
   authInfo: AuthInfo,
   title: string,
   folderToken: string | undefined,
@@ -168,7 +163,7 @@ async function createDoc(
   }
 
   if (bodyContent) {
-    const docInfo = await getDocumentInfo(client, authInfo, documentId);
+    const docInfo = await getDocumentInfo(authInfo, documentId);
     await convertAndWrite(
       authInfo,
       documentId,

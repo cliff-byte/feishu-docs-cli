@@ -16,7 +16,7 @@ CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 - **Share** — manage collaborators (list, add, set public mode)
 - **List** files in cloud folders
 - Written in TypeScript with strict mode
-- Zero extra runtime dependencies — only `@larksuiteoapi/node-sdk`
+- Zero runtime dependencies — uses native `fetch` for all API calls
 - Agent-friendly output — pure text or JSON, no interactive UI
 
 ## Install

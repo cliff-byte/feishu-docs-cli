@@ -14,17 +14,15 @@ import {
   GlobalOpts,
   AuthInfo,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 /**
  * Resolve a wiki node URL/token to { spaceId, nodeToken }.
  */
 async function resolveWikiNode(
-  client: lark.Client,
   authInfo: AuthInfo,
   input: string,
 ): Promise<Awaited<ReturnType<typeof resolveDocument>>> {
-  const doc = await resolveDocument(client, authInfo, input);
+  const doc = await resolveDocument(authInfo, input);
   if (!doc.spaceId || !doc.nodeToken) {
     throw new CliError(
       "INVALID_ARGS",
@@ -211,8 +209,8 @@ async function rename(
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveWikiNode(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveWikiNode(authInfo, input);
 
   await fetchWithAuth(
     authInfo,
@@ -255,8 +253,8 @@ async function move(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveWikiNode(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveWikiNode(authInfo, input);
 
   const toStr = args.to as string | undefined;
   const parentStr = args.parent as string | undefined;
@@ -308,8 +306,8 @@ async function copy(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveWikiNode(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveWikiNode(authInfo, input);
 
   const copyToStr = args.to as string | undefined;
   const copyParentStr = args.parent as string | undefined;

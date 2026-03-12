@@ -1,6 +1,6 @@
 {
   "name": "feishu-docs-cli",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "CLI tool for AI Agents to read/write Feishu docs via shell commands",
   "type": "module",
   "bin": {
@@ -45,10 +45,8 @@
   "engines": {
     "node": ">=18.3.0"
   },
-  "dependencies": {
-    "@larksuiteoapi/node-sdk": "^1.59.0"
-  },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

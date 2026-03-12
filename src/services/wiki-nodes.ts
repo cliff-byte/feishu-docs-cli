@@ -2,8 +2,7 @@
  * Shared wiki node helpers.
  */
 
-import * as lark from "@larksuiteoapi/node-sdk";
-import { apiCall, withAuth, fetchWithAuth } from "../client.js";
+import { fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { AuthInfo, WikiNode } from "../types/index.js";
 
@@ -54,30 +53,27 @@ export async function fetchChildren(
  * Resolve wiki token to actual document token + type.
  */
 export async function resolveWikiToken(
-  client: lark.Client,
   authInfo: AuthInfo,
   wikiToken: string,
 ): Promise<ResolvedWikiNode> {
-  const res = await apiCall(() =>
-    client.wiki.v2.space.getNode(
-      {
-        params: { token: wikiToken, obj_type: "wiki" },
-      },
-      withAuth(authInfo),
-    ),
+  const res = await fetchWithAuth(
+    authInfo,
+    "/open-apis/wiki/v2/spaces/get_node",
+    { params: { token: wikiToken, obj_type: "wiki" } },
   );
 
-  const node = res?.data?.node;
+  const data = res?.data as Record<string, unknown> | undefined;
+  const node = data?.node as Record<string, unknown> | undefined;
   if (!node) {
     throw new CliError("NOT_FOUND", `知识库节点不存在: ${wikiToken}`);
   }
 
   return {
-    objToken: node.obj_token ?? "",
-    objType: node.obj_type ?? "",
-    title: node.title ?? "",
-    nodeToken: node.node_token ?? "",
-    spaceId: node.space_id ?? "",
-    hasChild: node.has_child || false,
+    objToken: (node.obj_token as string) ?? "",
+    objType: (node.obj_type as string) ?? "",
+    title: (node.title as string) ?? "",
+    nodeToken: (node.node_token as string) ?? "",
+    spaceId: (node.space_id as string) ?? "",
+    hasChild: (node.has_child as boolean) || false,
   };
 }

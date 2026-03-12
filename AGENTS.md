@@ -5,7 +5,7 @@
 `feishu-docs-cli` is a Node.js CLI tool for AI Agents to read/write Feishu (Lark) cloud documents and knowledge bases via shell commands. It outputs pure text or structured JSON — no interactive UI.
 
 > [!IMPORTANT]
-> **REST-first API calls**: This project uses direct REST API calls via `fetchWithAuth()` instead of the Lark SDK's built-in methods for most operations. The SDK (`@larksuiteoapi/node-sdk`) is only used for wiki node resolution (`client.wiki.v2.space.getNode`). All other API calls go through `fetchWithAuth()` in `src/client.js` because the SDK has token-override issues with wiki documents.
+> **Zero runtime dependencies**: All API calls use `fetchWithAuth()` in `src/client.ts` with native `fetch`. No external SDK is used.
 
 > [!IMPORTANT]
 > **Convert + Descendant API for writing**: Document content is written using the two-step Convert API (`POST /docx/v1/documents/blocks/convert`) + Descendant API (`POST /docx/v1/documents/{id}/blocks/{id}/descendant`). Do NOT use the children API (`POST /docx/v1/documents/{id}/blocks/{id}/children`) which has a 9-row table limit. Do NOT implement a local Markdown parser — the server-side conversion handles all formatting.
@@ -29,7 +29,7 @@ node bin/feishu-docs.js --help   # Run CLI
 |------|---------|
 | `src/cli.js` | Entry point, declarative command routing with subcommand support |
 | `src/auth.js` | OAuth v2 login flow, encrypted token persistence, file-lock refresh |
-| `src/client.js` | SDK client factory, `fetchWithAuth()` REST wrapper, token resolution |
+| `src/client.js` | Auth client factory, `fetchWithAuth()` REST wrapper, token resolution |
 | `src/commands/*.js` | Command modules — each exports `meta` for routing |
 | `src/services/block-writer.js` | Document backup, clear, restore helpers |
 | `src/services/wiki-nodes.js` | Wiki node tree traversal and token resolution |
@@ -131,7 +131,7 @@ const memberType = detectMemberType(memberId);  // Auto-detect: email, openid, u
 |---------|---------|
 | **blocks is an array, not a map** | Descendant API's `descendants` field accepts an array. Passing a `{ block_id: block }` map causes error 99992402 |
 | **`??` not `\|\|` for revision** | `document_revision_id` can be 0. Use `??` for fallback, not `\|\|` |
-| **fetchWithAuth over SDK** | SDK methods override the auth token for wiki documents. Always use `fetchWithAuth()` |
+| **fetchWithAuth for all API calls** | All Feishu API calls go through `fetchWithAuth()` with proper auth token handling |
 | **member_type is `"openchat"` not `"chat"`** | The `type` field uses `"chat"` but `member_type` requires `"openchat"` |
 | **Error 131008 is context-dependent** | Means "permission denied" for node operations, "already exist" for member operations. Check `apiCode` at call site |
 | **Error 1201003 → fallback to update** | Permission member create returns this when member already exists. Fallback to PUT |

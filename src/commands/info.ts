@@ -23,8 +23,8 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveDocument(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveDocument(authInfo, input);
 
   if (doc.objType === "doc") {
     throw new CliError(
@@ -38,7 +38,7 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
   let docTitle = doc.title;
   if (doc.objType === "docx") {
     try {
-      const docInfo = await getDocumentInfo(client, authInfo, doc.objToken);
+      const docInfo = await getDocumentInfo(authInfo, doc.objToken);
       docTitle = docTitle || docInfo.title;
       revisionId = docInfo.revisionId;
     } catch (err) {

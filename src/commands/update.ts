@@ -30,7 +30,6 @@ import {
   AuthInfo,
   Block,
 } from "../types/index.js";
-import type * as lark from "@larksuiteoapi/node-sdk";
 
 export const meta: CommandMeta = {
   options: {
@@ -54,8 +53,8 @@ export async function update(
     );
   }
 
-  const { client, authInfo } = await createClient(globalOpts);
-  const doc = await resolveDocument(client, authInfo, input);
+  const { authInfo } = await createClient(globalOpts);
+  const doc = await resolveDocument(authInfo, input);
   const documentId = doc.objToken;
 
   if (doc.objType !== "docx") {
@@ -67,7 +66,6 @@ export async function update(
 
   if (args.restore) {
     return restoreFromBackup(
-      client,
       authInfo,
       documentId,
       args.restore as string,
@@ -88,32 +86,19 @@ export async function update(
   }
 
   if (args.append) {
-    return appendToDocument(
-      client,
-      authInfo,
-      documentId,
-      bodyContent,
-      globalOpts,
-    );
+    return appendToDocument(authInfo, documentId, bodyContent, globalOpts);
   }
 
-  return overwriteDocument(
-    client,
-    authInfo,
-    documentId,
-    bodyContent,
-    globalOpts,
-  );
+  return overwriteDocument(authInfo, documentId, bodyContent, globalOpts);
 }
 
 async function appendToDocument(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
   bodyContent: string,
   globalOpts: GlobalOpts,
 ): Promise<void> {
-  const docInfo = await getDocumentInfo(client, authInfo, documentId);
+  const docInfo = await getDocumentInfo(authInfo, documentId);
 
   await convertAndWrite(
     authInfo,
@@ -137,7 +122,6 @@ async function appendToDocument(
 }
 
 async function overwriteDocument(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
   bodyContent: string,
@@ -145,7 +129,7 @@ async function overwriteDocument(
 ): Promise<void> {
   let backupPath: string;
   try {
-    const backup = await backupDocument(client, authInfo, documentId);
+    const backup = await backupDocument(authInfo, documentId);
     backupPath = backup.filepath;
   } catch (err) {
     throw new CliError(
@@ -154,10 +138,10 @@ async function overwriteDocument(
     );
   }
 
-  const docInfo = await getDocumentInfo(client, authInfo, documentId);
+  const docInfo = await getDocumentInfo(authInfo, documentId);
   let rev: number;
   try {
-    rev = await clearDocument(client, authInfo, documentId, docInfo.revisionId);
+    rev = await clearDocument(authInfo, documentId, docInfo.revisionId);
   } catch (err) {
     process.stderr.write(
       `feishu-docs: error: 清空文档失败: ${(err as Error).message}\n`,
@@ -174,7 +158,6 @@ async function overwriteDocument(
     );
     try {
       await restoreFromBackup(
-        client,
         authInfo,
         documentId,
         backupPath,
@@ -283,7 +266,6 @@ async function restoreChildren(
 }
 
 async function restoreFromBackup(
-  client: lark.Client,
   authInfo: AuthInfo,
   documentId: string,
   backupPath: string,
@@ -336,13 +318,8 @@ async function restoreFromBackup(
 
   const blockMap = new Map(blocks.map((b) => [b.block_id, b]));
 
-  const docInfo = await getDocumentInfo(client, authInfo, documentId);
-  let rev = await clearDocument(
-    client,
-    authInfo,
-    documentId,
-    docInfo.revisionId,
-  );
+  const docInfo = await getDocumentInfo(authInfo, documentId);
+  let rev = await clearDocument(authInfo, documentId, docInfo.revisionId);
 
   try {
     rev = await restoreChildren(
