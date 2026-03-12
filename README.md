@@ -245,13 +245,19 @@ feishu-docs whoami         # Show current auth status
 
 ### Claude Code
 
-Install the built-in skill to teach Claude how to use feishu-docs:
+Install the skill via [skills.sh](https://skills.sh) (works with Claude Code, Cursor, Codex, and 37+ agents):
+
+```bash
+npx skills add cliff-byte/feishu-docs-cli
+```
+
+Or install directly via the CLI:
 
 ```bash
 feishu-docs install-skill
 ```
 
-This installs a skill file to `~/.claude/commands/feishu-docs.md`. After installation, use `/feishu-docs` in Claude Code to activate it.
+After installation, use `/feishu-docs` in Claude Code to activate the skill.
 
 ### Other Agents
 

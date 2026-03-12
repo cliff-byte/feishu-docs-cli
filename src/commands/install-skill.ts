@@ -11,8 +11,8 @@ import { CommandMeta } from "../types/index.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function handler(): Promise<void> {
-  // Resolve SKILL.md from the package's skill/ directory
-  const skillSrc = resolve(__dirname, "../../skill/SKILL.md");
+  // Resolve SKILL.md from the package's skills/feishu-docs/ directory
+  const skillSrc = resolve(__dirname, "../../skills/feishu-docs/SKILL.md");
   if (!existsSync(skillSrc)) {
     process.stderr.write("feishu-docs: error: SKILL.md not found in package\n");
     process.exit(1);

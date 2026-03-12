@@ -244,13 +244,19 @@ feishu-docs whoami         # 查看当前认证状态
 
 ### Claude Code
 
-安装内置 Skill，让 Claude 学会使用 feishu-docs：
+通过 [skills.sh](https://skills.sh) 安装 Skill（支持 Claude Code、Cursor、Codex 等 40+ Agent）：
+
+```bash
+npx skills add cliff-byte/feishu-docs-cli
+```
+
+或通过 CLI 直接安装：
 
 ```bash
 feishu-docs install-skill
 ```
 
-Skill 文件会安装到 `~/.claude/commands/feishu-docs.md`。安装后在 Claude Code 中使用 `/feishu-docs` 即可激活。
+安装后在 Claude Code 中使用 `/feishu-docs` 即可激活。
 
 ### 其他 Agent
 
