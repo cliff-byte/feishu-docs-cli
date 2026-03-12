@@ -22,13 +22,19 @@
 ## 安装
 
 ```bash
-npm install -g github:cliff-byte/feishu-docs-cli
+npm install -g feishu-docs-cli
 ```
 
 或通过 npx 直接运行：
 
 ```bash
-npx github:cliff-byte/feishu-docs-cli read <url>
+npx feishu-docs-cli read <url>
+```
+
+也可以从 GitHub 安装：
+
+```bash
+npm install -g github:cliff-byte/feishu-docs-cli
 ```
 
 需要 Node.js >= 18.3。

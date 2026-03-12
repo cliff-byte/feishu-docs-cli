@@ -22,13 +22,19 @@ CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 ## Install
 
 ```bash
-npm install -g github:cliff-byte/feishu-docs-cli
+npm install -g feishu-docs-cli
 ```
 
 Or use directly with npx:
 
 ```bash
-npx github:cliff-byte/feishu-docs-cli read <url>
+npx feishu-docs-cli read <url>
+```
+
+You can also install from GitHub:
+
+```bash
+npm install -g github:cliff-byte/feishu-docs-cli
 ```
 
 Requires Node.js >= 18.3.
