@@ -5,7 +5,7 @@
  * Restore uses the old children API (backup data is raw blocks, not markdown).
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, normalize, sep } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -157,12 +157,7 @@ async function overwriteDocument(
       `feishu-docs: error: 写入新内容失败，尝试从备份恢复...\n`,
     );
     try {
-      await restoreFromBackup(
-        authInfo,
-        documentId,
-        backupPath,
-        globalOpts,
-      );
+      await restoreFromBackup(authInfo, documentId, backupPath, globalOpts);
       process.stderr.write("feishu-docs: info: 已从备份自动恢复\n");
     } catch (restoreErr) {
       process.stderr.write(
@@ -178,13 +173,19 @@ async function overwriteDocument(
     throw err;
   }
 
+  // Write succeeded — clean up backup file
+  try {
+    await unlink(backupPath);
+  } catch {
+    // Non-critical: backup file cleanup failure is silent
+  }
+
   if (globalOpts.json) {
     process.stdout.write(
       JSON.stringify({
         success: true,
         document_id: documentId,
         mode: "overwrite",
-        backup: backupPath,
       }) + "\n",
     );
   } else {

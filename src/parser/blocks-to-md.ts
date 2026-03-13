@@ -38,6 +38,52 @@ const EMOJI_MAP: Record<string, string> = {
   zap: "\u26A1",
   bookmark: "\u{1F516}",
   link: "\u{1F517}",
+  umbrella_on_ground: "\u26F1\uFE0F",
+  umbrella: "\u2602\uFE0F",
+  sunny: "\u2600\uFE0F",
+  cloud: "\u2601\uFE0F",
+  snowflake: "\u2744\uFE0F",
+  rainbow: "\u{1F308}",
+  bell: "\u{1F514}",
+  key: "\u{1F511}",
+  lock: "\u{1F512}",
+  unlock: "\u{1F513}",
+  gear: "\u2699\uFE0F",
+  wrench: "\u{1F527}",
+  hammer: "\u{1F528}",
+  shield: "\u{1F6E1}\uFE0F",
+  trophy: "\u{1F3C6}",
+  clipboard: "\u{1F4CB}",
+  chart_with_upwards_trend: "\u{1F4C8}",
+  light_bulb: "\u{1F4A1}",
+  magnifying_glass: "\u{1F50D}",
+  alarm_clock: "\u23F0",
+  hourglass: "\u231B",
+  calendar: "\u{1F4C5}",
+  inbox_tray: "\u{1F4E5}",
+  outbox_tray: "\u{1F4E4}",
+  package: "\u{1F4E6}",
+  loudspeaker: "\u{1F4E2}",
+  thought_balloon: "\u{1F4AD}",
+  speech_balloon: "\u{1F4AC}",
+  construction: "\u{1F6A7}",
+  white_check_mark: "\u2705",
+  x: "\u274C",
+  bangbang: "\u203C\uFE0F",
+  interrobang: "\u2049\uFE0F",
+  pushpin: "\u{1F4CC}",
+  triangular_flag_on_post: "\u{1F6A9}",
+  bomb: "\u{1F4A3}",
+  seedling: "\u{1F331}",
+  four_leaf_clover: "\u{1F340}",
+  dart: "\u{1F3AF}",
+  100: "\u{1F4AF}",
+  muscle: "\u{1F4AA}",
+  clap: "\u{1F44F}",
+  wave: "\u{1F44B}",
+  point_right: "\u{1F449}",
+  point_up: "\u261D\uFE0F",
+  pray: "\u{1F64F}",
 };
 
 type TreeNode = Block & { _children: TreeNode[] };
@@ -46,7 +92,7 @@ interface BlocksRenderCtx {
   imageUrlMap: Map<string, string>;
   userNameMap: Map<string, string>;
   bitableDataMap: Map<string, { fields: string[]; records: unknown[][] }>;
-  boardDataMap: Map<string, string[]>;
+  boardImageMap: Map<string, string>;
   sheetDataMap: Map<
     string,
     { fields: string[]; records: unknown[][]; title?: string }
@@ -62,7 +108,7 @@ interface BlocksToMarkdownOptions {
   imageUrlMap?: Map<string, string>;
   userNameMap?: Map<string, string>;
   bitableDataMap?: Map<string, { fields: string[]; records: unknown[][] }>;
-  boardDataMap?: Map<string, string[]>;
+  boardImageMap?: Map<string, string>;
   sheetDataMap?: Map<
     string,
     { fields: string[]; records: unknown[][]; title?: string }
@@ -127,10 +173,19 @@ export function blocksToMarkdown(
     imageUrlMap: options.imageUrlMap || new Map(),
     userNameMap: options.userNameMap || new Map(),
     bitableDataMap: options.bitableDataMap || new Map(),
-    boardDataMap: options.boardDataMap || new Map(),
+    boardImageMap: options.boardImageMap || new Map(),
     sheetDataMap: options.sheetDataMap || new Map(),
     warnings: [],
   };
+
+  // Extract document title from root PAGE block
+  if (root.block_type === BlockType.PAGE) {
+    const titleText = getElements(root as TreeNode, "page", ctx);
+    if (titleText) {
+      lines.push(`# ${titleText}`);
+      lines.push("");
+    }
+  }
 
   const state: RenderState = { orderedIndex: 0 };
   for (const child of root._children) {
@@ -209,6 +264,8 @@ function renderNode(
     const hashes = "#".repeat(Math.min(level, 6));
     lines.push(`${hashes} ${text}`);
     lines.push("");
+    // Headings in Feishu can have children (folded/collapsible content)
+    renderChildren(node._children, lines, ctx, depth);
     return;
   }
 
@@ -318,11 +375,15 @@ function renderNode(
     const emoji = callout.emoji_id
       ? emojiIdToUnicode(callout.emoji_id) + " "
       : "";
+    let isFirst = true;
     for (const child of node._children) {
       const childLines: string[] = [];
       renderNode(child, childLines, ctx, 0, {});
       const first = childLines.shift() || "";
-      lines.push(`> ${emoji}${first}`);
+      // Emoji only on the very first line of the callout
+      const prefix = isFirst ? emoji : "";
+      isFirst = false;
+      lines.push(`> ${prefix}${first}`);
       for (const cl of childLines) {
         lines.push(cl ? `> ${cl}` : ">");
       }
@@ -334,7 +395,7 @@ function renderNode(
   if (type === BlockType.DIAGRAM) {
     const text = getElements(node, "diagram", ctx);
     lines.push("```mermaid");
-    lines.push(text);
+    lines.push(sanitizeMermaid(text));
     lines.push("```");
     lines.push("");
     return;
@@ -398,7 +459,7 @@ function renderNode(
         record.data?.includes("erDiagram")
       ) {
         lines.push("```mermaid");
-        lines.push(record.data.trim());
+        lines.push(sanitizeMermaid(record.data.trim()));
         lines.push("```");
         lines.push("");
         return;
@@ -437,18 +498,14 @@ function renderNode(
     return;
   }
 
-  // Board — render text content from whiteboard nodes
+  // Board — whiteboard/flowchart, rendered as image if available
   if (type === BlockType.BOARD) {
     const token =
       (node as Record<string, unknown> & { board?: { token?: string } }).board
         ?.token || "";
-    const textItems = ctx.boardDataMap.get(token);
-    if (textItems && textItems.length > 0) {
-      lines.push(`**画板内容:**`);
-      lines.push("");
-      for (const text of textItems) {
-        lines.push(`- ${text}`);
-      }
+    const imagePath = ctx.boardImageMap.get(token);
+    if (imagePath) {
+      lines.push(`![画板](${imagePath})`);
     } else {
       lines.push(`[画板: ${token}]`);
     }
@@ -641,7 +698,11 @@ function renderNode(
 /**
  * Get inline text from a block's elements.
  */
-function getElements(node: TreeNode, key: string, ctx: BlocksRenderCtx): string {
+function getElements(
+  node: TreeNode,
+  key: string,
+  ctx: BlocksRenderCtx,
+): string {
   const data =
     ((node as Record<string, unknown>)[key] as { elements?: unknown[] }) || {};
   return elementsToMarkdown(data.elements as TextElement[] | undefined, ctx);
@@ -650,7 +711,11 @@ function getElements(node: TreeNode, key: string, ctx: BlocksRenderCtx): string 
 /**
  * Render a table block as Markdown table.
  */
-function renderTable(node: TreeNode, lines: string[], ctx: BlocksRenderCtx): void {
+function renderTable(
+  node: TreeNode,
+  lines: string[],
+  ctx: BlocksRenderCtx,
+): void {
   const tableData = (node.table || {}) as {
     property?: { row_size?: number; column_size?: number };
   };
@@ -714,4 +779,44 @@ function cellToText(cell: TreeNode, ctx: BlocksRenderCtx): string {
     }
   }
   return parts.join(" ").replace(/\n/g, " ");
+}
+
+/**
+ * Sanitize Feishu mermaid content for standard mermaid compatibility.
+ *
+ * Feishu's mermaid renderer is more lenient than standard mermaid.
+ * This function fixes common incompatibilities:
+ * - Block labels (alt, else, loop, opt, rect, par, critical, break, note)
+ *   don't support <br/> in standard mermaid — replace with comma-space
+ * - Arrow messages missing space after ':' — add the space
+ */
+function sanitizeMermaid(content: string): string {
+  // Block-level keywords whose label text doesn't support <br/> in standard mermaid
+  const blockKeywords =
+    /^(\s*(?:alt|else|loop|opt|par|critical|break)\s+)(.+)$/;
+
+  return content
+    .split("\n")
+    .map((line) => {
+      // Fix block labels: replace <br/> and <br> with comma-space,
+      // and replace parentheses with full-width versions to avoid parser confusion
+      const blockMatch = line.match(blockKeywords);
+      if (blockMatch) {
+        const cleaned = blockMatch[2]
+          .replace(/<br\s*\/?>/gi, ", ")
+          .replace(/\(/g, "\uFF08")
+          .replace(/\)/g, "\uFF09");
+        return blockMatch[1] + cleaned;
+      }
+      // Fix missing space after ':' in arrow messages (e.g., A->>B:text → A->>B: text)
+      const arrowMatch = line.match(/^(\s*\S+\s*-[-.)>x]+[+-]?\s*\S+\s*):(\S)/);
+      if (arrowMatch) {
+        return line.replace(
+          /^(\s*\S+\s*-[-.)>x]+[+-]?\s*\S+\s*):(\S)/,
+          "$1: $2",
+        );
+      }
+      return line;
+    })
+    .join("\n");
 }

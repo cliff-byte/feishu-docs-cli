@@ -20,6 +20,7 @@ import { meta as lsMeta } from "./commands/ls.js";
 import { meta as wikiMeta } from "./commands/wiki.js";
 import { meta as installSkillMeta } from "./commands/install-skill.js";
 import { handleError, CliError } from "./utils/errors.js";
+import { getLocalVersion, checkForUpdates } from "./utils/version.js";
 import {
   CommandMeta,
   SubcommandMeta,
@@ -76,6 +77,7 @@ Agent:
   --json                      输出 JSON 格式
   --lark                      使用海外 Lark 域名
   --help                      显示帮助信息
+  -v, --version               显示版本号
 `;
 
 const GLOBAL_OPTIONS = {
@@ -166,10 +168,18 @@ function parseAndRun(
 }
 
 export async function run(argv: string[]): Promise<void> {
+  if (argv.includes("--version") || argv.includes("-v")) {
+    process.stdout.write(`feishu-docs ${getLocalVersion()}\n`);
+    return;
+  }
+
   if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(HELP_TEXT);
     return;
   }
+
+  // Non-blocking update check (runs in background, never throws)
+  const updateCheck = checkForUpdates();
 
   const command = argv[0];
   const restArgs = argv.slice(1);
@@ -212,5 +222,8 @@ export async function run(argv: string[]): Promise<void> {
     await handler(args, globalOpts);
   } catch (err) {
     handleError(err, globalOpts.json);
+  } finally {
+    // Wait for background update check to complete (never throws)
+    await updateCheck;
   }
 }

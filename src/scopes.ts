@@ -18,20 +18,39 @@ export const BASE_SCOPES = [
   "board:whiteboard:node:read",
   // Embedded bitable / multi-dimensional tables (read command, bitable/v1 API)
   "bitable:app:readonly",
-  // Document search (search command, suite/docs-api)
-  "search:docs:read",
 ];
 
 export const FEATURE_SCOPE_GROUPS = {
   drive: {
     scopes: ["drive:drive"],
-    description: "云空间文件管理（ls、在云空间文件夹中创建文档等）",
-    commands: ["ls", "create --folder"],
+    description:
+      "云空间文件管理（ls、delete、share、在云空间文件夹中创建文档等）",
+    commands: ["ls", "delete", "share", "create --folder"],
   },
   contact: {
     scopes: ["contact:contact.base:readonly"],
     description: "联系人只读（通过邮件/手机号查找用户）",
     commands: ["share add"],
+  },
+  search: {
+    scopes: ["drive:drive.search:readonly"],
+    description: "搜索云文档（需管理员审核）",
+    commands: ["search"],
+  },
+  "wiki-space": {
+    scopes: ["wiki:wiki.space:create"],
+    description: "创建知识库（需管理员审核）",
+    commands: ["wiki create-space"],
+  },
+  "wiki-node": {
+    scopes: ["wiki:wiki.space.node"],
+    description: "编辑知识库节点（重命名、移动、复制，需管理员审核）",
+    commands: ["wiki rename", "wiki move", "wiki copy"],
+  },
+  "wiki-member": {
+    scopes: ["wiki:wiki.space.member"],
+    description: "管理知识库成员（需管理员审核）",
+    commands: ["wiki add-member", "wiki remove-member"],
   },
 } as const;
 

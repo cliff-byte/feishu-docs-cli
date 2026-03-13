@@ -3,7 +3,13 @@
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
+import { loadTokens } from "../auth.js";
 import { CliError } from "../utils/errors.js";
+import {
+  FEATURE_SCOPE_GROUPS,
+  getMissingScopes,
+  buildScopeHint,
+} from "../scopes.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { mapToDriveType } from "../utils/drive-types.js";
 import {
@@ -56,6 +62,19 @@ export async function del(
   }
 
   const { authInfo } = await createClient(globalOpts);
+
+  // Pre-flight scope check for drive delete
+  if (authInfo.mode === "user") {
+    const stored = await loadTokens();
+    if (stored) {
+      const required = [...FEATURE_SCOPE_GROUPS.drive.scopes];
+      const missing = getMissingScopes(stored.tokens.scope, required);
+      if (missing.length > 0) {
+        throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
+      }
+    }
+  }
+
   const doc = await resolveDocument(authInfo, input);
 
   if (doc.objType === "doc") {

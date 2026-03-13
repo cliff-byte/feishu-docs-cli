@@ -4,7 +4,13 @@
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
+import { loadTokens } from "../auth.js";
 import { CliError } from "../utils/errors.js";
+import {
+  FEATURE_SCOPE_GROUPS,
+  getMissingScopes,
+  buildScopeHint,
+} from "../scopes.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 const DOC_TYPE_MAP: Record<string, string> = {
@@ -40,6 +46,18 @@ export async function search(
   }
 
   const { authInfo } = await createClient(globalOpts);
+
+  // Pre-flight scope check for search (needs admin-reviewed scope)
+  if (authInfo.mode === "user") {
+    const stored = await loadTokens();
+    if (stored) {
+      const required = [...FEATURE_SCOPE_GROUPS.search.scopes];
+      const missing = getMissingScopes(stored.tokens.scope, required);
+      if (missing.length > 0) {
+        throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
+      }
+    }
+  }
 
   if (authInfo.mode === "tenant") {
     throw new CliError(

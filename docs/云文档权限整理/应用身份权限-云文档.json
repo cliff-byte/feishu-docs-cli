@@ -1,0 +1,258 @@
+[
+  {
+    "scope": "drive:drive",
+    "name": "查看、评论、编辑和管理云空间中所有文件",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看、评论、编辑和管理云空间中所有文件"
+  },
+  {
+    "scope": "drive:drive:readonly",
+    "name": "查看、评论云空间中所有文件",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看、评论云空间中所有文件"
+  },
+  {
+    "scope": "drive:drive.info:readonly",
+    "name": "查看用户云空间信息",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看用户云空间信息"
+  },
+  {
+    "scope": "drive:file",
+    "name": "上传、下载文件到云空间",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份上传、下载文件到云空间"
+  },
+  {
+    "scope": "drive:file.version:readonly",
+    "name": "查看云空间文件版本",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看云空间文件版本"
+  },
+  {
+    "scope": "drive:file:search",
+    "name": "搜索云空间中的文档",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份搜索云空间中的文档"
+  },
+  {
+    "scope": "drive:folder:readonly",
+    "name": "查看文件夹信息",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看文件夹信息"
+  },
+  {
+    "scope": "drive:permission",
+    "name": "管理云空间中文件的协作者和权限",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份管理云空间中文件的协作者和权限"
+  },
+  {
+    "scope": "drive:comment",
+    "name": "管理云文档评论",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份管理云文档评论"
+  },
+  {
+    "scope": "drive:comment:readonly",
+    "name": "查看云文档评论",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看云文档评论"
+  },
+  {
+    "scope": "drive:export",
+    "name": "导出云文档内容",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份导出云文档内容"
+  },
+  {
+    "scope": "drive:webhook",
+    "name": "管理云文档消息推送任务",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份管理云文档消息推送任务"
+  },
+  {
+    "scope": "drive:webhook:readonly",
+    "name": "查看云文档消息推送任务",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份查看云文档消息推送任务"
+  },
+  {
+    "scope": "drive:like.info:readonly",
+    "name": "获取云文档点赞信息",
+    "access": "readonly",
+    "needs_review": true,
+    "module": "drive",
+    "description": "以应用身份获取云文档点赞信息"
+  },
+  {
+    "scope": "docx:document",
+    "name": "查看、编辑和管理文档",
+    "access": "read_write",
+    "needs_review": false,
+    "module": "docx",
+    "description": "以应用身份查看、编辑和管理文档"
+  },
+  {
+    "scope": "docx:document.block:convert",
+    "name": "导入内容到文档",
+    "access": "read_write",
+    "needs_review": false,
+    "module": "docx",
+    "description": "以应用身份导入内容到文档"
+  },
+  {
+    "scope": "docx:document:readonly",
+    "name": "查看文档",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "docx",
+    "description": "以应用身份查看文档"
+  },
+  {
+    "scope": "sheets:spreadsheet",
+    "name": "查看、评论、编辑和管理电子表格",
+    "access": "read_write",
+    "needs_review": false,
+    "module": "sheets",
+    "description": "以应用身份查看、评论、编辑和管理电子表格"
+  },
+  {
+    "scope": "sheets:spreadsheet:readonly",
+    "name": "查看、评论和导出电子表格",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "sheets",
+    "description": "以应用身份查看、评论和导出电子表格"
+  },
+  {
+    "scope": "bitable:app",
+    "name": "查看、评论、编辑和管理多维表格",
+    "access": "read_write",
+    "needs_review": false,
+    "module": "bitable",
+    "description": "以应用身份查看、评论、编辑和管理多维表格"
+  },
+  {
+    "scope": "bitable:app:readonly",
+    "name": "查看、评论和导出多维表格",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "bitable",
+    "description": "以应用身份查看、评论和导出多维表格"
+  },
+  {
+    "scope": "slides:slide",
+    "name": "查看、编辑和管理幻灯片",
+    "access": "read_write",
+    "needs_review": false,
+    "module": "slides",
+    "description": "以应用身份查看、编辑和管理幻灯片"
+  },
+  {
+    "scope": "slides:slide:readonly",
+    "name": "查看幻灯片",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "slides",
+    "description": "以应用身份查看幻灯片"
+  },
+  {
+    "scope": "wiki:wiki",
+    "name": "查看、编辑和管理知识库",
+    "access": "read_write",
+    "needs_review": false,
+    "module": "wiki",
+    "description": "以应用身份查看、编辑和管理知识库"
+  },
+  {
+    "scope": "wiki:wiki:readonly",
+    "name": "查看知识库",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "wiki",
+    "description": "以应用身份查看知识库"
+  },
+  {
+    "scope": "wiki:wiki.space:create",
+    "name": "创建知识库",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "wiki",
+    "description": "以应用身份创建知识库"
+  },
+  {
+    "scope": "wiki:wiki.space.setting",
+    "name": "管理知识库设置",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "wiki",
+    "description": "以应用身份管理知识库设置"
+  },
+  {
+    "scope": "wiki:wiki.space.node",
+    "name": "编辑知识库节点",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "wiki",
+    "description": "以应用身份编辑知识库节点"
+  },
+  {
+    "scope": "wiki:wiki.space.member",
+    "name": "管理知识库成员",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "wiki",
+    "description": "以应用身份管理知识库成员"
+  },
+  {
+    "scope": "wiki:wiki.space.member:readonly",
+    "name": "查看知识库成员和设置",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "wiki",
+    "description": "以应用身份查看知识库成员和设置"
+  },
+  {
+    "scope": "mindnote:mindnote",
+    "name": "查看、编辑文档中的脑图",
+    "access": "read_write",
+    "needs_review": true,
+    "module": "mindnote",
+    "description": "以应用身份查看、编辑文档中的脑图"
+  },
+  {
+    "scope": "board:whiteboard:node:read",
+    "name": "查看画板节点",
+    "access": "readonly",
+    "needs_review": false,
+    "module": "board",
+    "description": "以应用身份查看画板节点"
+  }
+]

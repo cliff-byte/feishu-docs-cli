@@ -1,0 +1,242 @@
+[
+  {
+    "scope": "drive:drive",
+    "name": "查看、评论、编辑和管理云空间中所有文件",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:drive:readonly",
+    "name": "查看、评论和下载云空间中所有文件",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:drive:version",
+    "name": "查看、创建、删除文档版本",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:drive.version:readonly",
+    "name": "查看文档版本",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:drive.metadata:readonly",
+    "name": "查看云空间中文件元数据",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:drive.search:readonly",
+    "name": "搜索云文档",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:export:readonly",
+    "name": "导出云文档",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file",
+    "name": "上传、下载文件到云空间",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file:download",
+    "name": "下载云空间下的文件",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file:readonly",
+    "name": "查看和下载云空间中的文件",
+    "needs_review": true,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file:upload",
+    "name": "上传文件",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file:view_record:readonly",
+    "name": "获取文档访问记录",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file.like:readonly",
+    "name": "查看云文档的点赞信息",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "drive:file.meta.sec_label.read_only",
+    "name": "获取文档密级标签名称",
+    "needs_review": false,
+    "module": "drive"
+  },
+  {
+    "scope": "docx:document",
+    "name": "查看、编辑和管理文档",
+    "needs_review": false,
+    "module": "docx"
+  },
+  {
+    "scope": "docx:document.block:convert",
+    "name": "导入内容到文档",
+    "needs_review": false,
+    "module": "docx"
+  },
+  {
+    "scope": "docx:document:readonly",
+    "name": "查看文档",
+    "needs_review": false,
+    "module": "docx"
+  },
+  {
+    "scope": "sheets:spreadsheet",
+    "name": "查看、评论、编辑和管理电子表格",
+    "needs_review": false,
+    "module": "sheets"
+  },
+  {
+    "scope": "sheets:spreadsheet:create",
+    "name": "创建电子表格",
+    "needs_review": false,
+    "module": "sheets"
+  },
+  {
+    "scope": "sheets:spreadsheet:read",
+    "name": "查看电子表格",
+    "needs_review": true,
+    "module": "sheets"
+  },
+  {
+    "scope": "sheets:spreadsheet:readonly",
+    "name": "查看、评论和导出电子表格",
+    "needs_review": false,
+    "module": "sheets"
+  },
+  {
+    "scope": "sheets:spreadsheet:write_only",
+    "name": "编辑电子表格",
+    "needs_review": true,
+    "module": "sheets"
+  },
+  {
+    "scope": "sheets:spreadsheet.meta:read",
+    "name": "查询电子表格元信息",
+    "needs_review": false,
+    "module": "sheets"
+  },
+  {
+    "scope": "sheets:spreadsheet.meta:write_only",
+    "name": "修改电子表格元信息",
+    "needs_review": false,
+    "module": "sheets"
+  },
+  {
+    "scope": "bitable:app",
+    "name": "查看、评论、编辑和管理多维表格",
+    "needs_review": false,
+    "module": "bitable"
+  },
+  {
+    "scope": "bitable:app:readonly",
+    "name": "查看、评论和导出多维表格",
+    "needs_review": false,
+    "module": "bitable"
+  },
+  {
+    "scope": "slides:slide",
+    "name": "查看、编辑和管理幻灯片",
+    "needs_review": false,
+    "module": "slides"
+  },
+  {
+    "scope": "slides:slide:readonly",
+    "name": "查看幻灯片",
+    "needs_review": false,
+    "module": "slides"
+  },
+  {
+    "scope": "wiki:wiki",
+    "name": "查看、编辑和管理知识库",
+    "needs_review": false,
+    "module": "wiki"
+  },
+  {
+    "scope": "wiki:wiki:readonly",
+    "name": "查看知识库",
+    "needs_review": false,
+    "module": "wiki"
+  },
+  {
+    "scope": "wiki:wiki.space:create",
+    "name": "创建知识库",
+    "needs_review": true,
+    "module": "wiki"
+  },
+  {
+    "scope": "wiki:wiki.space.setting",
+    "name": "管理知识库设置",
+    "needs_review": true,
+    "module": "wiki"
+  },
+  {
+    "scope": "wiki:wiki.space.node",
+    "name": "编辑知识库节点",
+    "needs_review": true,
+    "module": "wiki"
+  },
+  {
+    "scope": "wiki:wiki.space.member",
+    "name": "管理知识库成员",
+    "needs_review": true,
+    "module": "wiki"
+  },
+  {
+    "scope": "wiki:wiki.space.member:readonly",
+    "name": "查看知识库成员和设置",
+    "needs_review": false,
+    "module": "wiki"
+  },
+  {
+    "scope": "mindnote:mindnote",
+    "name": "查看、编辑文档中的脑图",
+    "needs_review": true,
+    "module": "mindnote"
+  },
+  {
+    "scope": "board:whiteboard:node:read",
+    "name": "查看画板节点",
+    "needs_review": false,
+    "module": "board"
+  },
+  {
+    "scope": "board:whiteboard:node:create",
+    "name": "创建画板节点",
+    "needs_review": false,
+    "module": "board"
+  },
+  {
+    "scope": "board:whiteboard:node:update",
+    "name": "更新画板节点",
+    "needs_review": false,
+    "module": "board"
+  },
+  {
+    "scope": "board:whiteboard:node:delete",
+    "name": "删除画板节点",
+    "needs_review": false,
+    "module": "board"
+  }
+]

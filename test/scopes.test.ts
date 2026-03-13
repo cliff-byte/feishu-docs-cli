@@ -115,7 +115,7 @@ describe("buildScopeHint", () => {
 });
 
 describe("BASE_SCOPES", () => {
-  it("contains all seven expected no-review scopes", () => {
+  it("contains all six expected no-review scopes", () => {
     assert.deepEqual(BASE_SCOPES, [
       "wiki:wiki",
       "docx:document",
@@ -123,7 +123,6 @@ describe("BASE_SCOPES", () => {
       "sheets:spreadsheet:readonly",
       "board:whiteboard:node:read",
       "bitable:app:readonly",
-      "search:docs:read",
     ]);
   });
 });
@@ -137,6 +136,36 @@ describe("FEATURE_SCOPE_GROUPS", () => {
     assert.ok(
       FEATURE_SCOPE_GROUPS.contact.scopes.includes(
         "contact:contact.base:readonly",
+      ),
+    );
+  });
+
+  it("search group contains drive:drive.search:readonly", () => {
+    assert.ok(
+      FEATURE_SCOPE_GROUPS.search.scopes.includes(
+        "drive:drive.search:readonly",
+      ),
+    );
+  });
+
+  it("wiki-space group contains wiki:wiki.space:create", () => {
+    assert.ok(
+      FEATURE_SCOPE_GROUPS["wiki-space"].scopes.includes(
+        "wiki:wiki.space:create",
+      ),
+    );
+  });
+
+  it("wiki-node group contains wiki:wiki.space.node", () => {
+    assert.ok(
+      FEATURE_SCOPE_GROUPS["wiki-node"].scopes.includes("wiki:wiki.space.node"),
+    );
+  });
+
+  it("wiki-member group contains wiki:wiki.space.member", () => {
+    assert.ok(
+      FEATURE_SCOPE_GROUPS["wiki-member"].scopes.includes(
+        "wiki:wiki.space.member",
       ),
     );
   });

@@ -252,3 +252,45 @@ export async function fetchWithAuth(
 
   return body;
 }
+
+/**
+ * Fetch binary data with auth (for APIs that return file streams).
+ */
+export async function fetchBinaryWithAuth(
+  authInfo: AuthInfo,
+  path: string,
+): Promise<ArrayBuffer> {
+  const base = getApiBase(authInfo);
+  const bearer = await resolveBearer(authInfo);
+  const url = new URL(path, base);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      method: "GET",
+      headers: { Authorization: bearer },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    const error = err as Error;
+    if (error.name === "AbortError") {
+      throw new CliError("API_ERROR", "API 请求超时（60秒）", {
+        retryable: true,
+      });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res.ok) {
+    throw new CliError(
+      "API_ERROR",
+      `下载失败: HTTP ${res.status} ${res.statusText}`,
+    );
+  }
+
+  return res.arrayBuffer();
+}

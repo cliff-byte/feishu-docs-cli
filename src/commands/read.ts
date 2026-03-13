@@ -2,7 +2,15 @@
  * read command: Read a Feishu document and output as Markdown.
  */
 
-import { createClient, fetchWithAuth, getTenantToken } from "../client.js";
+import {
+  createClient,
+  fetchWithAuth,
+  fetchBinaryWithAuth,
+  getTenantToken,
+} from "../client.js";
+import { writeFile, mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { BlockType } from "../parser/block-types.js";
 import { CliError } from "../utils/errors.js";
@@ -183,22 +191,36 @@ async function fetchSheetData(
   authInfo: AuthInfo,
   sheetToken: string,
 ): Promise<SheetData | null> {
+  // Sheet tokens embedded in docs have format: {spreadsheetToken}_{sheetId}
+  // The sheets API needs just the spreadsheet token; sheetId selects the tab.
+  const underscoreIdx = sheetToken.lastIndexOf("_");
+  const spreadsheetToken =
+    underscoreIdx > 0 ? sheetToken.slice(0, underscoreIdx) : sheetToken;
+  const embeddedSheetId =
+    underscoreIdx > 0 ? sheetToken.slice(underscoreIdx + 1) : undefined;
+
   const metaRes = await fetchWithAuth(
     authInfo,
-    `/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(sheetToken)}/metainfo`,
+    `/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(spreadsheetToken)}/metainfo`,
     {},
   );
   const metaData = metaRes.data as Record<string, unknown> | undefined;
   const sheets = (metaData?.sheets || []) as Array<Record<string, string>>;
   if (sheets.length === 0) return null;
 
-  const firstSheet = sheets[0];
-  const sheetId = firstSheet.sheet_id;
-  const title = firstSheet.title || "";
+  // Prefer the embedded sheet id; fall back to first sheet
+  // Note: metainfo API returns camelCase field names (sheetId, not sheet_id)
+  const targetSheet = embeddedSheetId
+    ? sheets.find((s) => s.sheetId === embeddedSheetId) || sheets[0]
+    : sheets[0];
+  const sheetId = targetSheet.sheetId;
+  // Suppress title when it equals sheetId (default meaningless title)
+  const rawTitle = targetSheet.title || "";
+  const title = rawTitle === sheetId ? "" : rawTitle;
 
   const valuesRes = await fetchWithAuth(
     authInfo,
-    `/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(sheetToken)}/values/${encodeURIComponent(sheetId)}`,
+    `/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(spreadsheetToken)}/values/${encodeURIComponent(sheetId)}`,
     { params: { valueRenderOption: "ToString" } },
   );
   const valuesData = valuesRes.data as Record<string, unknown> | undefined;
@@ -219,47 +241,24 @@ async function fetchSheetData(
 }
 
 /**
- * Fetch board node data and extract text content.
+ * Download board/whiteboard as image and save to temp file.
+ * Returns the local file path, or null on failure.
  */
-async function fetchBoardData(
+async function fetchBoardImage(
   authInfo: AuthInfo,
   boardToken: string,
-): Promise<string[]> {
-  const res = await fetchWithAuth(
+): Promise<string | null> {
+  const buf = await fetchBinaryWithAuth(
     authInfo,
-    `/open-apis/board/v1/whiteboards/${encodeURIComponent(boardToken)}/nodes`,
-    {},
+    `/open-apis/board/v1/whiteboards/${encodeURIComponent(boardToken)}/download_as_image`,
   );
-  const boardResData = res.data as Record<string, unknown> | undefined;
-  const nodes = (boardResData?.nodes || []) as Array<Record<string, unknown>>;
+  if (buf.byteLength === 0) return null;
 
-  // Extract text from shape nodes and connectors
-  const textItems: string[] = [];
-  for (const node of nodes) {
-    if (node.type === "shape") {
-      const shapeText = (node.shape as Record<string, unknown>)?.text as
-        | Record<string, unknown[]>
-        | undefined;
-      if (shapeText?.data) {
-        const texts = shapeText.data
-          .map((d) => (d as Record<string, string>).text || "")
-          .filter(Boolean);
-        if (texts.length > 0) textItems.push(texts.join(""));
-      }
-    }
-    if (node.type === "connector") {
-      const connCaptions = (node.connector as Record<string, unknown>)
-        ?.captions as Record<string, unknown[]> | undefined;
-      if (connCaptions?.data) {
-        const texts = connCaptions.data
-          .map((d) => (d as Record<string, string>).text || "")
-          .filter(Boolean);
-        if (texts.length > 0) textItems.push(texts.join(""));
-      }
-    }
-  }
-
-  return textItems;
+  const dir = join(tmpdir(), "feishu-docs");
+  await mkdir(dir, { recursive: true });
+  const filePath = join(dir, `board-${boardToken}.png`);
+  await writeFile(filePath, Buffer.from(buf));
+  return filePath;
 }
 
 /**
@@ -469,16 +468,16 @@ export async function read(
     }
   }
 
-  // Batch resolve board data
+  // Batch resolve board images
   const boardTokens = extractBoardTokens(blocks);
-  const boardDataMap = new Map<string, string[]>();
+  const boardImageMap = new Map<string, string>();
   for (const token of boardTokens) {
     try {
-      const data = await fetchBoardData(authInfo, token);
-      if (data) boardDataMap.set(token, data);
+      const filePath = await fetchBoardImage(authInfo, token);
+      if (filePath) boardImageMap.set(token, filePath);
     } catch {
       process.stderr.write(
-        `feishu-docs: warning: 获取画板数据失败: ${token}\n`,
+        `feishu-docs: warning: 获取画板图片失败: ${token}\n`,
       );
     }
   }
@@ -490,9 +489,10 @@ export async function read(
     try {
       const data = await fetchSheetData(authInfo, token);
       if (data) sheetDataMap.set(token, data);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       process.stderr.write(
-        `feishu-docs: warning: 获取电子表格数据失败: ${token}\n`,
+        `feishu-docs: warning: 获取电子表格数据失败: ${token} (${msg})\n`,
       );
     }
   }
@@ -517,7 +517,7 @@ export async function read(
     imageUrlMap,
     userNameMap,
     bitableDataMap,
-    boardDataMap,
+    boardImageMap,
     sheetDataMap,
   });
   process.stdout.write(output);

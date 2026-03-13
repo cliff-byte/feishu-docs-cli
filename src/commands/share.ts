@@ -3,8 +3,13 @@
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
+import { loadTokens } from "../auth.js";
 import { CliError } from "../utils/errors.js";
-import { FEATURE_SCOPE_GROUPS, buildScopeHint } from "../scopes.js";
+import {
+  FEATURE_SCOPE_GROUPS,
+  getMissingScopes,
+  buildScopeHint,
+} from "../scopes.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { validateMemberId, detectMemberType } from "../utils/member.js";
 import { mapToDriveType } from "../utils/drive-types.js";
@@ -77,13 +82,19 @@ export function mapPublicMode(mode: string, role: string = "view"): string {
 }
 
 /**
- * Check if an API error indicates missing OAuth scope.
+ * Pre-flight scope check for share commands (drive:drive required).
  */
-function isScopeError(err: unknown): boolean {
-  const code =
-    (err as Record<string, unknown>)?.apiCode ||
-    (err as Record<string, unknown>)?.code;
-  return code === 99991668 || code === 99991671;
+async function checkDriveScope(authInfo: AuthInfo): Promise<void> {
+  if (authInfo.mode === "user") {
+    const stored = await loadTokens();
+    if (stored) {
+      const required = [...FEATURE_SCOPE_GROUPS.drive.scopes];
+      const missing = getMissingScopes(stored.tokens.scope, required);
+      if (missing.length > 0) {
+        throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
+      }
+    }
+  }
 }
 
 async function resolveDocForShare(
@@ -111,16 +122,9 @@ async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
   }
 
   const { authInfo } = await createClient(globalOpts);
+  await checkDriveScope(authInfo);
 
-  let token: string, type: string;
-  try {
-    ({ token, type } = await resolveDocForShare(authInfo, input));
-  } catch (err) {
-    if (isScopeError(err)) {
-      throw new CliError("AUTH_REQUIRED", buildScopeHint([...FEATURE_SCOPE_GROUPS.drive.scopes]));
-    }
-    throw err;
-  }
+  const { token, type } = await resolveDocForShare(authInfo, input);
 
   const res = await fetchWithAuth(
     authInfo,
@@ -168,6 +172,8 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
   validateMemberId(memberId);
 
   const { authInfo } = await createClient(globalOpts);
+  await checkDriveScope(authInfo);
+
   const { token, type } = await resolveDocForShare(authInfo, input);
   const memberType = detectMemberType(memberId);
   const perm = mapRole((args.role as string | undefined) || "view");
@@ -197,8 +203,6 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
           body: { member_type: memberType, perm },
         },
       );
-    } else if (isScopeError(err)) {
-      throw new CliError("AUTH_REQUIRED", buildScopeHint([...FEATURE_SCOPE_GROUPS.drive.scopes]));
     } else {
       throw err;
     }
@@ -235,6 +239,8 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
   }
 
   const { authInfo } = await createClient(globalOpts);
+  await checkDriveScope(authInfo);
+
   const { token, type } = await resolveDocForShare(authInfo, input);
 
   // Extract optional role from --public value like "tenant:edit"
@@ -255,22 +261,15 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
 
   const linkShareEntity = mapPublicMode(mode, shareRole);
 
-  try {
-    await fetchWithAuth(
-      authInfo,
-      `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/public`,
-      {
-        method: "PATCH",
-        params: { type },
-        body: { link_share_entity: linkShareEntity },
-      },
-    );
-  } catch (err) {
-    if (isScopeError(err)) {
-      throw new CliError("AUTH_REQUIRED", buildScopeHint([...FEATURE_SCOPE_GROUPS.drive.scopes]));
-    }
-    throw err;
-  }
+  await fetchWithAuth(
+    authInfo,
+    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/public`,
+    {
+      method: "PATCH",
+      params: { type },
+      body: { link_share_entity: linkShareEntity },
+    },
+  );
 
   if (globalOpts.json) {
     process.stdout.write(

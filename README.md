@@ -48,15 +48,27 @@ Requires Node.js >= 18.3.
 3. After creation, go to the app's **Credentials & Basic Info** page. Copy the **App ID** (`cli_xxx`) and **App Secret** — you'll need them for environment variables
 4. Go to **Permissions & Scopes**, search and add the following scopes:
 
-   | Scope | Description | Required |
+   **Base scopes** (no admin review needed — requested automatically during `feishu-docs login`):
+
+   | Scope | Description |
+   |-------|-------------|
+   | `wiki:wiki` | Knowledge base read/write |
+   | `docx:document` | Document read/write |
+   | `docx:document.block:convert` | Markdown to block conversion (create/update) |
+   | `sheets:spreadsheet:readonly` | Embedded spreadsheet read (read command) |
+   | `board:whiteboard:node:read` | Whiteboard export as image (read command) |
+   | `bitable:app:readonly` | Embedded bitable/table read (read command) |
+
+   **Feature scopes** (require admin review — requested on-demand via `feishu-docs authorize`):
+
+   | Scope | Description | Commands |
    |-------|-------------|----------|
-   | `wiki:wiki` | Knowledge base access | Yes |
-   | `docx:document` | Document read/write | Yes |
-   | `docx:document.block:convert` | Markdown to block conversion | Yes (for create/update) |
-   | `drive:drive` | File management & permission management | Yes |
-   | `contact:contact.base:readonly` | User name resolution (@mentions) | Recommended |
-   | `board:whiteboard:node:read` | Whiteboard content read | Optional |
-   | `bitable:app:readonly` | Bitable read access | Optional |
+   | `drive:drive` | Cloud file management & permissions | ls, delete, share, create --folder |
+   | `contact:contact.base:readonly` | User lookup by email/phone | share add |
+   | `drive:drive.search:readonly` | Document search | search |
+   | `wiki:wiki.space:create` | Create knowledge bases | wiki create-space |
+   | `wiki:wiki.space.node` | Edit knowledge base nodes | wiki rename, move, copy |
+   | `wiki:wiki.space.member` | Manage knowledge base members | wiki add-member, remove-member |
 
 5. Go to **Security Settings**, add the OAuth callback URL to the **Redirect URLs** allowlist:
    - Default: `http://localhost:3456/callback`
@@ -232,6 +244,7 @@ feishu-docs whoami         # Show current auth status
 | `--json` | Output JSON format |
 | `--lark` | Use Lark (international) domain |
 | `--help` | Show help |
+| `-v, --version` | Show version |
 
 ## Auth Modes
 
@@ -341,7 +354,8 @@ dist/             # Compiled output (git-ignored)
 ## Limitations
 
 - **Supported**: docx (new documents)
-- **Link only**: sheet, bitable, mindnote, board
+- **Embedded content**: sheet (rendered as table), bitable (rendered as table), board/whiteboard (exported as image)
+- **Link only**: mindnote
 - **Not supported**: doc (legacy format)
 - Markdown conversion is lossy (colors, merged cells, layouts are dropped). Use `--blocks` for lossless JSON.
 - Image write is not supported (read returns temporary URLs valid ~24h)

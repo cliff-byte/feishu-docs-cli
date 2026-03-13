@@ -47,15 +47,27 @@ npm install -g github:cliff-byte/feishu-docs-cli
 2. 创建完成后，进入应用的 **凭证与基础信息** 页面，复制 **App ID**（`cli_xxx`）和 **App Secret** — 后续配置环境变量需要用到
 3. 进入 **权限管理**，搜索并添加以下权限：
 
-   | 权限 | 说明 | 是否必需 |
+   **基础权限**（免审核 — 执行 `feishu-docs login` 时自动申请）：
+
+   | 权限 | 说明 |
+   |------|------|
+   | `wiki:wiki` | 知识库读写 |
+   | `docx:document` | 文档读写 |
+   | `docx:document.block:convert` | Markdown 转 Block（创建/更新需要） |
+   | `sheets:spreadsheet:readonly` | 嵌入式电子表格只读（read 命令） |
+   | `board:whiteboard:node:read` | 画板导出为图片（read 命令） |
+   | `bitable:app:readonly` | 嵌入式多维表格只读（read 命令） |
+
+   **功能权限**（需管理员审核 — 通过 `feishu-docs authorize` 按需申请）：
+
+   | 权限 | 说明 | 相关命令 |
    |------|------|----------|
-   | `wiki:wiki` | 知识库访问 | 是 |
-   | `docx:document` | 文档读写 | 是 |
-   | `docx:document.block:convert` | Markdown 转 Block | 是（创建/更新需要） |
-   | `drive:drive` | 文件管理和权限管理 | 是 |
-   | `contact:contact.base:readonly` | 用户名解析（@提及） | 推荐 |
-   | `board:whiteboard:node:read` | 白板内容读取 | 可选 |
-   | `bitable:app:readonly` | 多维表格只读 | 可选 |
+   | `drive:drive` | 云空间文件管理和权限管理 | ls、delete、share、create --folder |
+   | `contact:contact.base:readonly` | 通过邮件/手机号查找用户 | share add |
+   | `drive:drive.search:readonly` | 搜索云文档 | search |
+   | `wiki:wiki.space:create` | 创建知识库 | wiki create-space |
+   | `wiki:wiki.space.node` | 编辑知识库节点 | wiki rename、move、copy |
+   | `wiki:wiki.space.member` | 管理知识库成员 | wiki add-member、remove-member |
 
 4. 进入 **安全设置**，在 **重定向 URL** 白名单中添加 OAuth 回调地址：
    - 默认值：`http://localhost:3456/callback`
@@ -231,6 +243,7 @@ feishu-docs whoami         # 查看当前认证状态
 | `--json` | JSON 格式输出 |
 | `--lark` | 使用 Lark（国际版）域名 |
 | `--help` | 显示帮助 |
+| `-v, --version` | 显示版本号 |
 
 ## 认证模式
 
@@ -340,7 +353,8 @@ dist/             # 编译输出（不提交到 git）
 ## 限制
 
 - **支持**：docx（新版文档）
-- **仅链接**：sheet、bitable、mindnote、board
+- **嵌入内容**：电子表格（渲染为表格）、多维表格（渲染为表格）、画板/白板（导出为图片）
+- **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
 - Markdown 转换有损（颜色、合并单元格、布局会丢失）。使用 `--blocks` 获取无损 JSON。
 - 不支持图片写入（读取返回约 24 小时有效的临时 URL）
