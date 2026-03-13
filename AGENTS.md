@@ -27,23 +27,25 @@ node bin/feishu-docs.js --help   # Run CLI
 
 | File | Purpose |
 |------|---------|
-| `src/cli.js` | Entry point, declarative command routing with subcommand support |
-| `src/auth.js` | OAuth v2 login flow, encrypted token persistence, file-lock refresh |
-| `src/client.js` | Auth client factory, `fetchWithAuth()` REST wrapper, token resolution |
-| `src/commands/*.js` | Command modules — each exports `meta` for routing |
-| `src/services/block-writer.js` | Document backup, clear, restore helpers |
-| `src/services/wiki-nodes.js` | Wiki node tree traversal and token resolution |
-| `src/services/doc-blocks.js` | Document block fetching with pagination |
-| `src/services/markdown-convert.js` | Convert API + Descendant API pipeline |
-| `src/parser/blocks-to-md.js` | Feishu block JSON → Markdown renderer |
-| `src/parser/block-types.js` | Block type constants |
-| `src/parser/text-elements.js` | Inline text element rendering |
-| `src/utils/errors.js` | `CliError` class, `mapApiError()`, exit codes |
-| `src/utils/url-parser.js` | URL/token parsing and validation |
-| `src/utils/document-resolver.js` | Unified URL/token → document descriptor resolution |
-| `src/utils/member.js` | Shared member ID validation and type detection |
-| `src/utils/drive-types.js` | Document type → Drive API type mapping |
-| `src/utils/validate.js` | Token/ID format validation for path safety |
+| `src/cli.ts` | Entry point, declarative command routing with subcommand support |
+| `src/auth.ts` | OAuth v2 login flow, encrypted token persistence, file-lock refresh |
+| `src/client.ts` | Auth client factory, `fetchWithAuth()` REST wrapper, `fetchBinaryWithAuth()` for binary responses, token resolution |
+| `src/commands/*.ts` | Command modules — each exports `meta` for routing |
+| `src/services/block-writer.ts` | Document backup, clear, restore helpers |
+| `src/services/wiki-nodes.ts` | Wiki node tree traversal and token resolution |
+| `src/services/doc-blocks.ts` | Document block fetching with pagination |
+| `src/services/markdown-convert.ts` | Convert API + Descendant API pipeline |
+| `src/parser/blocks-to-md.ts` | Feishu block JSON → Markdown renderer |
+| `src/parser/block-types.ts` | Block type constants |
+| `src/parser/text-elements.ts` | Inline text element rendering |
+| `src/scopes.ts` | OAuth scope catalog: BASE_SCOPES (免审) + FEATURE_SCOPE_GROUPS (需审) |
+| `src/utils/errors.ts` | `CliError` class, `mapApiError()`, exit codes |
+| `src/utils/url-parser.ts` | URL/token parsing and validation |
+| `src/utils/document-resolver.ts` | Unified URL/token → document descriptor resolution |
+| `src/utils/member.ts` | Shared member ID validation and type detection |
+| `src/utils/drive-types.ts` | Document type → Drive API type mapping |
+| `src/utils/validate.ts` | Token/ID format validation for path safety |
+| `src/utils/version.ts` | Local version read, npm update check (24h cache, non-blocking) |
 
 ### Command Registration Pattern
 
@@ -196,14 +198,26 @@ The `recovery` field is critical for AI agent consumers — always provide actio
 
 ## Required OAuth Scopes
 
+**Base scopes** (no admin review — requested automatically during `feishu-docs login`):
+
 ```
 wiki:wiki
 docx:document
 docx:document.block:convert
-drive:drive
-contact:contact.base:readonly
+sheets:spreadsheet:readonly
 board:whiteboard:node:read
 bitable:app:readonly
+```
+
+**Feature scopes** (require admin review — requested on-demand via `feishu-docs authorize`):
+
+```
+drive:drive
+contact:contact.base:readonly
+drive:drive.search:readonly
+wiki:wiki.space:create
+wiki:wiki.space.node
+wiki:wiki.space.member
 ```
 
 ## Output Format
@@ -221,8 +235,9 @@ AI agents should always use `--json` for reliable parsing.
 | Type | Read | Create | Update | Delete | Info |
 |------|------|--------|--------|--------|------|
 | `docx` (new documents) | Full Markdown | Yes | Yes | Yes | Yes |
-| `sheet` | Link only | No | No | Yes | Yes |
-| `bitable` | Link only | No | No | Yes | Yes |
+| `sheet` | Rendered as table | No | No | Yes | Yes |
+| `bitable` | Rendered as table | No | No | Yes | Yes |
+| `board`/`whiteboard` | Exported as image | No | No | No | No |
 | `doc` (legacy) | Not supported | No | No | No | No |
 
 Markdown conversion is lossy (colors, merged cells, layouts are dropped). Use `--blocks` for lossless block JSON.
