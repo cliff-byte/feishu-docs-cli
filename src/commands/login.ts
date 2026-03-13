@@ -4,6 +4,7 @@
 
 import { oauthLogin, clearTokens, resolveAuth, loadTokens } from "../auth.js";
 import { CliError } from "../utils/errors.js";
+import { BASE_SCOPES } from "../scopes.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 export const loginMeta: CommandMeta = {
@@ -42,9 +43,7 @@ export async function login(
     );
   }
 
-  const scope =
-    (args.scope as string | undefined) ||
-    "wiki:wiki docx:document docx:document.block:convert drive:drive contact:contact.base:readonly board:whiteboard:node:read bitable:app:readonly";
+  const scope = (args.scope as string | undefined) || BASE_SCOPES.join(" ");
   const tokens = await oauthLogin(appId, {
     scope,
     appSecret,
@@ -53,7 +52,12 @@ export async function login(
     useLark: globalOpts.lark,
   });
 
-  process.stderr.write("feishu-docs: 登录成功！token 已加密保存。\n");
+  process.stderr.write(
+    "feishu-docs: 登录成功！token 已加密保存。\n" +
+      "提示: login 仅申请基础权限。如需 ls、share 等功能，请运行:\n" +
+      "  feishu-docs authorize --feature drive    # 云空间文件管理\n" +
+      "  feishu-docs authorize --feature contact  # 联系人查询\n",
+  );
   if (globalOpts.json) {
     process.stdout.write(
       JSON.stringify({ success: true, expires_at: tokens.expires_at }) + "\n",

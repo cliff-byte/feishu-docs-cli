@@ -4,6 +4,7 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
+import { FEATURE_SCOPE_GROUPS, buildScopeHint } from "../scopes.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { validateMemberId, detectMemberType } from "../utils/member.js";
 import { mapToDriveType } from "../utils/drive-types.js";
@@ -116,10 +117,7 @@ async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     ({ token, type } = await resolveDocForShare(authInfo, input));
   } catch (err) {
     if (isScopeError(err)) {
-      throw new CliError(
-        "AUTH_REQUIRED",
-        "缺少权限 scope: drive:drive:permission。请运行 feishu-docs login 重新授权",
-      );
+      throw new CliError("AUTH_REQUIRED", buildScopeHint([...FEATURE_SCOPE_GROUPS.drive.scopes]));
     }
     throw err;
   }
@@ -200,10 +198,7 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
         },
       );
     } else if (isScopeError(err)) {
-      throw new CliError(
-        "AUTH_REQUIRED",
-        "缺少权限 scope: drive:drive:permission。请运行 feishu-docs login 重新授权",
-      );
+      throw new CliError("AUTH_REQUIRED", buildScopeHint([...FEATURE_SCOPE_GROUPS.drive.scopes]));
     } else {
       throw err;
     }
@@ -272,10 +267,7 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   } catch (err) {
     if (isScopeError(err)) {
-      throw new CliError(
-        "AUTH_REQUIRED",
-        "缺少权限 scope: drive:drive:permission。请运行 feishu-docs login 重新授权",
-      );
+      throw new CliError("AUTH_REQUIRED", buildScopeHint([...FEATURE_SCOPE_GROUPS.drive.scopes]));
     }
     throw err;
   }

@@ -5,6 +5,7 @@
 
 import { parseArgs } from "node:util";
 import { loginMeta, logoutMeta, whoamiMeta } from "./commands/login.js";
+import { meta as authorizeMeta } from "./commands/authorize.js";
 import { meta as readMeta } from "./commands/read.js";
 import { meta as spaceMeta } from "./commands/spaces.js";
 import { meta as treeMeta } from "./commands/tree.js";
@@ -32,7 +33,9 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
 
 认证:
   login [--scope "..."] [--redirect-uri <url>] [--port <port>]
-                                           OAuth 登录获取 user_access_token
+                                           OAuth 登录（申请基础免审权限）
+  authorize [--feature <name>] [--scope "..."]
+                                           申请额外功能权限（可能需管理员审核）
   logout                                   清除已保存的凭证
   whoami                                   查看当前认证身份和模式
 
@@ -88,6 +91,7 @@ const GLOBAL_OPTIONS = {
  */
 const COMMANDS: Record<string, CommandMeta | SubcommandMeta> = {
   login: loginMeta,
+  authorize: authorizeMeta,
   logout: logoutMeta,
   whoami: whoamiMeta,
   read: readMeta,

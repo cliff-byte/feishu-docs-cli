@@ -18,6 +18,7 @@ import { readFile, writeFile, mkdir, unlink, open } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { CliError } from "./utils/errors.js";
+import { BASE_SCOPES } from "./scopes.js";
 import type { AuthMode, AuthInfo, TokenData } from "./types/index.js";
 
 const CONFIG_DIR = join(homedir(), ".feishu-docs");
@@ -476,9 +477,7 @@ export async function oauthLogin(
   options: OauthLoginOptions = {},
 ): Promise<TokenData> {
   const appSecret = options.appSecret || process.env.FEISHU_APP_SECRET;
-  const scope =
-    options.scope ||
-    "wiki:wiki docx:document docx:document.block:convert drive:drive contact:contact.base:readonly board:whiteboard:node:read bitable:app:readonly";
+  const scope = options.scope || BASE_SCOPES.join(" ");
   const { redirectUri, callbackHost, callbackPath, callbackPort } =
     resolveOAuthCallbackConfig(options);
   const state = randomBytes(16).toString("hex");
