@@ -1,15 +1,25 @@
 /**
  * OAuth scope catalog.
  *
- * BASE_SCOPES  — granted during `feishu-docs login` (no admin review needed).
- * FEATURE_SCOPE_GROUPS — require admin review; granted on-demand via
- *                        `feishu-docs authorize --feature <name>`.
+ * BASE_SCOPES  — all no-review (免审) scopes needed for core functionality.
+ *                Requested during `feishu-docs login`.
+ * FEATURE_SCOPE_GROUPS — scopes that require admin review; granted on-demand
+ *                        via `feishu-docs authorize --feature <name>`.
  */
 
 export const BASE_SCOPES = [
+  // Wiki & documents
   "wiki:wiki",
   "docx:document",
   "docx:document.block:convert",
+  // Embedded spreadsheets (read command, sheets/v2 API)
+  "sheets:spreadsheet:readonly",
+  // Embedded whiteboards (read command, board/v1 API)
+  "board:whiteboard:node:read",
+  // Embedded bitable / multi-dimensional tables (read command, bitable/v1 API)
+  "bitable:app:readonly",
+  // Document search (search command, suite/docs-api)
+  "search:docs:read",
 ];
 
 export const FEATURE_SCOPE_GROUPS = {
@@ -22,16 +32,6 @@ export const FEATURE_SCOPE_GROUPS = {
     scopes: ["contact:contact.base:readonly"],
     description: "联系人只读（通过邮件/手机号查找用户）",
     commands: ["share add"],
-  },
-  whiteboard: {
-    scopes: ["board:whiteboard:node:read"],
-    description: "白板节点只读",
-    commands: ["read（白板）"],
-  },
-  bitable: {
-    scopes: ["bitable:app:readonly"],
-    description: "多维表格只读",
-    commands: ["read（多维表格）"],
   },
 } as const;
 

@@ -20,12 +20,17 @@ describe("getMissingScopes", () => {
 
   it("returns missing scopes when they are absent from storedScope", () => {
     const stored = "wiki:wiki docx:document";
-    assert.deepEqual(getMissingScopes(stored, ["drive:drive"]), ["drive:drive"]);
+    assert.deepEqual(getMissingScopes(stored, ["drive:drive"]), [
+      "drive:drive",
+    ]);
   });
 
   it("returns empty array when all required scopes are present", () => {
     const stored = "wiki:wiki docx:document drive:drive";
-    assert.deepEqual(getMissingScopes(stored, ["wiki:wiki", "drive:drive"]), []);
+    assert.deepEqual(
+      getMissingScopes(stored, ["wiki:wiki", "drive:drive"]),
+      [],
+    );
   });
 
   it("returns only the missing scopes when some are present", () => {
@@ -59,7 +64,10 @@ describe("mergeScopes", () => {
   });
 
   it("deduplicates scopes that already exist in current", () => {
-    const result = mergeScopes(["wiki:wiki", "docx:document"], ["wiki:wiki", "drive:drive"]);
+    const result = mergeScopes(
+      ["wiki:wiki", "docx:document"],
+      ["wiki:wiki", "drive:drive"],
+    );
     assert.deepEqual(result, ["wiki:wiki", "docx:document", "drive:drive"]);
   });
 
@@ -97,18 +105,25 @@ describe("buildScopeHint", () => {
   });
 
   it("includes all missing scopes when multiple are given", () => {
-    const hint = buildScopeHint(["drive:drive", "contact:contact.base:readonly"]);
+    const hint = buildScopeHint([
+      "drive:drive",
+      "contact:contact.base:readonly",
+    ]);
     assert.ok(hint.includes("drive:drive"));
     assert.ok(hint.includes("contact:contact.base:readonly"));
   });
 });
 
 describe("BASE_SCOPES", () => {
-  it("contains the three expected no-review scopes", () => {
+  it("contains all seven expected no-review scopes", () => {
     assert.deepEqual(BASE_SCOPES, [
       "wiki:wiki",
       "docx:document",
       "docx:document.block:convert",
+      "sheets:spreadsheet:readonly",
+      "board:whiteboard:node:read",
+      "bitable:app:readonly",
+      "search:docs:read",
     ]);
   });
 });
@@ -129,8 +144,14 @@ describe("FEATURE_SCOPE_GROUPS", () => {
   it("every group has non-empty scopes, description, and commands", () => {
     for (const [name, group] of Object.entries(FEATURE_SCOPE_GROUPS)) {
       assert.ok(group.scopes.length > 0, `${name}: scopes must be non-empty`);
-      assert.ok(group.description.length > 0, `${name}: description must be non-empty`);
-      assert.ok(group.commands.length > 0, `${name}: commands must be non-empty`);
+      assert.ok(
+        group.description.length > 0,
+        `${name}: description must be non-empty`,
+      );
+      assert.ok(
+        group.commands.length > 0,
+        `${name}: commands must be non-empty`,
+      );
     }
   });
 });
