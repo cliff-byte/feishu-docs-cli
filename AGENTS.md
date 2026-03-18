@@ -137,7 +137,8 @@ const memberType = detectMemberType(memberId);  // Auto-detect: email, openid, u
 | **member_type is `"openchat"` not `"chat"`** | The `type` field uses `"chat"` but `member_type` requires `"openchat"` |
 | **Error 131008 is context-dependent** | Means "permission denied" for node operations, "already exist" for member operations. Check `apiCode` at call site |
 | **Error 1201003 → fallback to update** | Permission member create returns this when member already exists. Fallback to PUT |
-| **stripMergeInfo before write** | Table blocks must have `merge_info` removed before writing via Descendant API |
+| **sanitizeBlocks before write** | Blocks must have read-only fields (parent_id, comment_ids, merge_info) removed before writing via Descendant API |
+| **Descendant API 1000-block limit** | Max 1000 blocks per call; `splitIntoBatches` auto-splits at top-level block boundaries |
 | **Wiki member API requires admin** | The calling identity must already be a wiki space administrator |
 | **No wiki space delete API** | Feishu does not provide an API to delete wiki spaces (returns 404) |
 | **Convert API returns blocks array** | The `blocks` field from Convert API can be passed directly to Descendant API |

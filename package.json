@@ -1,6 +1,6 @@
 {
   "name": "feishu-docs-cli",
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.8",
   "description": "CLI tool for AI Agents to read/write Feishu docs via shell commands",
   "type": "module",
   "bin": {

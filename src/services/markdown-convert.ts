@@ -6,11 +6,20 @@
  * table assembly with just 2 API calls:
  *   1. Convert API: Markdown string -> block tree (server-side parsing)
  *   2. Descendant API: Write entire block tree in one call (no 9-row table limit)
+ *
+ * Notes:
+ *   - Descendant API accepts at most 1000 blocks per call; large content is
+ *     automatically split into batches at top-level block boundaries.
+ *   - Read-only fields returned by Convert API (parent_id, comment_ids,
+ *     merge_info) are stripped before writing to avoid validation errors.
  */
 
 import { fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { AuthInfo, ConvertedBlocks, Block } from "../types/index.js";
+
+/** Maximum blocks the Descendant API accepts per call. */
+const MAX_BLOCKS_PER_CALL = 1000;
 
 /**
  * Language aliases that Feishu Convert API does not recognize.
@@ -65,25 +74,148 @@ export async function convertMarkdown(
 }
 
 /**
- * Strip merge_info from table blocks to prevent Descendant API errors.
+ * Read-only / server-generated fields that the Descendant API rejects.
+ * These are returned by the Convert API but must not be sent back.
+ */
+const READ_ONLY_BLOCK_FIELDS = ["parent_id", "comment_ids"] as const;
+
+/**
+ * Sanitize blocks for the Descendant API by removing read-only fields.
+ *
+ * Strips:
+ *  - top-level read-only fields: parent_id, comment_ids
+ *  - table.property.merge_info (read-only attribute)
+ *
  * Returns a new array (immutable).
  */
-export function stripMergeInfo(blocks: Block[]): Block[] {
+export function sanitizeBlocks(blocks: Block[]): Block[] {
   return blocks.map((block) => {
-    if (block.table?.property?.merge_info) {
-      const { merge_info, ...restProperty } = block.table.property;
-      return {
-        ...block,
-        table: { ...block.table, property: restProperty },
+    let cleaned: Block = block;
+
+    // Strip top-level read-only fields
+    for (const field of READ_ONLY_BLOCK_FIELDS) {
+      if (field in cleaned) {
+        const { [field]: _, ...rest } = cleaned;
+        cleaned = rest as Block;
+      }
+    }
+
+    // Strip table.property.merge_info
+    if (cleaned.table?.property?.merge_info) {
+      const { merge_info, ...restProperty } = cleaned.table.property;
+      cleaned = {
+        ...cleaned,
+        table: { ...cleaned.table, property: restProperty },
       };
     }
-    return block;
+
+    return cleaned;
   });
 }
 
 /**
+ * Collect all descendant block IDs reachable from a set of top-level IDs.
+ * Traverses the children tree in the block array.
+ */
+function collectDescendantIds(
+  topLevelIds: string[],
+  blockMap: Map<string, Block>,
+): Set<string> {
+  const ids = new Set<string>();
+  const queue = [...topLevelIds];
+  while (queue.length > 0) {
+    const id = queue.pop()!;
+    if (ids.has(id)) continue;
+    ids.add(id);
+    const block = blockMap.get(id);
+    if (block?.children) {
+      queue.push(...block.children);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Build a ConvertedBlocks batch from a subset of blocks.
+ * Filters blockIdToImageUrls to only include entries for blocks in this batch.
+ */
+function buildBatch(
+  topIds: string[],
+  blockIds: Set<string>,
+  allBlocks: Block[],
+  source: ConvertedBlocks,
+): ConvertedBlocks {
+  const imageUrls = Object.fromEntries(
+    Object.entries(source.blockIdToImageUrls).filter(([id]) =>
+      blockIds.has(id),
+    ),
+  );
+  return {
+    firstLevelBlockIds: topIds,
+    blocks: allBlocks.filter((b) => blockIds.has(b.block_id)),
+    blockIdToImageUrls: imageUrls,
+  };
+}
+
+/**
+ * Split converted blocks into batches that each stay within
+ * MAX_BLOCKS_PER_CALL. Splits at top-level block boundaries so
+ * parent–child relationships are preserved within each batch.
+ */
+export function splitIntoBatches(
+  converted: ConvertedBlocks,
+): ConvertedBlocks[] {
+  const allBlocks = sanitizeBlocks(converted.blocks);
+
+  if (allBlocks.length <= MAX_BLOCKS_PER_CALL) {
+    return [{ ...converted, blocks: allBlocks }];
+  }
+
+  const blockMap = new Map(allBlocks.map((b) => [b.block_id, b]));
+  const batches: ConvertedBlocks[] = [];
+
+  let batchTopIds: string[] = [];
+  let batchBlockCount = 0;
+
+  for (const topId of converted.firstLevelBlockIds) {
+    const descendantIds = collectDescendantIds([topId], blockMap);
+    const subtreeSize = descendantIds.size;
+
+    // A single top-level subtree that exceeds the limit cannot be split further
+    if (subtreeSize > MAX_BLOCKS_PER_CALL) {
+      throw new CliError(
+        "API_ERROR",
+        `单个顶层块的后代数量 (${subtreeSize}) 超过 Descendant API 限制 (${MAX_BLOCKS_PER_CALL})，无法拆分`,
+      );
+    }
+
+    // If adding this top-level block would exceed the limit, flush current batch
+    if (
+      batchBlockCount > 0 &&
+      batchBlockCount + subtreeSize > MAX_BLOCKS_PER_CALL
+    ) {
+      const batchIds = collectDescendantIds(batchTopIds, blockMap);
+      batches.push(buildBatch(batchTopIds, batchIds, allBlocks, converted));
+      batchTopIds = [];
+      batchBlockCount = 0;
+    }
+
+    batchTopIds.push(topId);
+    batchBlockCount += subtreeSize;
+  }
+
+  // Flush remaining
+  if (batchTopIds.length > 0) {
+    const batchIds = collectDescendantIds(batchTopIds, blockMap);
+    batches.push(buildBatch(batchTopIds, batchIds, allBlocks, converted));
+  }
+
+  return batches;
+}
+
+/**
  * Write blocks to document via Descendant API.
- * Supports up to 1000 blocks per call, no table row limit.
+ * Automatically batches when block count exceeds 1000.
  *
  * @param {object} authInfo - Auth credentials
  * @param {string} documentId - Target document ID
@@ -101,28 +233,42 @@ export async function writeDescendant(
   revisionId: number,
   index: number = 0,
 ): Promise<number> {
-  const cleanBlocks = stripMergeInfo(converted.blocks);
+  const batches = splitIntoBatches(converted);
 
-  const res = await fetchWithAuth(
-    authInfo,
-    `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(parentBlockId)}/descendant`,
-    {
-      method: "POST",
-      body: {
-        children_id: converted.firstLevelBlockIds,
-        descendants: cleanBlocks,
-        index,
-      },
-      params: {
-        document_revision_id: revisionId,
-      },
-    },
-  );
+  if (batches.length > 1) {
+    process.stderr.write(
+      `feishu-docs: info: 内容较大 (${converted.blocks.length} blocks)，分 ${batches.length} 批写入\n`,
+    );
+  }
 
-  return (
-    ((res?.data as Record<string, unknown>)?.document_revision_id as number) ??
-    revisionId
-  );
+  let rev = revisionId;
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    // First batch uses caller-specified index; subsequent batches append
+    const batchIndex = i === 0 ? index : -1;
+
+    const res = await fetchWithAuth(
+      authInfo,
+      `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(parentBlockId)}/descendant`,
+      {
+        method: "POST",
+        body: {
+          children_id: batch.firstLevelBlockIds,
+          descendants: batch.blocks,
+          index: batchIndex,
+        },
+        params: {
+          document_revision_id: rev,
+        },
+      },
+    );
+
+    rev =
+      ((res?.data as Record<string, unknown>)
+        ?.document_revision_id as number) ?? rev;
+  }
+
+  return rev;
 }
 
 /**
