@@ -14,6 +14,8 @@ import { join } from "node:path";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { BlockType } from "../parser/block-types.js";
 import { CliError } from "../utils/errors.js";
+import { isPermissionError, promptScopeAuth } from "../utils/scope-prompt.js";
+import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
 import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
@@ -421,7 +423,21 @@ export async function read(
   }
 
   // Fetch all blocks
-  const blocks = await fetchAllBlocks(authInfo, documentId);
+  let blocks: Block[];
+  try {
+    blocks = await fetchAllBlocks(authInfo, documentId);
+  } catch (err) {
+    if (isPermissionError(err)) {
+      throw new CliError(
+        "PERMISSION_DENIED",
+        "读取文档内容权限不足。可能原因:\n" +
+          "  1. 应用未在飞书开发者后台开通 docx:document 权限 → 请前往 https://open.feishu.cn/app 开通\n" +
+          "  2. 文档未对当前用户/应用开放访问 → 请联系文档拥有者授权\n" +
+          '开通权限后，运行 feishu-docs authorize --scope "docx:document" 重新授权',
+      );
+    }
+    throw err;
+  }
 
   // --blocks mode: output raw JSON
   if (args.blocks) {
@@ -430,16 +446,39 @@ export async function read(
   }
 
   // Default: convert to Markdown
-  // Batch resolve image/file URLs
+  // Batch resolve image/file URLs (needs drive:drive scope)
   const fileTokens = extractFileTokens(blocks);
   let imageUrlMap = new Map<string, string>();
+  let currentAuth = authInfo;
   if (fileTokens.length > 0) {
     try {
-      imageUrlMap = await batchGetTmpUrls(authInfo, fileTokens);
-    } catch {
-      process.stderr.write(
-        "feishu-docs: warning: 获取图片/文件链接失败，链接将为空\n",
-      );
+      imageUrlMap = await batchGetTmpUrls(currentAuth, fileTokens);
+    } catch (err) {
+      if (isPermissionError(err)) {
+        const authorized = await promptScopeAuth(
+          [...FEATURE_SCOPE_GROUPS.drive.scopes],
+          globalOpts,
+        );
+        if (authorized) {
+          const { authInfo: refreshed } = await createClient(globalOpts);
+          currentAuth = refreshed;
+          try {
+            imageUrlMap = await batchGetTmpUrls(currentAuth, fileTokens);
+          } catch {
+            process.stderr.write(
+              "feishu-docs: warning: 获取图片/文件链接失败，链接将为空\n",
+            );
+          }
+        } else {
+          process.stderr.write(
+            "feishu-docs: warning: 跳过图片/文件链接获取（权限不足），将使用占位符\n",
+          );
+        }
+      } else {
+        process.stderr.write(
+          "feishu-docs: warning: 获取图片/文件链接失败，链接将为空\n",
+        );
+      }
     }
   }
 
@@ -448,7 +487,7 @@ export async function read(
   const mentionUserIds = extractMentionUserIds(blocks);
   if (mentionUserIds.length > 0) {
     try {
-      userNameMap = await resolveUserNames(authInfo, mentionUserIds);
+      userNameMap = await resolveUserNames(currentAuth, mentionUserIds);
     } catch {
       process.stderr.write("feishu-docs: warning: 解析 @用户 名称失败\n");
     }
@@ -459,12 +498,19 @@ export async function read(
   const bitableDataMap = new Map<string, BitableData>();
   for (const token of bitableTokens) {
     try {
-      const data = await fetchBitableData(authInfo, token);
+      const data = await fetchBitableData(currentAuth, token);
       if (data) bitableDataMap.set(token, data);
-    } catch {
-      process.stderr.write(
-        `feishu-docs: warning: 获取多维表格数据失败: ${token}\n`,
-      );
+    } catch (err) {
+      if (isPermissionError(err)) {
+        process.stderr.write(
+          `feishu-docs: warning: 获取多维表格数据权限不足: ${token}\n` +
+            '  请在飞书开发者后台开通权限后运行 feishu-docs authorize --scope "bitable:app:readonly"\n',
+        );
+      } else {
+        process.stderr.write(
+          `feishu-docs: warning: 获取多维表格数据失败: ${token}\n`,
+        );
+      }
     }
   }
 
@@ -473,12 +519,19 @@ export async function read(
   const boardImageMap = new Map<string, string>();
   for (const token of boardTokens) {
     try {
-      const filePath = await fetchBoardImage(authInfo, token);
+      const filePath = await fetchBoardImage(currentAuth, token);
       if (filePath) boardImageMap.set(token, filePath);
-    } catch {
-      process.stderr.write(
-        `feishu-docs: warning: 获取画板图片失败: ${token}\n`,
-      );
+    } catch (err) {
+      if (isPermissionError(err)) {
+        process.stderr.write(
+          `feishu-docs: warning: 获取画板图片权限不足: ${token}\n` +
+            '  请在飞书开发者后台开通权限后运行 feishu-docs authorize --scope "board:whiteboard:node:read"\n',
+        );
+      } else {
+        process.stderr.write(
+          `feishu-docs: warning: 获取画板图片失败: ${token}\n`,
+        );
+      }
     }
   }
 
@@ -487,13 +540,20 @@ export async function read(
   const sheetDataMap = new Map<string, SheetData>();
   for (const token of sheetTokens) {
     try {
-      const data = await fetchSheetData(authInfo, token);
+      const data = await fetchSheetData(currentAuth, token);
       if (data) sheetDataMap.set(token, data);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(
-        `feishu-docs: warning: 获取电子表格数据失败: ${token} (${msg})\n`,
-      );
+      if (isPermissionError(err)) {
+        process.stderr.write(
+          `feishu-docs: warning: 获取电子表格数据权限不足: ${token}\n` +
+            '  请在飞书开发者后台开通权限后运行 feishu-docs authorize --scope "sheets:spreadsheet:readonly"\n',
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(
+          `feishu-docs: warning: 获取电子表格数据失败: ${token} (${msg})\n`,
+        );
+      }
     }
   }
 
@@ -502,7 +562,7 @@ export async function read(
   if (args.withMeta) {
     let meta: Record<string, unknown> = {};
     try {
-      meta = await getDocumentInfo(authInfo, documentId);
+      meta = await getDocumentInfo(currentAuth, documentId);
     } catch {
       // ignore metadata fetch errors
     }

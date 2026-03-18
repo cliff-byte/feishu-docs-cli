@@ -5,12 +5,8 @@
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { validateToken } from "../utils/validate.js";
-import { loadTokens } from "../auth.js";
-import {
-  FEATURE_SCOPE_GROUPS,
-  getMissingScopes,
-  buildScopeHint,
-} from "../scopes.js";
+import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
+import { ensureScopes } from "../utils/scope-prompt.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 export const meta: CommandMeta = {
@@ -37,21 +33,12 @@ export async function ls(
   args: CommandArgs,
   globalOpts: GlobalOpts,
 ): Promise<void> {
-  const { authInfo } = await createClient(globalOpts);
-
-  // Pre-flight scope check for stored tokens. Skipped for env-var tokens
-  // (FEISHU_USER_TOKEN) where no stored scope info is available — the API
-  // call itself will surface a permission error in that case.
-  if (authInfo.mode === "user") {
-    const stored = await loadTokens();
-    if (stored) {
-      const required = [...FEATURE_SCOPE_GROUPS.drive.scopes];
-      const missing = getMissingScopes(stored.tokens.scope, required);
-      if (missing.length > 0) {
-        throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
-      }
-    }
-  }
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+  const authInfo = await ensureScopes(
+    rawAuthInfo,
+    FEATURE_SCOPE_GROUPS.drive.scopes,
+    globalOpts,
+  );
 
   const folderToken = (args.positionals![0] as string | undefined) || undefined;
   if (folderToken) validateToken(folderToken, "folder_token");

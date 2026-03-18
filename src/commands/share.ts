@@ -3,13 +3,9 @@
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
-import { loadTokens } from "../auth.js";
 import { CliError } from "../utils/errors.js";
-import {
-  FEATURE_SCOPE_GROUPS,
-  getMissingScopes,
-  buildScopeHint,
-} from "../scopes.js";
+import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
+import { ensureScopes } from "../utils/scope-prompt.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { validateMemberId, detectMemberType } from "../utils/member.js";
 import { mapToDriveType } from "../utils/drive-types.js";
@@ -82,19 +78,13 @@ export function mapPublicMode(mode: string, role: string = "view"): string {
 }
 
 /**
- * Pre-flight scope check for share commands (drive:drive required).
+ * Pre-flight scope check with interactive recovery for share commands.
  */
-async function checkDriveScope(authInfo: AuthInfo): Promise<void> {
-  if (authInfo.mode === "user") {
-    const stored = await loadTokens();
-    if (stored) {
-      const required = [...FEATURE_SCOPE_GROUPS.drive.scopes];
-      const missing = getMissingScopes(stored.tokens.scope, required);
-      if (missing.length > 0) {
-        throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
-      }
-    }
-  }
+async function ensureDriveScope(
+  authInfo: AuthInfo,
+  globalOpts: GlobalOpts,
+): Promise<AuthInfo> {
+  return ensureScopes(authInfo, FEATURE_SCOPE_GROUPS.drive.scopes, globalOpts);
 }
 
 async function resolveDocForShare(
@@ -121,8 +111,8 @@ async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { authInfo } = await createClient(globalOpts);
-  await checkDriveScope(authInfo);
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
 
   const { token, type } = await resolveDocForShare(authInfo, input);
 
@@ -171,8 +161,8 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
 
   validateMemberId(memberId);
 
-  const { authInfo } = await createClient(globalOpts);
-  await checkDriveScope(authInfo);
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
 
   const { token, type } = await resolveDocForShare(authInfo, input);
   const memberType = detectMemberType(memberId);
@@ -238,8 +228,8 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { authInfo } = await createClient(globalOpts);
-  await checkDriveScope(authInfo);
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
 
   const { token, type } = await resolveDocForShare(authInfo, input);
 

@@ -4,13 +4,9 @@
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
-import { loadTokens } from "../auth.js";
 import { CliError } from "../utils/errors.js";
-import {
-  FEATURE_SCOPE_GROUPS,
-  getMissingScopes,
-  buildScopeHint,
-} from "../scopes.js";
+import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
+import { ensureScopes } from "../utils/scope-prompt.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 const DOC_TYPE_MAP: Record<string, string> = {
@@ -45,21 +41,9 @@ export async function search(
     );
   }
 
-  const { authInfo } = await createClient(globalOpts);
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
 
-  // Pre-flight scope check for search (needs admin-reviewed scope)
-  if (authInfo.mode === "user") {
-    const stored = await loadTokens();
-    if (stored) {
-      const required = [...FEATURE_SCOPE_GROUPS.search.scopes];
-      const missing = getMissingScopes(stored.tokens.scope, required);
-      if (missing.length > 0) {
-        throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
-      }
-    }
-  }
-
-  if (authInfo.mode === "tenant") {
+  if (rawAuthInfo.mode === "tenant") {
     throw new CliError(
       "AUTH_REQUIRED",
       "search 命令需要 user 身份。tenant 模式下无搜索能力",
@@ -69,6 +53,12 @@ export async function search(
       },
     );
   }
+
+  const authInfo = await ensureScopes(
+    rawAuthInfo,
+    FEATURE_SCOPE_GROUPS.search.scopes,
+    globalOpts,
+  );
 
   const limit = args.limit ? Number(args.limit) : 20;
   if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
