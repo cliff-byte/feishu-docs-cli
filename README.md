@@ -4,11 +4,31 @@
 
 CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 
+## Why feishu-docs-cli?
+
+Feishu/Lark already offers the official [lark-mcp](https://github.com/larksuite/lark-openapi-mcp) MCP server. Here's what this project does differently:
+
+| Capability | feishu-docs-cli | lark-mcp |
+|------------|:-:|:-:|
+| Read docs as Markdown | **Yes** — 30+ block types rendered | No — returns raw Block JSON |
+| Write docs from Markdown | **Yes** — auto-convert, auto-batch (>1000 blocks) | No |
+| Knowledge base tree browsing | **Yes** — `spaces` → `tree` → `cat` workflow | Search/get single node only |
+| Batch read entire wiki subtree | **Yes** — `cat` recursively exports Markdown | No |
+| Write safety (backup/restore) | **Yes** — auto-backup before overwrite, auto-recover on failure | No |
+| OAuth user login | **Yes** — full OAuth v2 with token refresh, tiered scope management | Tenant token only |
+| Interactive scope recovery | **Yes** — prompts user to authorize missing scopes | No |
+| Works with any AI agent | **Yes** — standard CLI, pipes, scripts | MCP protocol only |
+| IM / messaging | No | Yes |
+| Bitable CRUD | Read-only (rendered as table) | Yes |
+| Contact lookup | Via `share add` only | Yes |
+
+**In short**: lark-mcp is a thin wrapper over Feishu APIs with broad coverage. feishu-docs-cli is purpose-built for **document workflows** — it lets AI agents truly read, understand, and write Feishu documents as Markdown, with safety guardrails that the raw API doesn't provide.
+
 ## Features
 
 - **Read** documents as Markdown, raw text, or original Block JSON
 - **Create** documents in knowledge bases or cloud folders
-- **Update** documents with overwrite or append mode
+- **Update** documents with overwrite or append mode (auto-batch for large content)
 - **Delete** documents (move to recycle bin)
 - **Info** — view document metadata (title, type, URL, revision)
 - **Browse** knowledge base structure (spaces, tree, cat)
