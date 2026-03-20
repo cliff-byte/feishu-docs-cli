@@ -227,6 +227,22 @@ feishu-docs ls <folder_token>
 feishu-docs ls --type docx --limit 20
 ```
 
+### 文件操作
+
+```bash
+# 移动文件到指定文件夹
+feishu-docs mv <url|token> <target_folder_token>
+
+# 复制文件（自动命名为"标题 - 副本"）
+feishu-docs cp <url|token> <target_folder_token>
+
+# 指定副本名称
+feishu-docs cp <url|token> <target_folder_token> --name "我的副本"
+
+# 创建文件夹
+feishu-docs mkdir "新文件夹" --parent <parent_folder_token>
+```
+
 ### 分享
 
 ```bash
@@ -236,6 +252,12 @@ feishu-docs share list <url>
 # 添加协作者
 feishu-docs share add <url> user@example.com --role view
 feishu-docs share add <url> ou_xxx --role edit
+
+# 移除协作者
+feishu-docs share remove <url> user@example.com
+
+# 修改协作者权限
+feishu-docs share update <url> ou_xxx --role manage
 
 # 设置公开分享模式
 feishu-docs share set <url> --public tenant          # 组织内可读

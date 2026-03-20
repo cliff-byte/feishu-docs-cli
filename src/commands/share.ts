@@ -1,5 +1,5 @@
 /**
- * share command: Manage document permissions (list/add/set).
+ * share command: Manage document permissions (list/add/remove/update/set).
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
@@ -29,6 +29,18 @@ export const meta: SubcommandMeta = {
       },
       positionals: true,
       handler: add,
+    },
+    remove: {
+      options: {},
+      positionals: true,
+      handler: remove,
+    },
+    update: {
+      options: {
+        role: { type: "string" },
+      },
+      positionals: true,
+      handler: update,
     },
     set: {
       options: {
@@ -209,6 +221,103 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   } else {
     process.stdout.write(`已添加协作者 ${memberId} (${perm})\n`);
+  }
+}
+
+async function remove(
+  args: CommandArgs,
+  globalOpts: GlobalOpts,
+): Promise<void> {
+  const input = args.positionals![0];
+  const memberId = args.positionals![1];
+  if (!input || !memberId) {
+    throw new CliError(
+      "INVALID_ARGS",
+      "用法: feishu-docs share remove <url> <member>",
+    );
+  }
+
+  validateMemberId(memberId);
+
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
+
+  const { token, type } = await resolveDocForShare(authInfo, input);
+  const memberType = detectMemberType(memberId);
+
+  await fetchWithAuth(
+    authInfo,
+    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
+    {
+      method: "DELETE",
+      params: { type, member_type: memberType },
+    },
+  );
+
+  if (globalOpts.json) {
+    process.stdout.write(
+      JSON.stringify({
+        success: true,
+        member_id: memberId,
+        member_type: memberType,
+        action: "removed",
+      }) + "\n",
+    );
+  } else {
+    process.stdout.write(`已移除协作者 ${memberId}\n`);
+  }
+}
+
+async function update(
+  args: CommandArgs,
+  globalOpts: GlobalOpts,
+): Promise<void> {
+  const input = args.positionals![0];
+  const memberId = args.positionals![1];
+  if (!input || !memberId) {
+    throw new CliError(
+      "INVALID_ARGS",
+      "用法: feishu-docs share update <url> <member> --role <role>",
+    );
+  }
+
+  if (!args.role) {
+    throw new CliError(
+      "INVALID_ARGS",
+      "缺少 --role 参数。可选值: view, edit, manage",
+    );
+  }
+
+  validateMemberId(memberId);
+
+  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
+
+  const { token, type } = await resolveDocForShare(authInfo, input);
+  const memberType = detectMemberType(memberId);
+  const perm = mapRole(args.role as string);
+
+  await fetchWithAuth(
+    authInfo,
+    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
+    {
+      method: "PUT",
+      params: { type },
+      body: { member_type: memberType, perm },
+    },
+  );
+
+  if (globalOpts.json) {
+    process.stdout.write(
+      JSON.stringify({
+        success: true,
+        member_id: memberId,
+        member_type: memberType,
+        perm,
+      }) + "\n",
+    );
+  } else {
+    process.stdout.write(`已更新协作者 ${memberId} 权限为 ${perm}\n`);
   }
 }
 

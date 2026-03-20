@@ -228,6 +228,22 @@ feishu-docs ls <folder_token>
 feishu-docs ls --type docx --limit 20
 ```
 
+### File Operations
+
+```bash
+# Move file to a folder
+feishu-docs mv <url|token> <target_folder_token>
+
+# Copy file (auto-names as "Title - 副本")
+feishu-docs cp <url|token> <target_folder_token>
+
+# Copy with custom name
+feishu-docs cp <url|token> <target_folder_token> --name "My Copy"
+
+# Create a folder
+feishu-docs mkdir "New Folder" --parent <parent_folder_token>
+```
+
 ### Share
 
 ```bash
@@ -237,6 +253,12 @@ feishu-docs share list <url>
 # Add collaborator
 feishu-docs share add <url> user@example.com --role view
 feishu-docs share add <url> ou_xxx --role edit
+
+# Remove collaborator
+feishu-docs share remove <url> user@example.com
+
+# Update collaborator role
+feishu-docs share update <url> ou_xxx --role manage
 
 # Set public sharing mode
 feishu-docs share set <url> --public tenant          # org-wide readable

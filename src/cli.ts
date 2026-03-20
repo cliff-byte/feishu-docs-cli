@@ -17,6 +17,9 @@ import { meta as deleteMeta } from "./commands/delete.js";
 import { meta as shareMeta } from "./commands/share.js";
 import { meta as infoMeta } from "./commands/info.js";
 import { meta as lsMeta } from "./commands/ls.js";
+import { meta as mvMeta } from "./commands/mv.js";
+import { meta as cpMeta } from "./commands/cp.js";
+import { meta as mkdirMeta } from "./commands/mkdir.js";
 import { meta as wikiMeta } from "./commands/wiki.js";
 import { meta as installSkillMeta } from "./commands/install-skill.js";
 import { handleError, CliError } from "./utils/errors.js";
@@ -63,10 +66,15 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
 
 云空间:
   ls     [folder_token]                    列出文件夹内容
+  mv     <url|token> <target_folder>       移动文件
+  cp     <url|token> <target_folder>       复制文件
+  mkdir  <name> [--parent <folder_token>]  创建文件夹
 
 权限:
   share list <url>                         查看协作者
   share add <url> <member> --role <role>   添加协作者
+  share remove <url> <member>              移除协作者
+  share update <url> <member> --role <role> 修改协作者权限
   share set <url> --public <mode>          修改分享设置
 
 Agent:
@@ -107,6 +115,9 @@ const COMMANDS: Record<string, CommandMeta | SubcommandMeta> = {
   share: shareMeta,
   info: infoMeta,
   ls: lsMeta,
+  mv: mvMeta,
+  cp: cpMeta,
+  mkdir: mkdirMeta,
   wiki: wikiMeta,
   "install-skill": installSkillMeta,
 };

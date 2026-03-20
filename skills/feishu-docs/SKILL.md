@@ -122,12 +122,25 @@ feishu-docs ls <folder_token>              # Specific folder
 feishu-docs ls --type docx --limit 20      # Filter by type
 ```
 
+## File Operations
+
+```bash
+feishu-docs mv <url|token> <target_folder_token>       # Move file
+feishu-docs cp <url|token> <target_folder_token>       # Copy file (auto-named)
+feishu-docs cp <url|token> <target_folder> --name "My Copy"
+feishu-docs mkdir "Folder Name" --parent <folder_token> # Create folder
+```
+
+`mv` is asynchronous — it polls the task until complete (max 30s). `cp` without `--name` automatically appends " - 副本" to the original title.
+
 ## Sharing & Permissions
 
 ```bash
 feishu-docs share list <url>                          # View collaborators
 feishu-docs share add <url> user@example.com --role view
 feishu-docs share add <url> ou_xxx --role edit
+feishu-docs share remove <url> user@example.com       # Remove collaborator
+feishu-docs share update <url> ou_xxx --role manage    # Change role
 feishu-docs share set <url> --public tenant            # Org-wide readable
 feishu-docs share set <url> --public tenant:edit        # Org-wide editable
 feishu-docs share set <url> --public open               # Internet-accessible
@@ -169,6 +182,8 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 **Update existing doc**: `read <url>` to see current content → edit locally → `update <url> --body ./updated.md`
 
 **Batch extract**: `cat <space_id> --max-docs 50` to dump all docs as markdown for analysis
+
+**Organize files**: `mkdir "Reports" --parent <folder>` → `mv <doc> <new_folder>` to organize documents into folders
 
 ## Limitations
 
