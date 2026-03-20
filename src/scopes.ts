@@ -3,8 +3,11 @@
  *
  * BASE_SCOPES  — all no-review (免审) scopes needed for core functionality.
  *                Requested during `feishu-docs login`.
- * FEATURE_SCOPE_GROUPS — scopes that require admin review; granted on-demand
- *                        via `feishu-docs authorize --feature <name>`.
+ *
+ * Feature-specific scopes are NOT maintained locally. Instead, the Feishu API
+ * is the source of truth: when an API call requires a scope the user hasn't
+ * authorized, `fetchWithAuth` detects the error (99991672 / 99991679) and
+ * extracts the required scope names from the API response.
  */
 
 export const BASE_SCOPES = [
@@ -19,55 +22,6 @@ export const BASE_SCOPES = [
   // Embedded bitable / multi-dimensional tables (read command, bitable/v1 API)
   "bitable:app:readonly",
 ];
-
-export const FEATURE_SCOPE_GROUPS = {
-  drive: {
-    scopes: ["drive:drive"],
-    description:
-      "云空间文件管理（ls、delete、share、在云空间文件夹中创建文档等）",
-    commands: ["ls", "delete", "share", "create --folder"],
-  },
-  contact: {
-    scopes: ["contact:contact.base:readonly"],
-    description: "联系人只读（通过邮件/手机号查找用户）",
-    commands: ["share add"],
-  },
-  search: {
-    scopes: ["drive:drive.search:readonly"],
-    description: "搜索云文档（需管理员审核）",
-    commands: ["search"],
-  },
-  // wiki:wiki is already in BASE_SCOPES and covers all wiki operations
-  // including space creation, node editing, and member management.
-  // No separate feature scope groups needed for wiki.
-} as const;
-
-export type FeatureName = keyof typeof FEATURE_SCOPE_GROUPS;
-
-export const FEATURE_NAMES = Object.keys(FEATURE_SCOPE_GROUPS) as FeatureName[];
-
-/** All scopes known to this catalog (base + all feature groups). */
-export const ALL_KNOWN_SCOPES = new Set<string>([
-  ...BASE_SCOPES,
-  ...Object.values(FEATURE_SCOPE_GROUPS).flatMap((g) => g.scopes),
-]);
-
-/**
- * Return scopes from `required` that are absent in `storedScope`.
- *
- * Returns an empty array when `storedScope` is undefined. This intentionally
- * skips the check for both tenant mode (no OAuth token) and env-var user
- * tokens (FEISHU_USER_TOKEN), where stored scope info is unavailable.
- * In those cases the downstream API call will surface a permission error.
- */
-export function getMissingScopes(
-  storedScope: string | undefined,
-  required: string[],
-): string[] {
-  if (!storedScope) return [];
-  const granted = new Set(storedScope.split(/\s+/).filter(Boolean));
-  return required.filter((s) => !granted.has(s));
-}
 
 /**
  * Merge `extra` scopes into `current`, deduplicating across both arrays,

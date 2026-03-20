@@ -4,8 +4,7 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
-import { ensureScopes } from "../utils/scope-prompt.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { validateToken } from "../utils/validate.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
@@ -34,39 +33,36 @@ export async function mkdir(
     validateToken(parentToken, "parent_folder_token");
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureScopes(
-    rawAuthInfo,
-    FEATURE_SCOPE_GROUPS.drive.scopes,
-    globalOpts,
-  );
+  return withScopeRecovery(async () => {
+    const { authInfo } = await createClient(globalOpts);
 
-  const res = await fetchWithAuth(
-    authInfo,
-    "/open-apis/drive/v1/files/create_folder",
-    {
-      method: "POST",
-      body: {
-        name,
-        folder_token: parentToken || "",
+    const res = await fetchWithAuth(
+      authInfo,
+      "/open-apis/drive/v1/files/create_folder",
+      {
+        method: "POST",
+        body: {
+          name,
+          folder_token: parentToken || "",
+        },
       },
-    },
-  );
-
-  const resData = res?.data as Record<string, unknown> | undefined;
-  const token = resData?.token as string || "";
-  const url = resData?.url as string || "";
-
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify({
-        success: true,
-        token,
-        name,
-        url,
-      }) + "\n",
     );
-  } else {
-    process.stdout.write(`已创建文件夹 "${name}" (${token})\n`);
-  }
+
+    const resData = res?.data as Record<string, unknown> | undefined;
+    const token = (resData?.token as string) || "";
+    const url = (resData?.url as string) || "";
+
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify({
+          success: true,
+          token,
+          name,
+          url,
+        }) + "\n",
+      );
+    } else {
+      process.stdout.write(`已创建文件夹 "${name}" (${token})\n`);
+    }
+  }, globalOpts);
 }

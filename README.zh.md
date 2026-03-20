@@ -77,16 +77,13 @@ npm install -g github:cliff-byte/feishu-docs-cli
    | `board:whiteboard:node:read` | 画板导出为图片（read 命令） |
    | `bitable:app:readonly` | 嵌入式多维表格只读（read 命令） |
 
-   **功能权限**（需管理员审核 — 通过 `feishu-docs authorize` 按需申请）：
+   **额外权限**会按需自动提示 — 当 API 调用需要你未授权的权限时，CLI 会从 API 错误响应中检测并提示你授权。常见权限：
 
-   | 权限 | 说明 | 相关命令 |
-   |------|------|----------|
-   | `drive:drive` | 云空间文件管理和权限管理 | ls、delete、share、create --folder |
-   | `contact:contact.base:readonly` | 通过邮件/手机号查找用户 | share add |
-   | `drive:drive.search:readonly` | 搜索云文档 | search |
-   | `wiki:wiki.space:create` | 创建知识库 | wiki create-space |
-   | `wiki:wiki.space.node` | 编辑知识库节点 | wiki rename、move、copy |
-   | `wiki:wiki.space.member` | 管理知识库成员 | wiki add-member、remove-member |
+   | 权限 | 说明 |
+   |------|------|
+   | `drive:drive` | 云空间文件管理（ls、delete、share、mv、cp、mkdir） |
+   | `contact:contact.base:readonly` | 通过邮件/手机号查找用户 |
+   | `drive:drive.search:readonly` | 搜索云文档 |
 
 4. 进入 **安全设置**，在 **重定向 URL** 白名单中添加 OAuth 回调地址：
    - 默认值：`http://127.0.0.1:3456/callback`

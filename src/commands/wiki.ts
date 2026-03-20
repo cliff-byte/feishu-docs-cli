@@ -32,8 +32,8 @@ async function resolveWikiNode(
   return doc;
 }
 
-// wiki:wiki is a BASE_SCOPE (免审核), so no ensureScopes check needed.
-// All wiki operations are covered by the base scope granted during login.
+// wiki:wiki is a BASE_SCOPE (免审核), granted during login.
+// Scope errors are handled reactively by fetchWithAuth if they occur.
 
 // --- Subcommand: create-space ---
 

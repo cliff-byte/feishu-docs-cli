@@ -38,7 +38,7 @@ node bin/feishu-docs.js --help   # Run CLI
 | `src/parser/blocks-to-md.ts` | Feishu block JSON → Markdown renderer |
 | `src/parser/block-types.ts` | Block type constants |
 | `src/parser/text-elements.ts` | Inline text element rendering |
-| `src/scopes.ts` | OAuth scope catalog: BASE_SCOPES (免审) + FEATURE_SCOPE_GROUPS (需审) |
+| `src/scopes.ts` | OAuth scope catalog: BASE_SCOPES (免审), mergeScopes, buildScopeHint |
 | `src/utils/errors.ts` | `CliError` class, `mapApiError()`, exit codes |
 | `src/utils/url-parser.ts` | URL/token parsing and validation |
 | `src/utils/document-resolver.ts` | Unified URL/token → document descriptor resolution |
@@ -210,16 +210,15 @@ board:whiteboard:node:read
 bitable:app:readonly
 ```
 
-**Feature scopes** (require admin review — requested on-demand via `feishu-docs authorize`):
+**Additional scopes** are requested reactively. When an API call fails due to missing
+scopes, `fetchWithAuth` detects the error (codes 99991672/99991679), extracts the
+required scope names from the API response, and the CLI prompts the user to authorize.
+No local scope-to-command mapping is maintained — the Feishu API is the source of truth.
 
-```
-drive:drive
-contact:contact.base:readonly
-drive:drive.search:readonly
-wiki:wiki.space:create
-wiki:wiki.space.node
-wiki:wiki.space.member
-```
+Common additional scopes (require admin review):
+- `drive:drive` — cloud drive file management (ls, delete, share, mv, cp, mkdir)
+- `contact:contact.base:readonly` — contact lookup by email/phone
+- `drive:drive.search:readonly` — document search
 
 ## Output Format
 
