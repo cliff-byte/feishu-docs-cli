@@ -15,8 +15,7 @@ Feishu/Lark already offers the official [lark-mcp](https://github.com/larksuite/
 | Knowledge base tree browsing | **Yes** — `spaces` → `tree` → `cat` workflow | Search/get single node only |
 | Batch read entire wiki subtree | **Yes** — `cat` recursively exports Markdown | No |
 | Write safety (backup/restore) | **Yes** — auto-backup before overwrite, auto-recover on failure | No |
-| OAuth user login | **Yes** — full OAuth v2 with token refresh, tiered scope management | Tenant token only |
-| Interactive scope recovery | **Yes** — prompts user to authorize missing scopes | No |
+| OAuth user login | **Yes** — full OAuth v2 with auto-refresh, tiered scope management, interactive recovery | Yes — basic OAuth login |
 | Works with any AI agent | **Yes** — standard CLI, pipes, scripts | MCP protocol only |
 | IM / messaging | No | Yes |
 | Bitable CRUD | Read-only (rendered as table) | Yes |
