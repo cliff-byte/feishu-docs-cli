@@ -7,8 +7,7 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
-import { ensureScopes } from "../utils/scope-prompt.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { validateToken } from "../utils/validate.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
@@ -57,61 +56,58 @@ export async function mv(
 
   validateToken(targetFolder, "target_folder_token");
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureScopes(
-    rawAuthInfo,
-    FEATURE_SCOPE_GROUPS.drive.scopes,
-    globalOpts,
-  );
+  return withScopeRecovery(async () => {
+    const { authInfo } = await createClient(globalOpts);
 
-  const doc = await resolveDocument(authInfo, input);
-  const fileToken = doc.objToken;
-  const type = doc.objType;
+    const doc = await resolveDocument(authInfo, input);
+    const fileToken = doc.objToken;
+    const type = doc.objType;
 
-  const moveRes = await fetchWithAuth(
-    authInfo,
-    `/open-apis/drive/v1/files/${encodeURIComponent(fileToken)}/move`,
-    {
-      method: "POST",
-      body: { type, folder_token: targetFolder },
-    },
-  );
-
-  const resData = moveRes?.data as Record<string, unknown> | undefined;
-  const taskId = resData?.task_id as string | undefined;
-
-  // Sync completion: API returns code 0 with no task_id
-  if (!taskId) {
-    outputSuccess(fileToken, targetFolder, globalOpts.json);
-    return;
-  }
-
-  // Async: poll task_check until complete
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-
-    const checkRes = await fetchWithAuth(
+    const moveRes = await fetchWithAuth(
       authInfo,
-      `/open-apis/drive/v1/files/task_check`,
-      { params: { task_id: taskId } },
+      `/open-apis/drive/v1/files/${encodeURIComponent(fileToken)}/move`,
+      {
+        method: "POST",
+        body: { type, folder_token: targetFolder },
+      },
     );
 
-    const status = (checkRes?.data as Record<string, unknown>)
-      ?.status as string;
-    if (status === "success") {
+    const resData = moveRes?.data as Record<string, unknown> | undefined;
+    const taskId = resData?.task_id as string | undefined;
+
+    // Sync completion: API returns code 0 with no task_id
+    if (!taskId) {
       outputSuccess(fileToken, targetFolder, globalOpts.json);
       return;
     }
 
-    if (status === "fail") {
-      throw new CliError("API_ERROR", "移动操作失败");
-    }
-  }
+    // Async: poll task_check until complete
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
 
-  throw new CliError(
-    "API_ERROR",
-    `移动操作超时（${POLL_TIMEOUT_MS / 1000}秒），task_id: ${taskId}`,
-    { retryable: true },
-  );
+      const checkRes = await fetchWithAuth(
+        authInfo,
+        `/open-apis/drive/v1/files/task_check`,
+        { params: { task_id: taskId } },
+      );
+
+      const status = (checkRes?.data as Record<string, unknown>)
+        ?.status as string;
+      if (status === "success") {
+        outputSuccess(fileToken, targetFolder, globalOpts.json);
+        return;
+      }
+
+      if (status === "fail") {
+        throw new CliError("API_ERROR", "移动操作失败");
+      }
+    }
+
+    throw new CliError(
+      "API_ERROR",
+      `移动操作超时（${POLL_TIMEOUT_MS / 1000}秒），task_id: ${taskId}`,
+      { retryable: true },
+    );
+  }, globalOpts);
 }

@@ -2,24 +2,22 @@
  * Tests for scope-prompt utilities.
  *
  * Covers:
- *   - isPermissionError: error-type discrimination
  *   - promptScopeAuth: non-interactive guard conditions
- *   - ensureScopes: pre-flight guard conditions
+ *   - withScopeRecovery: catches SCOPE_MISSING errors, prompt guards, retry logic
  *
  * The full OAuth flow and readline interaction are NOT tested here because
  * they require heavyweight I/O mocking. All tests focus on the guard paths
  * that return early without touching external services.
  */
 
-import { describe, it, before, after, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  isPermissionError,
   promptScopeAuth,
-  ensureScopes,
+  withScopeRecovery,
 } from "../src/utils/scope-prompt.js";
 import { CliError } from "../src/utils/errors.js";
-import type { AuthInfo, GlobalOpts } from "../src/types/index.js";
+import type { GlobalOpts } from "../src/types/index.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,75 +25,6 @@ import type { AuthInfo, GlobalOpts } from "../src/types/index.js";
 function makeGlobalOpts(overrides: Partial<GlobalOpts> = {}): GlobalOpts {
   return { auth: "auto", json: false, lark: false, ...overrides };
 }
-
-/** Minimal AuthInfo for "user" mode. */
-function makeUserAuthInfo(overrides: Partial<AuthInfo> = {}): AuthInfo {
-  return {
-    mode: "user",
-    useLark: false,
-    userToken: "tok_test",
-    ...overrides,
-  };
-}
-
-// ── isPermissionError ─────────────────────────────────────────────────────────
-
-describe("isPermissionError", () => {
-  it("returns true for CliError with PERMISSION_DENIED errorType", () => {
-    const err = new CliError("PERMISSION_DENIED", "no access");
-    assert.equal(isPermissionError(err), true);
-  });
-
-  it("returns true for CliError with AUTH_REQUIRED errorType", () => {
-    const err = new CliError("AUTH_REQUIRED", "need login");
-    assert.equal(isPermissionError(err), true);
-  });
-
-  it("returns false for CliError with API_ERROR errorType", () => {
-    const err = new CliError("API_ERROR", "something went wrong");
-    assert.equal(isPermissionError(err), false);
-  });
-
-  it("returns false for CliError with NOT_FOUND errorType", () => {
-    const err = new CliError("NOT_FOUND", "doc gone");
-    assert.equal(isPermissionError(err), false);
-  });
-
-  it("returns false for CliError with TOKEN_EXPIRED errorType", () => {
-    const err = new CliError("TOKEN_EXPIRED", "token stale");
-    assert.equal(isPermissionError(err), false);
-  });
-
-  it("returns false for CliError with INVALID_ARGS errorType", () => {
-    const err = new CliError("INVALID_ARGS", "bad flag");
-    assert.equal(isPermissionError(err), false);
-  });
-
-  it("returns false for a plain Error", () => {
-    assert.equal(isPermissionError(new Error("plain error")), false);
-  });
-
-  it("returns false for a string", () => {
-    assert.equal(isPermissionError("PERMISSION_DENIED"), false);
-  });
-
-  it("returns false for null", () => {
-    assert.equal(isPermissionError(null), false);
-  });
-
-  it("returns false for undefined", () => {
-    assert.equal(isPermissionError(undefined), false);
-  });
-
-  it("returns false for a number", () => {
-    assert.equal(isPermissionError(403), false);
-  });
-
-  it("returns false for a plain object that looks like a CliError", () => {
-    const fake = { errorType: "PERMISSION_DENIED", message: "spoofed" };
-    assert.equal(isPermissionError(fake), false);
-  });
-});
 
 // ── promptScopeAuth ───────────────────────────────────────────────────────────
 
@@ -168,14 +97,12 @@ describe("promptScopeAuth — non-interactive guards", () => {
   });
 
   describe("missing env credentials", () => {
-    // Save and restore env vars around these tests
     let savedAppId: string | undefined;
     let savedAppSecret: string | undefined;
 
     beforeEach(() => {
       savedAppId = process.env.FEISHU_APP_ID;
       savedAppSecret = process.env.FEISHU_APP_SECRET;
-      // Make stdin look like a TTY so we reach the env-var check
       Object.defineProperty(process.stdin, "isTTY", {
         value: true,
         configurable: true,
@@ -209,21 +136,21 @@ describe("promptScopeAuth — non-interactive guards", () => {
       assert.equal(result, false);
     });
 
-    it("returns false when both FEISHU_APP_ID and FEISHU_APP_SECRET are absent", async () => {
+    it("returns false when both are absent", async () => {
       delete process.env.FEISHU_APP_ID;
       delete process.env.FEISHU_APP_SECRET;
       const result = await promptScopeAuth(MISSING, makeGlobalOpts());
       assert.equal(result, false);
     });
 
-    it("returns false when FEISHU_APP_ID is an empty string", async () => {
+    it("returns false when FEISHU_APP_ID is empty string", async () => {
       process.env.FEISHU_APP_ID = "";
       process.env.FEISHU_APP_SECRET = "secret_test";
       const result = await promptScopeAuth(MISSING, makeGlobalOpts());
       assert.equal(result, false);
     });
 
-    it("returns false when FEISHU_APP_SECRET is an empty string", async () => {
+    it("returns false when FEISHU_APP_SECRET is empty string", async () => {
       process.env.FEISHU_APP_ID = "cli_test";
       process.env.FEISHU_APP_SECRET = "";
       const result = await promptScopeAuth(MISSING, makeGlobalOpts());
@@ -232,124 +159,134 @@ describe("promptScopeAuth — non-interactive guards", () => {
   });
 });
 
-// ── ensureScopes ──────────────────────────────────────────────────────────────
+// ── withScopeRecovery ────────────────────────────────────────────────────────
 
-describe("ensureScopes", () => {
-  // These tests only exercise the early-return guard paths that do NOT depend
-  // on a token file being present (or absent) on disk. Paths that call
-  // loadTokens() and then promptScopeAuth() are covered indirectly through the
-  // promptScopeAuth non-interactive guard tests above.
-
-  describe("mode guard — non-user modes return early before loadTokens", () => {
-    it("returns the original authInfo unchanged when mode is 'tenant'", async () => {
-      const authInfo = makeUserAuthInfo({ mode: "tenant" });
-      const result = await ensureScopes(
-        authInfo,
-        ["drive:drive"],
-        makeGlobalOpts(),
-      );
-      assert.equal(result, authInfo);
-    });
-
-    it("returns the original authInfo unchanged when mode is 'auto'", async () => {
-      const authInfo = makeUserAuthInfo({ mode: "auto" });
-      const result = await ensureScopes(
-        authInfo,
-        ["drive:drive"],
-        makeGlobalOpts(),
-      );
-      assert.equal(result, authInfo);
-    });
-
-    it("returns identity (same reference) for non-user mode", async () => {
-      const authInfo = makeUserAuthInfo({ mode: "tenant" });
-      const result = await ensureScopes(
-        authInfo,
-        ["wiki:wiki", "docx:document"],
-        makeGlobalOpts(),
-      );
-      assert.strictEqual(result, authInfo);
-    });
+describe("withScopeRecovery", () => {
+  it("returns the result when fn succeeds", async () => {
+    const result = await withScopeRecovery(
+      async () => "success",
+      makeGlobalOpts(),
+    );
+    assert.equal(result, "success");
   });
 
-  describe("return value contract — non-user mode", () => {
-    it("does not mutate the input authInfo when mode is 'tenant'", async () => {
-      const authInfo: AuthInfo = {
-        mode: "tenant",
-        useLark: false,
-        userToken: "original_token",
-      };
-      await ensureScopes(authInfo, ["drive:drive"], makeGlobalOpts());
-      // Fields must be unchanged after the call
-      assert.equal(authInfo.userToken, "original_token");
-      assert.equal(authInfo.mode, "tenant");
-      assert.equal(authInfo.useLark, false);
-    });
-
-    it("does not mutate the input authInfo when mode is 'auto'", async () => {
-      const authInfo: AuthInfo = {
-        mode: "auto",
-        useLark: true,
-        tenantToken: "tenant_tok",
-      };
-      await ensureScopes(authInfo, ["drive:drive"], makeGlobalOpts());
-      assert.equal(authInfo.mode, "auto");
-      assert.equal(authInfo.useLark, true);
-      assert.equal(authInfo.tenantToken, "tenant_tok");
-    });
+  it("re-throws non-scope errors unchanged", async () => {
+    const originalError = new CliError("NOT_FOUND", "doc not found");
+    await assert.rejects(
+      () =>
+        withScopeRecovery(async () => {
+          throw originalError;
+        }, makeGlobalOpts()),
+      (err: unknown) => {
+        assert.ok(err instanceof CliError);
+        assert.equal(err.errorType, "NOT_FOUND");
+        assert.equal(err.message, "doc not found");
+        return true;
+      },
+    );
   });
 
-  describe("throws AUTH_REQUIRED when user mode + missing scopes + non-interactive", () => {
-    // When mode is "user" and tokens exist but scopes are missing, and the
-    // session is non-interactive (json:true or isTTY:false), promptScopeAuth
-    // returns false, causing ensureScopes to throw CliError(AUTH_REQUIRED).
-    // We test this by making stdin non-TTY and ensuring no readline blocks.
+  it("re-throws plain errors unchanged", async () => {
+    await assert.rejects(
+      () =>
+        withScopeRecovery(async () => {
+          throw new Error("plain error");
+        }, makeGlobalOpts()),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.equal(err.message, "plain error");
+        return true;
+      },
+    );
+  });
 
-    let savedIsTTY: boolean | undefined;
+  it("re-throws SCOPE_MISSING with empty scopes (no permission_violations)", async () => {
+    const scopeError = new CliError("SCOPE_MISSING", "权限不足", {
+      apiCode: 99991679,
+      missingScopes: [],
+    });
+    await assert.rejects(
+      () =>
+        withScopeRecovery(async () => {
+          throw scopeError;
+        }, makeGlobalOpts()),
+      (err: unknown) => {
+        assert.ok(err instanceof CliError);
+        assert.equal(err.errorType, "SCOPE_MISSING");
+        return true;
+      },
+    );
+  });
 
-    beforeEach(() => {
-      savedIsTTY = process.stdin.isTTY;
-      // Force non-TTY so promptScopeAuth returns false without blocking
+  it("throws AUTH_REQUIRED when SCOPE_MISSING in non-interactive mode (json)", async () => {
+    // In JSON mode, promptScopeAuth returns false → withScopeRecovery throws AUTH_REQUIRED
+    const scopeError = new CliError("SCOPE_MISSING", "缺少权限", {
+      apiCode: 99991672,
+      missingScopes: ["drive:drive"],
+    });
+    await assert.rejects(
+      () =>
+        withScopeRecovery(async () => {
+          throw scopeError;
+        }, makeGlobalOpts({ json: true })),
+      (err: unknown) => {
+        assert.ok(err instanceof CliError);
+        assert.equal(err.errorType, "AUTH_REQUIRED");
+        assert.ok(err.message.includes("drive:drive"));
+        return true;
+      },
+    );
+  });
+
+  it("throws AUTH_REQUIRED when SCOPE_MISSING in non-TTY mode", async () => {
+    const originalIsTTY = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, "isTTY", {
+      value: false,
+      configurable: true,
+    });
+    try {
+      const scopeError = new CliError("SCOPE_MISSING", "缺少权限", {
+        apiCode: 99991679,
+        missingScopes: ["im:message:send", "im:message"],
+      });
+      await assert.rejects(
+        () =>
+          withScopeRecovery(async () => {
+            throw scopeError;
+          }, makeGlobalOpts()),
+        (err: unknown) => {
+          assert.ok(err instanceof CliError);
+          assert.equal(err.errorType, "AUTH_REQUIRED");
+          assert.ok(err.message.includes("im:message:send"));
+          return true;
+        },
+      );
+    } finally {
       Object.defineProperty(process.stdin, "isTTY", {
-        value: false,
+        value: originalIsTTY,
         configurable: true,
       });
+    }
+  });
+
+  it("does not call fn more than twice (retry guard)", async () => {
+    let callCount = 0;
+    const scopeError = new CliError("SCOPE_MISSING", "缺少权限", {
+      apiCode: 99991672,
+      missingScopes: ["drive:drive"],
     });
 
-    afterEach(() => {
-      Object.defineProperty(process.stdin, "isTTY", {
-        value: savedIsTTY,
-        configurable: true,
-      });
-    });
+    // In non-interactive mode, promptScopeAuth returns false,
+    // so withScopeRecovery throws instead of retrying.
+    await assert.rejects(
+      () =>
+        withScopeRecovery(async () => {
+          callCount++;
+          throw scopeError;
+        }, makeGlobalOpts({ json: true })),
+    );
 
-    it("throws CliError with AUTH_REQUIRED when user mode + json mode + real token file exists", async () => {
-      // If there is no token file on this machine, ensureScopes returns early
-      // (loadTokens null guard). If there IS a token file, and the stored scope
-      // is missing the required one, ensureScopes throws. Either outcome is
-      // acceptable here — we simply assert that the call either returns the
-      // authInfo unchanged OR throws a CliError(AUTH_REQUIRED). It must not hang.
-      const authInfo = makeUserAuthInfo({ mode: "user" });
-      let result: AuthInfo | undefined;
-      let thrown: unknown;
-      try {
-        result = await ensureScopes(
-          authInfo,
-          ["drive:drive"],
-          makeGlobalOpts({ json: true }),
-        );
-      } catch (err) {
-        thrown = err;
-      }
-
-      if (thrown !== undefined) {
-        // Token file exists; assert it is AUTH_REQUIRED
-        assert.ok(thrown instanceof CliError, "expected CliError to be thrown");
-        assert.equal((thrown as CliError).errorType, "AUTH_REQUIRED");
-      } else {
-        // No token file on this machine; ensureScopes returned original authInfo
-        assert.strictEqual(result, authInfo);
-      }
-    });
+    // fn should only be called once (no retry in non-interactive mode)
+    assert.equal(callCount, 1);
   });
 });

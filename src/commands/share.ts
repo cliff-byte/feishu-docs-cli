@@ -4,8 +4,7 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
-import { ensureScopes } from "../utils/scope-prompt.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { validateMemberId, detectMemberType } from "../utils/member.js";
 import { mapToDriveType } from "../utils/drive-types.js";
@@ -91,13 +90,11 @@ export function mapPublicMode(mode: string, role: string = "view"): string {
 
 /**
  * Resolve document and determine share context.
- * Wiki documents use wiki:wiki scope (BASE_SCOPE, no extra auth needed).
- * Drive documents require drive:drive scope (FEATURE_SCOPE, may need authorize).
+ * No pre-flight scope checks — scope errors are handled reactively by withScopeRecovery.
  */
 async function resolveShareContext(
   authInfo: AuthInfo,
   input: string,
-  globalOpts: GlobalOpts,
 ): Promise<{
   token: string;
   type: string;
@@ -107,18 +104,9 @@ async function resolveShareContext(
   const doc = await resolveDocument(authInfo, input);
   const isWiki = Boolean(doc.spaceId);
 
-  // Only drive documents need the drive:drive feature scope
-  const finalAuth = isWiki
-    ? authInfo
-    : await ensureScopes(
-        authInfo,
-        FEATURE_SCOPE_GROUPS.drive.scopes,
-        globalOpts,
-      );
-
   const token = isWiki ? doc.parsed.token : doc.objToken;
   const type = isWiki ? "wiki" : mapToDriveType(doc.objType);
-  return { token, type, authInfo: finalAuth, doc };
+  return { token, type, authInfo, doc };
 }
 
 async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
@@ -130,44 +118,45 @@ async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const { token, type, authInfo } = await resolveShareContext(
-    rawAuthInfo,
-    input,
-    globalOpts,
-  );
-
-  const res = await fetchWithAuth(
-    authInfo,
-    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members`,
-    { params: { type } },
-  );
-
-  const shareResData = res?.data as Record<string, unknown> | undefined;
-  const members = (shareResData?.members || []) as Array<
-    Record<string, string>
-  >;
-
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify({ success: true, members }, null, 2) + "\n",
+  return withScopeRecovery(async () => {
+    const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+    const { token, type, authInfo } = await resolveShareContext(
+      rawAuthInfo,
+      input,
     );
-    return;
-  }
 
-  if (members.length === 0) {
-    process.stdout.write("没有协作者\n");
-    return;
-  }
-
-  for (const m of members as Array<Record<string, string>>) {
-    const name = m.member_name || m.member_id || "(未知)";
-    const perm = m.perm || "unknown";
-    const memberType = m.member_type || "";
-    process.stdout.write(
-      `  ${name}  [${perm}]  (${memberType}: ${m.member_id})\n`,
+    const res = await fetchWithAuth(
+      authInfo,
+      `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members`,
+      { params: { type } },
     );
-  }
+
+    const shareResData = res?.data as Record<string, unknown> | undefined;
+    const members = (shareResData?.members || []) as Array<
+      Record<string, string>
+    >;
+
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify({ success: true, members }, null, 2) + "\n",
+      );
+      return;
+    }
+
+    if (members.length === 0) {
+      process.stdout.write("没有协作者\n");
+      return;
+    }
+
+    for (const m of members as Array<Record<string, string>>) {
+      const name = m.member_name || m.member_id || "(未知)";
+      const perm = m.perm || "unknown";
+      const memberType = m.member_type || "";
+      process.stdout.write(
+        `  ${name}  [${perm}]  (${memberType}: ${m.member_id})\n`,
+      );
+    }
+  }, globalOpts);
 }
 
 async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
@@ -182,57 +171,58 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
 
   validateMemberId(memberId);
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const { token, type, authInfo } = await resolveShareContext(
-    rawAuthInfo,
-    input,
-    globalOpts,
-  );
-  const memberType = detectMemberType(memberId);
-  const perm = mapRole((args.role as string | undefined) || "view");
-
-  try {
-    await fetchWithAuth(
-      authInfo,
-      `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members`,
-      {
-        method: "POST",
-        params: { type },
-        body: { member_type: memberType, member_id: memberId, perm },
-      },
+  return withScopeRecovery(async () => {
+    const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+    const { token, type, authInfo } = await resolveShareContext(
+      rawAuthInfo,
+      input,
     );
-  } catch (err) {
-    // Error 1201003: member already exists → fallback to update
-    const code =
-      (err as Record<string, unknown>)?.apiCode ||
-      (err as Record<string, unknown>)?.code;
-    if (code === 1201003) {
+    const memberType = detectMemberType(memberId);
+    const perm = mapRole((args.role as string | undefined) || "view");
+
+    try {
       await fetchWithAuth(
         authInfo,
-        `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
+        `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members`,
         {
-          method: "PUT",
+          method: "POST",
           params: { type },
-          body: { member_type: memberType, perm },
+          body: { member_type: memberType, member_id: memberId, perm },
         },
       );
-    } else {
-      throw err;
+    } catch (err) {
+      // Error 1201003: member already exists → fallback to update
+      const code =
+        (err as Record<string, unknown>)?.apiCode ||
+        (err as Record<string, unknown>)?.code;
+      if (code === 1201003) {
+        await fetchWithAuth(
+          authInfo,
+          `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
+          {
+            method: "PUT",
+            params: { type },
+            body: { member_type: memberType, perm },
+          },
+        );
+      } else {
+        throw err;
+      }
     }
-  }
 
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify({
-        success: true,
-        member_id: memberId,
-        member_type: memberType,
-        perm,
-      }) + "\n",
-    );
-  } else {
-    process.stdout.write(`已添加协作者 ${memberId} (${perm})\n`);
-  }
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify({
+          success: true,
+          member_id: memberId,
+          member_type: memberType,
+          perm,
+        }) + "\n",
+      );
+    } else {
+      process.stdout.write(`已添加协作者 ${memberId} (${perm})\n`);
+    }
+  }, globalOpts);
 }
 
 async function remove(
@@ -250,35 +240,36 @@ async function remove(
 
   validateMemberId(memberId);
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const { token, type, authInfo } = await resolveShareContext(
-    rawAuthInfo,
-    input,
-    globalOpts,
-  );
-  const memberType = detectMemberType(memberId);
-
-  await fetchWithAuth(
-    authInfo,
-    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
-    {
-      method: "DELETE",
-      params: { type, member_type: memberType },
-    },
-  );
-
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify({
-        success: true,
-        member_id: memberId,
-        member_type: memberType,
-        action: "removed",
-      }) + "\n",
+  return withScopeRecovery(async () => {
+    const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+    const { token, type, authInfo } = await resolveShareContext(
+      rawAuthInfo,
+      input,
     );
-  } else {
-    process.stdout.write(`已移除协作者 ${memberId}\n`);
-  }
+    const memberType = detectMemberType(memberId);
+
+    await fetchWithAuth(
+      authInfo,
+      `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
+      {
+        method: "DELETE",
+        params: { type, member_type: memberType },
+      },
+    );
+
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify({
+          success: true,
+          member_id: memberId,
+          member_type: memberType,
+          action: "removed",
+        }) + "\n",
+      );
+    } else {
+      process.stdout.write(`已移除协作者 ${memberId}\n`);
+    }
+  }, globalOpts);
 }
 
 async function update(
@@ -303,37 +294,38 @@ async function update(
 
   validateMemberId(memberId);
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const { token, type, authInfo } = await resolveShareContext(
-    rawAuthInfo,
-    input,
-    globalOpts,
-  );
-  const memberType = detectMemberType(memberId);
-  const perm = mapRole(args.role as string);
-
-  await fetchWithAuth(
-    authInfo,
-    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
-    {
-      method: "PUT",
-      params: { type },
-      body: { member_type: memberType, perm },
-    },
-  );
-
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify({
-        success: true,
-        member_id: memberId,
-        member_type: memberType,
-        perm,
-      }) + "\n",
+  return withScopeRecovery(async () => {
+    const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+    const { token, type, authInfo } = await resolveShareContext(
+      rawAuthInfo,
+      input,
     );
-  } else {
-    process.stdout.write(`已更新协作者 ${memberId} 权限为 ${perm}\n`);
-  }
+    const memberType = detectMemberType(memberId);
+    const perm = mapRole(args.role as string);
+
+    await fetchWithAuth(
+      authInfo,
+      `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/members/${encodeURIComponent(memberId)}`,
+      {
+        method: "PUT",
+        params: { type },
+        body: { member_type: memberType, perm },
+      },
+    );
+
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify({
+          success: true,
+          member_id: memberId,
+          member_type: memberType,
+          perm,
+        }) + "\n",
+      );
+    } else {
+      process.stdout.write(`已更新协作者 ${memberId} 权限为 ${perm}\n`);
+    }
+  }, globalOpts);
 }
 
 async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
@@ -352,49 +344,50 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const { token, type, authInfo } = await resolveShareContext(
-    rawAuthInfo,
-    input,
-    globalOpts,
-  );
-
-  // Extract optional role from --public value like "tenant:edit"
-  let mode = args.public as string;
-  let shareRole = "view";
-  if (mode.includes(":")) {
-    const parts = mode.split(":");
-    mode = parts[0];
-    shareRole = parts[1] || "view";
-  }
-
-  if (shareRole !== "view" && shareRole !== "edit") {
-    throw new CliError(
-      "INVALID_ARGS",
-      `无效的分享角色: ${shareRole}。可选值: view, edit（如 tenant:edit）`,
+  return withScopeRecovery(async () => {
+    const { authInfo: rawAuthInfo } = await createClient(globalOpts);
+    const { token, type, authInfo } = await resolveShareContext(
+      rawAuthInfo,
+      input,
     );
-  }
 
-  const linkShareEntity = mapPublicMode(mode, shareRole);
+    // Extract optional role from --public value like "tenant:edit"
+    let mode = args.public as string;
+    let shareRole = "view";
+    if (mode.includes(":")) {
+      const parts = mode.split(":");
+      mode = parts[0];
+      shareRole = parts[1] || "view";
+    }
 
-  await fetchWithAuth(
-    authInfo,
-    `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/public`,
-    {
-      method: "PATCH",
-      params: { type },
-      body: { link_share_entity: linkShareEntity },
-    },
-  );
+    if (shareRole !== "view" && shareRole !== "edit") {
+      throw new CliError(
+        "INVALID_ARGS",
+        `无效的分享角色: ${shareRole}。可选值: view, edit（如 tenant:edit）`,
+      );
+    }
 
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify({
-        success: true,
-        link_share_entity: linkShareEntity,
-      }) + "\n",
+    const linkShareEntity = mapPublicMode(mode, shareRole);
+
+    await fetchWithAuth(
+      authInfo,
+      `/open-apis/drive/v1/permissions/${encodeURIComponent(token)}/public`,
+      {
+        method: "PATCH",
+        params: { type },
+        body: { link_share_entity: linkShareEntity },
+      },
     );
-  } else {
-    process.stdout.write(`已修改分享设置为 ${linkShareEntity}\n`);
-  }
+
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify({
+          success: true,
+          link_share_entity: linkShareEntity,
+        }) + "\n",
+      );
+    } else {
+      process.stdout.write(`已修改分享设置为 ${linkShareEntity}\n`);
+    }
+  }, globalOpts);
 }

@@ -16,6 +16,7 @@ const ERROR_MAP: Record<string, { exit: number; type: string }> = {
   AUTH_REQUIRED: { exit: 2, type: "AUTH_REQUIRED" },
   TOKEN_EXPIRED: { exit: 2, type: "TOKEN_EXPIRED" },
   PERMISSION_DENIED: { exit: 2, type: "PERMISSION_DENIED" },
+  SCOPE_MISSING: { exit: 2, type: "SCOPE_MISSING" },
   NOT_FOUND: { exit: 3, type: "NOT_FOUND" },
   NOT_SUPPORTED: { exit: 3, type: "NOT_SUPPORTED" },
   RATE_LIMITED: { exit: 3, type: "RATE_LIMITED" },
@@ -28,11 +29,18 @@ export class CliError extends Error {
   apiCode?: number;
   retryable: boolean;
   recovery?: string;
+  /** Scope names from API permission_violations (only for SCOPE_MISSING). */
+  missingScopes?: string[];
 
   constructor(
     type: ErrorType,
     message: string,
-    { apiCode, retryable = false, recovery }: CliErrorOptions = {},
+    {
+      apiCode,
+      retryable = false,
+      recovery,
+      missingScopes,
+    }: CliErrorOptions = {},
   ) {
     super(message);
     this.name = "CliError";
@@ -42,6 +50,7 @@ export class CliError extends Error {
     this.apiCode = apiCode;
     this.retryable = retryable;
     this.recovery = recovery;
+    this.missingScopes = missingScopes;
   }
 }
 
@@ -56,6 +65,10 @@ export function formatError(err: unknown, json: boolean = false): string {
           api_code: err.apiCode,
           retryable: err.retryable,
           recovery: err.recovery,
+          ...(err.missingScopes &&
+            err.missingScopes.length > 0 && {
+              missing_scopes: err.missingScopes,
+            }),
         },
       });
     }
@@ -136,11 +149,7 @@ export function mapApiError(err: unknown): CliError {
       },
     );
   }
-  if (code === 99991672) {
-    return new CliError("RATE_LIMITED", `API 请求频率超限，请稍后重试`, {
-      apiCode: code,
-      retryable: true,
-    });
-  }
+  // 99991672 / 99991679 are scope errors — handled directly in fetchWithAuth
+  // before mapApiError is called. If they reach here, treat as generic API error.
   return new CliError("API_ERROR", msg || "未知 API 错误", { apiCode: code });
 }

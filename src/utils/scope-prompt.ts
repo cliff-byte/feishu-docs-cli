@@ -1,34 +1,23 @@
 /**
- * Interactive scope authorization prompt and recovery utilities.
+ * Reactive scope authorization: prompt and recovery utilities.
  *
- * When a command discovers missing OAuth scopes, these helpers guide
- * the user through authorizing them — or gracefully skipping if the
- * user declines (or the session is non-interactive).
+ * Instead of pre-flight scope checks, this module provides:
+ *
+ * - `promptScopeAuth()` — Interactive OAuth prompt for missing scopes.
+ * - `withScopeRecovery()` — Wrapper that catches SCOPE_MISSING errors,
+ *   prompts the user (if interactive), and retries the operation once.
+ *
+ * The Feishu API is the source of truth for required scopes. When an API
+ * call fails with 99991672 (app scope) or 99991679 (user scope), `fetchWithAuth`
+ * throws `CliError("SCOPE_MISSING", { missingScopes })`. This module handles
+ * the recovery.
  */
 
 import * as readline from "node:readline";
 import { oauthLogin, loadTokens } from "../auth.js";
-import { createClient } from "../client.js";
 import { CliError } from "./errors.js";
-import {
-  BASE_SCOPES,
-  mergeScopes,
-  getMissingScopes,
-  buildScopeHint,
-} from "../scopes.js";
-import type { AuthInfo, GlobalOpts } from "../types/index.js";
-
-/**
- * Check whether an error is a permission / scope error.
- */
-export function isPermissionError(err: unknown): boolean {
-  if (err instanceof CliError) {
-    return (
-      err.errorType === "PERMISSION_DENIED" || err.errorType === "AUTH_REQUIRED"
-    );
-  }
-  return false;
-}
+import { BASE_SCOPES, mergeScopes, buildScopeHint } from "../scopes.js";
+import type { GlobalOpts } from "../types/index.js";
 
 /**
  * Ask a yes/no question on stderr, read from stdin.
@@ -56,14 +45,10 @@ function askYesNo(question: string): Promise<boolean> {
  *
  * Returns `true` if authorization succeeded, `false` otherwise.
  * Always returns `false` in non-interactive contexts (JSON mode, non-TTY).
- *
- * @param storedScopeStr  Pre-loaded stored scope string (avoids duplicate
- *                        loadTokens call when called from ensureScopes).
  */
 export async function promptScopeAuth(
   missingScopes: string[],
   globalOpts: GlobalOpts,
-  storedScopeStr?: string,
 ): Promise<boolean> {
   // Non-interactive: skip prompt
   if (globalOpts.json || !process.stdin.isTTY) {
@@ -73,6 +58,10 @@ export async function promptScopeAuth(
   const appId = process.env.FEISHU_APP_ID;
   const appSecret = process.env.FEISHU_APP_SECRET;
   if (!appId || !appSecret) return false;
+
+  // Skip interactive OAuth when using env-var token — re-auth would save to file
+  // but createClient still prefers the env token, so retry would fail again.
+  if (process.env.FEISHU_USER_TOKEN) return false;
 
   const scopeList = missingScopes.join(", ");
   const scopeStr = missingScopes.join(" ");
@@ -87,15 +76,10 @@ export async function promptScopeAuth(
   if (!yes) return false;
 
   // Merge missing scopes with current grants and re-run OAuth
-  let currentScopes: string[];
-  if (storedScopeStr) {
-    currentScopes = storedScopeStr.split(/\s+/).filter(Boolean);
-  } else {
-    const stored = await loadTokens();
-    currentScopes = stored?.tokens?.scope
-      ? stored.tokens.scope.split(/\s+/).filter(Boolean)
-      : [...BASE_SCOPES];
-  }
+  const stored = await loadTokens();
+  const currentScopes = stored?.tokens?.scope
+    ? stored.tokens.scope.split(/\s+/).filter(Boolean)
+    : [...BASE_SCOPES];
   const merged = mergeScopes(currentScopes, missingScopes);
 
   try {
@@ -114,38 +98,56 @@ export async function promptScopeAuth(
 }
 
 /**
- * Pre-flight scope check with interactive recovery.
+ * Wrap an async operation with reactive scope error recovery.
  *
- * If scopes are missing and the user authorizes them, returns a fresh
- * `AuthInfo` with the new token. If no recovery is needed, returns the
- * original `authInfo` unchanged. If the user declines, throws.
+ * When the operation throws `CliError("SCOPE_MISSING")`:
+ * - If interactive (TTY + non-JSON) and scopes are known: prompt → retry once.
+ * - Otherwise: re-throw with a clear recovery hint.
+ *
+ * @param fallbackScopes  Scope names to use when the API doesn't include
+ *   `permission_violations` (older APIs like search). When the error has
+ *   empty `missingScopes` but `fallbackScopes` is provided, these are used
+ *   for the authorization prompt.
  */
-export async function ensureScopes(
-  authInfo: AuthInfo,
-  requiredScopes: readonly string[],
+export async function withScopeRecovery<T>(
+  fn: () => Promise<T>,
   globalOpts: GlobalOpts,
-): Promise<AuthInfo> {
-  if (authInfo.mode !== "user") return authInfo;
+  fallbackScopes?: string[],
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!(err instanceof CliError) || err.errorType !== "SCOPE_MISSING") {
+      throw err;
+    }
 
-  // No stored file → env-var token or tenant mode; scope info unavailable,
-  // skip pre-flight check (downstream API call will surface permission errors).
-  const stored = await loadTokens();
-  if (!stored) return authInfo;
+    const apiScopes = err.missingScopes ?? [];
+    const scopes = apiScopes.length > 0 ? apiScopes : (fallbackScopes ?? []);
 
-  const missing = getMissingScopes(stored.tokens.scope, [...requiredScopes]);
-  if (missing.length === 0) return authInfo;
+    // No scopes from API or fallback → can't prompt meaningfully, just throw
+    if (scopes.length === 0) {
+      throw err;
+    }
 
-  // Pass stored scope string to avoid a second loadTokens() call
-  const authorized = await promptScopeAuth(
-    missing,
-    globalOpts,
-    stored.tokens.scope,
-  );
-  if (!authorized) {
-    throw new CliError("AUTH_REQUIRED", buildScopeHint(missing));
+    // Tenant mode: OAuth produces a user token which tenant auth ignores,
+    // so interactive recovery would be pointless — just throw with a hint.
+    if (globalOpts.auth === "tenant") {
+      throw new CliError("AUTH_REQUIRED", buildScopeHint(scopes), {
+        apiCode: err.apiCode,
+        missingScopes: scopes,
+      });
+    }
+
+    // Try interactive recovery
+    const authorized = await promptScopeAuth(scopes, globalOpts);
+    if (!authorized) {
+      throw new CliError("AUTH_REQUIRED", buildScopeHint(scopes), {
+        apiCode: err.apiCode,
+        missingScopes: scopes,
+      });
+    }
+
+    // Retry once — if it fails again, let the error propagate
+    return await fn();
   }
-
-  // Re-create client to pick up the fresh token
-  const { authInfo: refreshed } = await createClient(globalOpts);
-  return refreshed;
 }

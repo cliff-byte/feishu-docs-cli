@@ -38,8 +38,7 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
 认证:
   login [--scope "..."] [--redirect-uri <url>] [--port <port>]
                                            OAuth 登录（申请基础免审权限）
-  authorize [--feature <name>] [--scope "..."]
-                                           申请额外功能权限（可能需管理员审核）
+  authorize [--scope "..."]               申请额外权限（可能需管理员审核）
   logout                                   清除已保存的凭证
   whoami                                   查看当前认证身份和模式
 

@@ -247,10 +247,44 @@ export async function fetchWithAuth(
   const body = (await res.json()) as ApiResponse;
 
   if (body.code !== undefined && body.code !== 0) {
+    // Scope errors: extract missing scopes from permission_violations
+    if (body.code === 99991672 || body.code === 99991679) {
+      const scopes = extractScopesFromError(body);
+      const scopeStr = scopes.length > 0 ? scopes.join(" ") : "";
+      const hint =
+        scopes.length > 0
+          ? `缺少以下权限: ${scopes.join(", ")}。运行: feishu-docs authorize --scope "${scopeStr}"`
+          : body.msg || "权限不足";
+      throw new CliError("SCOPE_MISSING", hint, {
+        apiCode: body.code,
+        missingScopes: scopes,
+        recovery:
+          scopes.length > 0
+            ? `feishu-docs authorize --scope "${scopeStr}"`
+            : "检查飞书开发者后台的应用权限配置",
+      });
+    }
     throw mapApiError({ code: body.code, msg: body.msg });
   }
 
   return body;
+}
+
+/**
+ * Extract scope names from Feishu API error response.
+ *
+ * Newer APIs include `error.permission_violations[].subject` with exact scope names.
+ * Older APIs may omit this field entirely — returns empty array in that case.
+ */
+function extractScopesFromError(body: ApiResponse): string[] {
+  const error = (body as Record<string, unknown>).error as
+    | { permission_violations?: Array<{ subject?: string }> }
+    | undefined;
+  const violations = error?.permission_violations;
+  if (!Array.isArray(violations)) return [];
+  return violations
+    .map((v) => v.subject)
+    .filter((s): s is string => typeof s === "string" && s.length > 0);
 }
 
 /**

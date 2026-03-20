@@ -10,6 +10,7 @@ export type ErrorType =
   | "AUTH_REQUIRED"
   | "TOKEN_EXPIRED"
   | "PERMISSION_DENIED"
+  | "SCOPE_MISSING"
   | "NOT_FOUND"
   | "NOT_SUPPORTED"
   | "RATE_LIMITED"
@@ -19,6 +20,8 @@ export interface CliErrorOptions {
   apiCode?: number;
   retryable?: boolean;
   recovery?: string;
+  /** Scope names extracted from API permission_violations (for SCOPE_MISSING errors). */
+  missingScopes?: string[];
 }
 
 // ── Auth types ──

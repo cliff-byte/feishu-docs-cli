@@ -5,8 +5,7 @@
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { validateToken } from "../utils/validate.js";
-import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
-import { ensureScopes } from "../utils/scope-prompt.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 export const meta: CommandMeta = {
@@ -33,13 +32,6 @@ export async function ls(
   args: CommandArgs,
   globalOpts: GlobalOpts,
 ): Promise<void> {
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureScopes(
-    rawAuthInfo,
-    FEATURE_SCOPE_GROUPS.drive.scopes,
-    globalOpts,
-  );
-
   const folderToken = (args.positionals![0] as string | undefined) || undefined;
   if (folderToken) validateToken(folderToken, "folder_token");
   const limit = args.limit ? Number(args.limit) : 50;
@@ -58,52 +50,56 @@ export async function ls(
     }
   }
 
-  const typeStr = args.type as string | undefined;
-  const params: Record<string, string | number | undefined> = {
-    page_size: Math.min(limit, 50),
-    ...(folderToken && { folder_token: folderToken }),
-    ...(typeStr && { type: typeStr }),
-  };
+  return withScopeRecovery(async () => {
+    const { authInfo } = await createClient(globalOpts);
 
-  const items: unknown[] = [];
-  let pageToken: string | undefined;
+    const typeStr = args.type as string | undefined;
+    const params: Record<string, string | number | undefined> = {
+      page_size: Math.min(limit, 50),
+      ...(folderToken && { folder_token: folderToken }),
+      ...(typeStr && { type: typeStr }),
+    };
 
-  do {
-    if (pageToken) params.page_token = pageToken;
+    const items: unknown[] = [];
+    let pageToken: string | undefined;
 
-    const res = await fetchWithAuth(authInfo, "/open-apis/drive/v1/files", {
-      params,
-    });
+    do {
+      if (pageToken) params.page_token = pageToken;
 
-    const data = res?.data as Record<string, unknown> | undefined;
-    if (data?.files) {
-      items.push(...(data.files as unknown[]));
+      const res = await fetchWithAuth(authInfo, "/open-apis/drive/v1/files", {
+        params,
+      });
+
+      const data = res?.data as Record<string, unknown> | undefined;
+      if (data?.files) {
+        items.push(...(data.files as unknown[]));
+      }
+      pageToken = data?.has_more ? (data.next_page_token as string) : undefined;
+    } while (pageToken && items.length < limit);
+
+    const trimmed = items.slice(0, limit) as Array<Record<string, string>>;
+
+    if (globalOpts.json) {
+      process.stdout.write(
+        JSON.stringify(
+          { success: true, count: trimmed.length, files: trimmed },
+          null,
+          2,
+        ) + "\n",
+      );
+      return;
     }
-    pageToken = data?.has_more ? (data.next_page_token as string) : undefined;
-  } while (pageToken && items.length < limit);
 
-  const trimmed = items.slice(0, limit) as Array<Record<string, string>>;
+    if (trimmed.length === 0) {
+      process.stdout.write("文件夹为空\n");
+      return;
+    }
 
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify(
-        { success: true, count: trimmed.length, files: trimmed },
-        null,
-        2,
-      ) + "\n",
-    );
-    return;
-  }
-
-  if (trimmed.length === 0) {
-    process.stdout.write("文件夹为空\n");
-    return;
-  }
-
-  for (const f of trimmed) {
-    const name = f.name || "(未命名)";
-    const type = TYPE_LABELS[f.type] || f.type || "unknown";
-    const token = f.token || "";
-    process.stdout.write(`  ${name}  [${type}]  ${token}\n`);
-  }
+    for (const f of trimmed) {
+      const name = f.name || "(未命名)";
+      const type = TYPE_LABELS[f.type] || f.type || "unknown";
+      const token = f.token || "";
+      process.stdout.write(`  ${name}  [${type}]  ${token}\n`);
+    }
+  }, globalOpts);
 }

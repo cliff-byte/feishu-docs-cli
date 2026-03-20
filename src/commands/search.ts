@@ -5,8 +5,7 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
-import { ensureScopes } from "../utils/scope-prompt.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 const DOC_TYPE_MAP: Record<string, string> = {
@@ -41,91 +40,97 @@ export async function search(
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-
-  if (rawAuthInfo.mode === "tenant") {
-    throw new CliError(
-      "AUTH_REQUIRED",
-      "search 命令需要 user 身份。tenant 模式下无搜索能力",
-      {
-        recovery:
-          "运行 feishu-docs login 切换到 user 身份，或设置 FEISHU_USER_TOKEN 环境变量",
-      },
-    );
-  }
-
-  const authInfo = await ensureScopes(
-    rawAuthInfo,
-    FEATURE_SCOPE_GROUPS.search.scopes,
-    globalOpts,
-  );
-
   const limit = args.limit ? Number(args.limit) : 20;
   if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
     throw new CliError("INVALID_ARGS", "--limit 必须是 1-200 之间的整数");
   }
-  const docType = (args.type as string | undefined) || undefined;
 
-  const results: unknown[] = [];
-  let offset = 0;
-  const pageSize = Math.min(limit, 50);
+  // Search API (legacy) may return 99991679 without permission_violations.
+  // Provide fallback scope for interactive recovery.
+  return withScopeRecovery(
+    async () => {
+      const { authInfo } = await createClient(globalOpts);
 
-  while (results.length < limit) {
-    const body: Record<string, unknown> = {
-      search_key: query,
-      count: pageSize,
-      offset,
-    };
-    if (docType) body.docs_types = [docType];
+      if (authInfo.mode === "tenant") {
+        throw new CliError(
+          "AUTH_REQUIRED",
+          "search 命令需要 user 身份。tenant 模式下无搜索能力",
+          {
+            recovery:
+              "运行 feishu-docs login 切换到 user 身份，或设置 FEISHU_USER_TOKEN 环境变量",
+          },
+        );
+      }
 
-    const res = await fetchWithAuth(
-      authInfo,
-      "/open-apis/suite/docs-api/search/object",
-      { method: "POST", body },
-    );
+      const docType = (args.type as string | undefined) || undefined;
 
-    const resData = res?.data as Record<string, unknown> | undefined;
-    const items = (resData?.docs_entities || []) as unknown[];
-    results.push(...items);
+      const results: unknown[] = [];
+      let offset = 0;
+      const pageSize = Math.min(limit, 50);
 
-    if (!resData?.has_more || items.length === 0) break;
-    offset += items.length;
-  }
+      while (results.length < limit) {
+        const body: Record<string, unknown> = {
+          search_key: query,
+          count: pageSize,
+          offset,
+        };
+        if (docType) body.docs_types = [docType];
 
-  const trimmed = results.slice(0, limit) as Array<Record<string, string>>;
+        const res = await fetchWithAuth(
+          authInfo,
+          "/open-apis/suite/docs-api/search/object",
+          { method: "POST", body },
+        );
 
-  if (globalOpts.json) {
-    process.stdout.write(
-      JSON.stringify(
-        {
-          success: true,
-          query,
-          count: trimmed.length,
-          items: trimmed.map((item) => ({
-            title: item.title,
-            token: item.docs_token,
-            obj_type: item.docs_type,
-            owner_id: item.owner_id,
-          })),
-        },
-        null,
-        2,
-      ) + "\n",
-    );
-    return;
-  }
+        const resData = res?.data as Record<string, unknown> | undefined;
+        const items = (resData?.docs_entities || []) as unknown[];
+        results.push(...items);
 
-  if (trimmed.length === 0) {
-    process.stdout.write(`没有找到与 "${query}" 相关的文档\n`);
-    return;
-  }
+        if (!resData?.has_more || items.length === 0) break;
+        offset += items.length;
+      }
 
-  process.stdout.write(`搜索 "${query}" — 找到 ${trimmed.length} 条结果\n\n`);
+      const trimmed = results.slice(0, limit) as Array<Record<string, string>>;
 
-  for (const item of trimmed) {
-    const title = item.title || "(无标题)";
-    const type = DOC_TYPE_MAP[item.docs_type] || item.docs_type || "unknown";
-    const token = item.docs_token || "";
-    process.stdout.write(`  ${title}  [${type}]  ${token}\n`);
-  }
+      if (globalOpts.json) {
+        process.stdout.write(
+          JSON.stringify(
+            {
+              success: true,
+              query,
+              count: trimmed.length,
+              items: trimmed.map((item) => ({
+                title: item.title,
+                token: item.docs_token,
+                obj_type: item.docs_type,
+                owner_id: item.owner_id,
+              })),
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        return;
+      }
+
+      if (trimmed.length === 0) {
+        process.stdout.write(`没有找到与 "${query}" 相关的文档\n`);
+        return;
+      }
+
+      process.stdout.write(
+        `搜索 "${query}" — 找到 ${trimmed.length} 条结果\n\n`,
+      );
+
+      for (const item of trimmed) {
+        const title = item.title || "(无标题)";
+        const type =
+          DOC_TYPE_MAP[item.docs_type] || item.docs_type || "unknown";
+        const token = item.docs_token || "";
+        process.stdout.write(`  ${title}  [${type}]  ${token}\n`);
+      }
+    },
+    globalOpts,
+    ["drive:drive.search:readonly"],
+  );
 }
