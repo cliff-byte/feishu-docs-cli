@@ -78,16 +78,13 @@ Requires Node.js >= 18.3.
    | `board:whiteboard:node:read` | Whiteboard export as image (read command) |
    | `bitable:app:readonly` | Embedded bitable/table read (read command) |
 
-   **Feature scopes** (require admin review — requested on-demand via `feishu-docs authorize`):
+   **Additional scopes** are requested reactively — when an API call needs a scope you haven't authorized, the CLI detects this from the API error response and prompts you. Common ones:
 
-   | Scope | Description | Commands |
-   |-------|-------------|----------|
-   | `drive:drive` | Cloud file management & permissions | ls, delete, share, create --folder |
-   | `contact:contact.base:readonly` | User lookup by email/phone | share add |
-   | `drive:drive.search:readonly` | Document search | search |
-   | `wiki:wiki.space:create` | Create knowledge bases | wiki create-space |
-   | `wiki:wiki.space.node` | Edit knowledge base nodes | wiki rename, move, copy |
-   | `wiki:wiki.space.member` | Manage knowledge base members | wiki add-member, remove-member |
+   | Scope | Description |
+   |-------|-------------|
+   | `drive:drive` | Cloud file management (ls, delete, share, mv, cp, mkdir) |
+   | `contact:contact.base:readonly` | User lookup by email/phone |
+   | `drive:drive.search:readonly` | Document search |
 
 5. Go to **Security Settings**, add the OAuth callback URL to the **Redirect URLs** allowlist:
    - Default: `http://127.0.0.1:3456/callback`
