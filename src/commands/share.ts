@@ -90,28 +90,35 @@ export function mapPublicMode(mode: string, role: string = "view"): string {
 }
 
 /**
- * Pre-flight scope check with interactive recovery for share commands.
+ * Resolve document and determine share context.
+ * Wiki documents use wiki:wiki scope (BASE_SCOPE, no extra auth needed).
+ * Drive documents require drive:drive scope (FEATURE_SCOPE, may need authorize).
  */
-async function ensureDriveScope(
-  authInfo: AuthInfo,
-  globalOpts: GlobalOpts,
-): Promise<AuthInfo> {
-  return ensureScopes(authInfo, FEATURE_SCOPE_GROUPS.drive.scopes, globalOpts);
-}
-
-async function resolveDocForShare(
+async function resolveShareContext(
   authInfo: AuthInfo,
   input: string,
+  globalOpts: GlobalOpts,
 ): Promise<{
   token: string;
   type: string;
+  authInfo: AuthInfo;
   doc: Awaited<ReturnType<typeof resolveDocument>>;
 }> {
   const doc = await resolveDocument(authInfo, input);
-  // For wiki nodes, use the node_token with type "wiki" for permission APIs
-  const token = doc.spaceId ? doc.parsed.token : doc.objToken;
-  const type = doc.spaceId ? "wiki" : mapToDriveType(doc.objType);
-  return { token, type, doc };
+  const isWiki = Boolean(doc.spaceId);
+
+  // Only drive documents need the drive:drive feature scope
+  const finalAuth = isWiki
+    ? authInfo
+    : await ensureScopes(
+        authInfo,
+        FEATURE_SCOPE_GROUPS.drive.scopes,
+        globalOpts,
+      );
+
+  const token = isWiki ? doc.parsed.token : doc.objToken;
+  const type = isWiki ? "wiki" : mapToDriveType(doc.objType);
+  return { token, type, authInfo: finalAuth, doc };
 }
 
 async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
@@ -124,9 +131,11 @@ async function list(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
   }
 
   const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
-
-  const { token, type } = await resolveDocForShare(authInfo, input);
+  const { token, type, authInfo } = await resolveShareContext(
+    rawAuthInfo,
+    input,
+    globalOpts,
+  );
 
   const res = await fetchWithAuth(
     authInfo,
@@ -174,9 +183,11 @@ async function add(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
   validateMemberId(memberId);
 
   const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
-
-  const { token, type } = await resolveDocForShare(authInfo, input);
+  const { token, type, authInfo } = await resolveShareContext(
+    rawAuthInfo,
+    input,
+    globalOpts,
+  );
   const memberType = detectMemberType(memberId);
   const perm = mapRole((args.role as string | undefined) || "view");
 
@@ -240,9 +251,11 @@ async function remove(
   validateMemberId(memberId);
 
   const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
-
-  const { token, type } = await resolveDocForShare(authInfo, input);
+  const { token, type, authInfo } = await resolveShareContext(
+    rawAuthInfo,
+    input,
+    globalOpts,
+  );
   const memberType = detectMemberType(memberId);
 
   await fetchWithAuth(
@@ -291,9 +304,11 @@ async function update(
   validateMemberId(memberId);
 
   const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
-
-  const { token, type } = await resolveDocForShare(authInfo, input);
+  const { token, type, authInfo } = await resolveShareContext(
+    rawAuthInfo,
+    input,
+    globalOpts,
+  );
   const memberType = detectMemberType(memberId);
   const perm = mapRole(args.role as string);
 
@@ -338,9 +353,11 @@ async function set(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
   }
 
   const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await ensureDriveScope(rawAuthInfo, globalOpts);
-
-  const { token, type } = await resolveDocForShare(authInfo, input);
+  const { token, type, authInfo } = await resolveShareContext(
+    rawAuthInfo,
+    input,
+    globalOpts,
+  );
 
   // Extract optional role from --public value like "tenant:edit"
   let mode = args.public as string;
