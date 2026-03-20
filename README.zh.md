@@ -89,7 +89,7 @@ npm install -g github:cliff-byte/feishu-docs-cli
    | `wiki:wiki.space.member` | 管理知识库成员 | wiki add-member、remove-member |
 
 4. 进入 **安全设置**，在 **重定向 URL** 白名单中添加 OAuth 回调地址：
-   - 默认值：`http://localhost:3456/callback`
+   - 默认值：`http://127.0.0.1:3456/callback`
    - 该地址必须与 `feishu-docs login` 使用的值完全一致
 
 5. **发布应用版本**：进入 **应用发布** → **创建版本** → 提交审核 → 审核通过（企业自建应用通常自动通过）
@@ -113,7 +113,7 @@ feishu-docs login
 
 执行后会打开浏览器进行 OAuth 授权，token 加密保存到 `~/.feishu-docs/auth.json`。
 
-如果应用注册的重定向 URL 与默认值（`http://localhost:3456/callback`）不同，需要传入完全一致的值：
+如果应用注册的重定向 URL 与默认值（`http://127.0.0.1:3456/callback`）不同，需要传入完全一致的值：
 
 ```bash
 # 使用与飞书开放平台注册的完全一致的重定向 URI
@@ -249,7 +249,7 @@ feishu-docs share set <url> --public closed           # 关闭链接分享
 ### 认证
 
 ```bash
-feishu-docs login          # OAuth 登录（默认回调：http://localhost:3456/callback）
+feishu-docs login          # OAuth 登录（默认回调：http://127.0.0.1:3456/callback）
 feishu-docs logout         # 清除保存的凭证
 feishu-docs whoami         # 查看当前认证状态
 ```

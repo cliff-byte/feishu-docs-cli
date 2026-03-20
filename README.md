@@ -90,7 +90,7 @@ Requires Node.js >= 18.3.
    | `wiki:wiki.space.member` | Manage knowledge base members | wiki add-member, remove-member |
 
 5. Go to **Security Settings**, add the OAuth callback URL to the **Redirect URLs** allowlist:
-   - Default: `http://localhost:3456/callback`
+   - Default: `http://127.0.0.1:3456/callback`
    - This must match exactly what you use during `feishu-docs login`
 
 6. **Publish the app version**: Go to **App Release** → **Create Version** → Submit for review → Approve (self-built apps in your org are usually auto-approved)
@@ -114,7 +114,7 @@ feishu-docs login
 
 This opens a browser for OAuth authorization and saves the encrypted token to `~/.feishu-docs/auth.json`.
 
-If your app's registered redirect URL differs from the default (`http://localhost:3456/callback`), pass the exact same value:
+If your app's registered redirect URL differs from the default (`http://127.0.0.1:3456/callback`), pass the exact same value:
 
 ```bash
 # Match the exact redirect URI registered in Feishu Open Platform
@@ -250,7 +250,7 @@ Roles: `view`, `edit`, `manage`. Member types are auto-detected (email, openid, 
 ### Auth
 
 ```bash
-feishu-docs login          # OAuth login (default callback: http://localhost:3456/callback)
+feishu-docs login          # OAuth login (default callback: http://127.0.0.1:3456/callback)
 feishu-docs logout         # Clear saved credentials
 feishu-docs whoami         # Show current auth status
 ```
