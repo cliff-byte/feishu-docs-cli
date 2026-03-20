@@ -5,8 +5,6 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { FEATURE_SCOPE_GROUPS } from "../scopes.js";
-import { ensureScopes } from "../utils/scope-prompt.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { validateMemberId, detectMemberType } from "../utils/member.js";
 import { validateToken } from "../utils/validate.js";
@@ -34,20 +32,8 @@ async function resolveWikiNode(
   return doc;
 }
 
-/**
- * Pre-flight scope check with interactive recovery for wiki commands.
- */
-async function checkWikiScope(
-  authInfo: AuthInfo,
-  feature: "wiki-space" | "wiki-node" | "wiki-member",
-  globalOpts: GlobalOpts,
-): Promise<AuthInfo> {
-  return ensureScopes(
-    authInfo,
-    FEATURE_SCOPE_GROUPS[feature].scopes,
-    globalOpts,
-  );
-}
+// wiki:wiki is a BASE_SCOPE (免审核), so no ensureScopes check needed.
+// All wiki operations are covered by the base scope granted during login.
 
 // --- Subcommand: create-space ---
 
@@ -63,8 +49,7 @@ async function createSpace(
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await checkWikiScope(rawAuthInfo, "wiki-space", globalOpts);
+  const { authInfo } = await createClient(globalOpts);
 
   const descStr = args.desc as string | undefined;
   const body: Record<string, string> = {
@@ -120,8 +105,7 @@ async function addMember(
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await checkWikiScope(rawAuthInfo, "wiki-member", globalOpts);
+  const { authInfo } = await createClient(globalOpts);
 
   let alreadyExist = false;
   try {
@@ -187,8 +171,7 @@ async function removeMember(
   const memberType = detectMemberType(memberId);
   const memberRole = (args.role as string | undefined) || "member";
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await checkWikiScope(rawAuthInfo, "wiki-member", globalOpts);
+  const { authInfo } = await createClient(globalOpts);
 
   await fetchWithAuth(
     authInfo,
@@ -229,8 +212,7 @@ async function rename(
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await checkWikiScope(rawAuthInfo, "wiki-node", globalOpts);
+  const { authInfo } = await createClient(globalOpts);
   const doc = await resolveWikiNode(authInfo, input);
 
   await fetchWithAuth(
@@ -274,8 +256,7 @@ async function move(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await checkWikiScope(rawAuthInfo, "wiki-node", globalOpts);
+  const { authInfo } = await createClient(globalOpts);
   const doc = await resolveWikiNode(authInfo, input);
 
   const toStr = args.to as string | undefined;
@@ -328,8 +309,7 @@ async function copy(args: CommandArgs, globalOpts: GlobalOpts): Promise<void> {
     );
   }
 
-  const { authInfo: rawAuthInfo } = await createClient(globalOpts);
-  const authInfo = await checkWikiScope(rawAuthInfo, "wiki-node", globalOpts);
+  const { authInfo } = await createClient(globalOpts);
   const doc = await resolveWikiNode(authInfo, input);
 
   const copyToStr = args.to as string | undefined;

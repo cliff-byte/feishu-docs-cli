@@ -37,21 +37,9 @@ export const FEATURE_SCOPE_GROUPS = {
     description: "搜索云文档（需管理员审核）",
     commands: ["search"],
   },
-  "wiki-space": {
-    scopes: ["wiki:wiki.space:create"],
-    description: "创建知识库（需管理员审核）",
-    commands: ["wiki create-space"],
-  },
-  "wiki-node": {
-    scopes: ["wiki:wiki.space.node"],
-    description: "编辑知识库节点（重命名、移动、复制，需管理员审核）",
-    commands: ["wiki rename", "wiki move", "wiki copy"],
-  },
-  "wiki-member": {
-    scopes: ["wiki:wiki.space.member"],
-    description: "管理知识库成员（需管理员审核）",
-    commands: ["wiki add-member", "wiki remove-member"],
-  },
+  // wiki:wiki is already in BASE_SCOPES and covers all wiki operations
+  // including space creation, node editing, and member management.
+  // No separate feature scope groups needed for wiki.
 } as const;
 
 export type FeatureName = keyof typeof FEATURE_SCOPE_GROUPS;

@@ -148,25 +148,19 @@ describe("FEATURE_SCOPE_GROUPS", () => {
     );
   });
 
-  it("wiki-space group contains wiki:wiki.space:create", () => {
-    assert.ok(
-      FEATURE_SCOPE_GROUPS["wiki-space"].scopes.includes(
-        "wiki:wiki.space:create",
-      ),
+  it("wiki scopes are in BASE_SCOPES not FEATURE_SCOPE_GROUPS", () => {
+    assert.ok(BASE_SCOPES.includes("wiki:wiki"));
+    assert.equal(
+      (FEATURE_SCOPE_GROUPS as Record<string, unknown>)["wiki-space"],
+      undefined,
     );
-  });
-
-  it("wiki-node group contains wiki:wiki.space.node", () => {
-    assert.ok(
-      FEATURE_SCOPE_GROUPS["wiki-node"].scopes.includes("wiki:wiki.space.node"),
+    assert.equal(
+      (FEATURE_SCOPE_GROUPS as Record<string, unknown>)["wiki-node"],
+      undefined,
     );
-  });
-
-  it("wiki-member group contains wiki:wiki.space.member", () => {
-    assert.ok(
-      FEATURE_SCOPE_GROUPS["wiki-member"].scopes.includes(
-        "wiki:wiki.space.member",
-      ),
+    assert.equal(
+      (FEATURE_SCOPE_GROUPS as Record<string, unknown>)["wiki-member"],
+      undefined,
     );
   });
 
