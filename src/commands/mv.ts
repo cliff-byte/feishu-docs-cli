@@ -1,8 +1,8 @@
 /**
  * mv command: Move a file to a different folder in cloud drive.
  *
- * The Feishu move API is asynchronous — it returns a task_id which
- * must be polled via taskCheck until completion.
+ * The move API may complete synchronously (empty data, code 0) or
+ * return a task_id for async polling. Both cases are handled.
  */
 
 import { createClient, fetchWithAuth } from "../client.js";
@@ -21,6 +21,26 @@ export const meta: CommandMeta = {
   positionals: true,
   handler: mv,
 };
+
+function outputSuccess(
+  fileToken: string,
+  targetFolder: string,
+  json: boolean,
+): void {
+  if (json) {
+    process.stdout.write(
+      JSON.stringify({
+        success: true,
+        file_token: fileToken,
+        folder_token: targetFolder,
+      }) + "\n",
+    );
+  } else {
+    process.stdout.write(
+      `已移动 ${fileToken} 到文件夹 ${targetFolder}\n`,
+    );
+  }
+}
 
 export async function mv(
   args: CommandArgs,
@@ -57,14 +77,16 @@ export async function mv(
     },
   );
 
-  const taskId = (moveRes?.data as Record<string, unknown>)
-    ?.task_id as string;
+  const resData = moveRes?.data as Record<string, unknown> | undefined;
+  const taskId = resData?.task_id as string | undefined;
 
+  // Sync completion: API returns code 0 with no task_id
   if (!taskId) {
-    throw new CliError("API_ERROR", "移动操作未返回 task_id");
+    outputSuccess(fileToken, targetFolder, globalOpts.json);
+    return;
   }
 
-  // Poll until complete
+  // Async: poll task_check until complete
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
@@ -78,19 +100,7 @@ export async function mv(
     const status = (checkRes?.data as Record<string, unknown>)
       ?.status as string;
     if (status === "success") {
-      if (globalOpts.json) {
-        process.stdout.write(
-          JSON.stringify({
-            success: true,
-            file_token: fileToken,
-            folder_token: targetFolder,
-          }) + "\n",
-        );
-      } else {
-        process.stdout.write(
-          `已移动 ${fileToken} 到文件夹 ${targetFolder}\n`,
-        );
-      }
+      outputSuccess(fileToken, targetFolder, globalOpts.json);
       return;
     }
 

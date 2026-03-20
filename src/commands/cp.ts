@@ -50,7 +50,23 @@ export async function cp(
   // Determine copy name: use --name if provided, otherwise fetch original title
   let copyName = args.name as string | undefined;
   if (!copyName) {
-    copyName = doc.title ? `${doc.title} - 副本` : `${fileToken} - 副本`;
+    let title = doc.title;
+    if (!title) {
+      // Fetch title via document API for non-wiki documents
+      try {
+        const docRes = await fetchWithAuth(
+          authInfo,
+          `/open-apis/docx/v1/documents/${encodeURIComponent(fileToken)}`,
+        );
+        title = (docRes?.data as Record<string, unknown>)?.document
+          ? ((docRes.data as Record<string, Record<string, string>>).document
+              .title as string)
+          : undefined;
+      } catch {
+        // Non-critical: fall back to token-based name
+      }
+    }
+    copyName = title ? `${title} - 副本` : `${fileToken} - 副本`;
   }
 
   const res = await fetchWithAuth(
