@@ -259,18 +259,24 @@ export async function resolveAuth(
     const canRefresh = !!saved.tokens.refresh_token;
     const hasTenantCreds = envAppId && envAppSecret;
 
-    // Always return user auth when saved tokens exist — let createClient
-    // handle refresh or throw explicit errors instead of silently falling
-    // back to tenant mode.
-    return {
-      mode: "user",
-      appId: saved.appId || envAppId,
-      appSecret: envAppSecret,
-      userToken: saved.tokens.user_access_token,
-      refreshToken: saved.tokens.refresh_token,
-      expiresAt: saved.tokens.expires_at,
-      useLark: false,
-    };
+    // Only skip stale user token when it's expired, has no refresh_token,
+    // AND tenant credentials are available. In this case, fall through to
+    // tenant mode (createClient will warn the user).
+    // When refresh_token exists, always return user auth — createClient
+    // will attempt refresh and throw explicit errors on failure.
+    if (isExpired && !canRefresh && hasTenantCreds) {
+      // Fall through to tenant mode
+    } else {
+      return {
+        mode: "user",
+        appId: saved.appId || envAppId,
+        appSecret: envAppSecret,
+        userToken: saved.tokens.user_access_token,
+        refreshToken: saved.tokens.refresh_token,
+        expiresAt: saved.tokens.expires_at,
+        useLark: false,
+      };
+    }
   }
 
   if (envAppId && envAppSecret) {

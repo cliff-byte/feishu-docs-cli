@@ -92,6 +92,19 @@ export async function createClient(
           );
         }
       } else {
+        // No refresh_token — fall back to tenant if credentials available,
+        // but warn the user so they know they're not in user mode.
+        if (authMode === "auto" && appId && appSecret) {
+          process.stderr.write(
+            "feishu-docs: warning: user token 已过期且无法刷新，回退到 tenant 模式（部分操作可能需要 user 权限）\n",
+          );
+          const tenantAuthInfo: AuthInfo = {
+            ...authInfo,
+            mode: "tenant",
+            userToken: undefined,
+          };
+          return { authInfo: tenantAuthInfo };
+        }
         throw new CliError(
           "TOKEN_EXPIRED",
           "token 已过期且无 refresh_token，请重新运行 feishu-docs login",
