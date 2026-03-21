@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-beta.12] - 2026-03-21
+
+### Fixed
+
+- **Markdown H1 heading now becomes document title, not body content.** When writing a Markdown file to a Feishu document via `update --body`, the first `# heading` is extracted as the document title and removed from the body content. The title is updated via PATCH API after successful content write, ensuring safe rollback if the write fails.
+- **`create` command auto-extracts title from Markdown.** When no title argument is given, `feishu-docs create --body file.md` automatically uses the first H1 heading from the Markdown as the document title. When a title argument is provided, the H1 heading stays in the body as content.
+- **Title-only Markdown documents handled correctly.** If the Markdown file contains only a heading with no body, the document title is set without writing empty content.
+
 ## [0.1.0-beta.11] - 2026-03-21
 
 ### Fixed

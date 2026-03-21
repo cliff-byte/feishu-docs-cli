@@ -4,7 +4,10 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { convertAndWrite } from "../services/markdown-convert.js";
+import {
+  convertAndWrite,
+  extractMarkdownTitle,
+} from "../services/markdown-convert.js";
 import { readBody, getDocumentInfo } from "../services/block-writer.js";
 import { validateToken } from "../utils/validate.js";
 import {
@@ -29,22 +32,36 @@ export async function create(
   args: CommandArgs,
   globalOpts: GlobalOpts,
 ): Promise<void> {
-  const title = args.positionals![0];
-  if (!title) {
-    throw new CliError(
-      "INVALID_ARGS",
-      "缺少文档标题。用法: feishu-docs create <title> [--wiki <space_id>] [--body <file>]",
-    );
-  }
+  let title = args.positionals![0] as string | undefined;
 
   const { authInfo } = await createClient(globalOpts);
 
   let bodyContent: string | undefined;
   if (args.body) {
-    bodyContent = await readBody(args.body as string);
-    if (!bodyContent.trim()) {
+    const rawBody = await readBody(args.body as string);
+    if (!rawBody.trim()) {
       throw new CliError("INVALID_ARGS", "文档内容为空，至少需要一行内容");
     }
+    // Only extract H1 when no title argument — avoid stripping content headings
+    if (!title) {
+      const { title: extractedTitle, body: strippedBody } =
+        extractMarkdownTitle(rawBody);
+      if (extractedTitle) {
+        title = extractedTitle;
+        bodyContent = strippedBody.trim() ? strippedBody : undefined;
+      } else {
+        bodyContent = rawBody;
+      }
+    } else {
+      bodyContent = rawBody;
+    }
+  }
+
+  if (!title) {
+    throw new CliError(
+      "INVALID_ARGS",
+      "缺少文档标题。用法: feishu-docs create <title> [--body <file>] 或在 Markdown 文件中使用 # 标题",
+    );
   }
 
   if (args.wiki) {

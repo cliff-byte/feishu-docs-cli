@@ -42,6 +42,52 @@ export function normalizeLangNames(markdown: string): string {
 }
 
 /**
+ * Extract the first top-level heading (# title) from markdown.
+ *
+ * Returns the title text and the remaining body with the heading line removed.
+ * Only matches `# heading` (H1), not `## heading` (H2+).
+ * Ignores leading blank lines before the heading.
+ * If no H1 heading is found, returns null title and the original markdown.
+ */
+export function extractMarkdownTitle(markdown: string): {
+  title: string | null;
+  body: string;
+} {
+  const lines = markdown.split("\n");
+  let headingIndex = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed === "") continue;
+    // Match exactly one # followed by space (H1 only, not ##)
+    const match = trimmed.match(/^#\s+(.+)$/);
+    if (match) {
+      headingIndex = i;
+    }
+    break; // Only check the first non-empty line
+  }
+
+  if (headingIndex === -1) {
+    return { title: null, body: markdown };
+  }
+
+  const title = lines[headingIndex].trim().replace(/^#\s+/, "");
+  const remaining = [
+    ...lines.slice(0, headingIndex),
+    ...lines.slice(headingIndex + 1),
+  ];
+
+  // Remove leading blank lines left after title extraction
+  let startIdx = 0;
+  while (startIdx < remaining.length && remaining[startIdx].trim() === "") {
+    startIdx++;
+  }
+  const body = remaining.slice(startIdx).join("\n");
+
+  return { title, body };
+}
+
+/**
  * Convert markdown string to Feishu block array via Convert API.
  * Requires scope: docx:document.block:convert
  *
