@@ -320,6 +320,35 @@ export async function fetchBinaryWithAuth(
   }
 
   if (!res.ok) {
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      let body: Record<string, unknown>;
+      try {
+        body = await res.json();
+      } catch {
+        throw new CliError(
+          "API_ERROR",
+          `下载失败: HTTP ${res.status} ${res.statusText}`,
+        );
+      }
+      if (body.code === 99991672 || body.code === 99991679) {
+        const scopes = extractScopesFromError(body as ApiResponse);
+        const scopeStr = scopes.length > 0 ? scopes.join(" ") : "";
+        const hint =
+          scopes.length > 0
+            ? `缺少以下权限: ${scopes.join(", ")}。运行: feishu-docs authorize --scope "${scopeStr}"`
+            : (body.msg as string) || "权限不足";
+        throw new CliError("SCOPE_MISSING", hint, {
+          apiCode: body.code as number,
+          missingScopes: scopes,
+          recovery:
+            scopes.length > 0
+              ? `feishu-docs authorize --scope "${scopeStr}"`
+              : "检查飞书开发者后台的应用权限配置",
+        });
+      }
+      throw mapApiError({ code: body.code as number, msg: body.msg as string });
+    }
     throw new CliError(
       "API_ERROR",
       `下载失败: HTTP ${res.status} ${res.statusText}`,

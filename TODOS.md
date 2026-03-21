@@ -10,17 +10,12 @@ Results:
 - Current code mapping 99991672 to RATE_LIMITED is confirmed BUG — must fix
 - Fallback for missing `permission_violations` is necessary
 
-## Post-refactor: fetchBinaryWithAuth scope error handling
+## ~~Post-refactor: fetchBinaryWithAuth scope error handling~~ DONE
 
-**Priority:** LOW — follow-up optimization after core refactor
-**Added:** 2026-03-20 (plan-eng-review)
+**Status:** COMPLETED on 2026-03-21
 
-`fetchBinaryWithAuth` (client.ts:259) returns raw binary data and does not parse JSON
-responses. If a scope error occurs during binary download (e.g., image/file URLs), the
-user gets a vague HTTP error instead of a clear scope prompt.
-
-**Fix:** Check `Content-Type` header before reading body. If response is `application/json`
-(which Feishu returns for error responses even on binary endpoints), parse as JSON and
-apply the same scope error detection as `fetchWithAuth`.
-
-**Depends on:** Core reactive scope refactor completion.
+`fetchBinaryWithAuth` now checks `Content-Type` header on error responses. If
+`application/json`, parses JSON and applies the same scope error detection as
+`fetchWithAuth` (99991672/99991679 → SCOPE_MISSING with exact scope names).
+Non-scope JSON errors route through `mapApiError` for consistent handling.
+6 unit tests cover all code paths (T1-T6).
