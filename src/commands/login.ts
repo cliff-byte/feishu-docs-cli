@@ -43,7 +43,11 @@ export async function login(
     );
   }
 
-  const scope = (args.scope as string | undefined) || BASE_SCOPES.join(" ");
+  const userScope = (args.scope as string | undefined) || BASE_SCOPES.join(" ");
+  // Always include offline_access — required for refresh_token
+  const scope = userScope.includes("offline_access")
+    ? userScope
+    : `offline_access ${userScope}`;
   const tokens = await oauthLogin(appId, {
     scope,
     appSecret,
