@@ -71,6 +71,7 @@ Requires Node.js >= 18.3.
 
    | Scope | Description |
    |-------|-------------|
+   | `offline_access` | Token auto-refresh (enables refresh_token for 7-day validity) |
    | `wiki:wiki` | Knowledge base read/write |
    | `docx:document` | Document read/write |
    | `docx:document.block:convert` | Markdown to block conversion (create/update) |

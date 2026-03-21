@@ -202,6 +202,7 @@ The `recovery` field is critical for AI agent consumers — always provide actio
 **Base scopes** (no admin review — requested automatically during `feishu-docs login`):
 
 ```
+offline_access
 wiki:wiki
 docx:document
 docx:document.block:convert

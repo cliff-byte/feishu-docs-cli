@@ -70,6 +70,7 @@ npm install -g github:cliff-byte/feishu-docs-cli
 
    | 权限 | 说明 |
    |------|------|
+   | `offline_access` | Token 自动刷新（获取 refresh_token，7 天有效期） |
    | `wiki:wiki` | 知识库读写 |
    | `docx:document` | 文档读写 |
    | `docx:document.block:convert` | Markdown 转 Block（创建/更新需要） |
