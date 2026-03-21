@@ -11,6 +11,8 @@
  */
 
 export const BASE_SCOPES = [
+  // Token refresh — required to get refresh_token from OAuth
+  "offline_access",
   // Wiki & documents
   "wiki:wiki",
   "docx:document",
