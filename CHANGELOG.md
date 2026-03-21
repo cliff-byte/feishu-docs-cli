@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-beta.11] - 2026-03-21
+
+### Fixed
+
+- **Binary download endpoints now detect scope errors.** `fetchBinaryWithAuth` (used for whiteboard image export) previously returned a vague "下载失败: HTTP 403" when permissions were insufficient. Now it checks `Content-Type`, parses JSON error responses, and throws `SCOPE_MISSING` with exact scope names and an actionable `feishu-docs authorize --scope` recovery command — matching the behavior of all other API calls.
+- Non-scope JSON errors on binary endpoints now route through `mapApiError` for consistent error type mapping (e.g., 131006 → PERMISSION_DENIED).
+
 ## [0.1.0-beta.10] - 2026-03-20
 
 ### Changed
