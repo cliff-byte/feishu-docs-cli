@@ -4,7 +4,10 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { convertAndWrite } from "../services/markdown-convert.js";
+import {
+  convertAndWrite,
+  extractMarkdownTitle,
+} from "../services/markdown-convert.js";
 import { readBody, getDocumentInfo } from "../services/block-writer.js";
 import { validateToken } from "../utils/validate.js";
 import {
@@ -41,10 +44,13 @@ export async function create(
 
   let bodyContent: string | undefined;
   if (args.body) {
-    bodyContent = await readBody(args.body as string);
-    if (!bodyContent.trim()) {
+    const rawBody = await readBody(args.body as string);
+    if (!rawBody.trim()) {
       throw new CliError("INVALID_ARGS", "文档内容为空，至少需要一行内容");
     }
+    // Strip first H1 heading from body — title is set via API, not in content
+    const { body: strippedBody } = extractMarkdownTitle(rawBody);
+    bodyContent = strippedBody.trim() ? strippedBody : rawBody;
   }
 
   if (args.wiki) {

@@ -11,7 +11,10 @@ import { resolve, normalize, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { convertAndWrite } from "../services/markdown-convert.js";
+import {
+  convertAndWrite,
+  extractMarkdownTitle,
+} from "../services/markdown-convert.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import {
   readBody,
@@ -127,6 +130,11 @@ async function overwriteDocument(
   bodyContent: string,
   globalOpts: GlobalOpts,
 ): Promise<void> {
+  // Extract first H1 heading as document title, strip from body
+  const { title: extractedTitle, body: strippedBody } =
+    extractMarkdownTitle(bodyContent);
+  const contentToWrite = strippedBody.trim() ? strippedBody : bodyContent;
+
   let backupPath: string;
   try {
     const backup = await backupDocument(authInfo, documentId);
@@ -150,8 +158,26 @@ async function overwriteDocument(
     throw err;
   }
 
+  // Update document title if extracted from markdown
+  if (extractedTitle) {
+    try {
+      await fetchWithAuth(
+        authInfo,
+        `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
+        {
+          method: "PATCH",
+          body: { title: extractedTitle },
+        },
+      );
+    } catch {
+      process.stderr.write(
+        `feishu-docs: warning: 更新文档标题失败，标题可能未同步\n`,
+      );
+    }
+  }
+
   try {
-    await convertAndWrite(authInfo, documentId, bodyContent, rev);
+    await convertAndWrite(authInfo, documentId, contentToWrite, rev);
   } catch (err) {
     process.stderr.write(
       `feishu-docs: error: 写入新内容失败，尝试从备份恢复...\n`,
