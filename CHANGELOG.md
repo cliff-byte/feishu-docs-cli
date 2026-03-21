@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0-beta.13] - 2026-03-21
+
+### Fixed
+
+- **Token refresh failure no longer silently switches to tenant mode.** Previously in `--auth auto` mode, if `refresh_token` failed, the CLI silently fell back to tenant auth — causing unexpected permission errors that looked like token expiration. Now refresh failures throw `TOKEN_EXPIRED` with a clear message to re-run `feishu-docs login`.
+- Token-expired-without-refresh-token still falls back to tenant when credentials are available, but now emits a visible warning so users know they're not in user mode.
+
+### Removed
+
+- Silent tenant fallback on refresh failure — replaced with explicit error reporting.
+
 ## [0.1.0-beta.12] - 2026-03-21
 
 ### Fixed
