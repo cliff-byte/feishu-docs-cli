@@ -32,13 +32,7 @@ export async function create(
   args: CommandArgs,
   globalOpts: GlobalOpts,
 ): Promise<void> {
-  const title = args.positionals![0];
-  if (!title) {
-    throw new CliError(
-      "INVALID_ARGS",
-      "缺少文档标题。用法: feishu-docs create <title> [--wiki <space_id>] [--body <file>]",
-    );
-  }
+  let title = args.positionals![0] as string | undefined;
 
   const { authInfo } = await createClient(globalOpts);
 
@@ -48,9 +42,20 @@ export async function create(
     if (!rawBody.trim()) {
       throw new CliError("INVALID_ARGS", "文档内容为空，至少需要一行内容");
     }
-    // Strip first H1 heading from body — title is set via API, not in content
-    const { body: strippedBody } = extractMarkdownTitle(rawBody);
+    // Extract H1 heading: use as title if no title arg given, strip from body
+    const { title: extractedTitle, body: strippedBody } =
+      extractMarkdownTitle(rawBody);
+    if (!title && extractedTitle) {
+      title = extractedTitle;
+    }
     bodyContent = strippedBody.trim() ? strippedBody : rawBody;
+  }
+
+  if (!title) {
+    throw new CliError(
+      "INVALID_ARGS",
+      "缺少文档标题。用法: feishu-docs create <title> [--body <file>] 或在 Markdown 文件中使用 # 标题",
+    );
   }
 
   if (args.wiki) {

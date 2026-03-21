@@ -101,12 +101,16 @@ async function appendToDocument(
   bodyContent: string,
   globalOpts: GlobalOpts,
 ): Promise<void> {
+  // Strip H1 heading from body — append should not include title in content
+  const { body: strippedBody } = extractMarkdownTitle(bodyContent);
+  const contentToWrite = strippedBody.trim() ? strippedBody : bodyContent;
+
   const docInfo = await getDocumentInfo(authInfo, documentId);
 
   await convertAndWrite(
     authInfo,
     documentId,
-    bodyContent,
+    contentToWrite,
     docInfo.revisionId,
     -1,
   );
