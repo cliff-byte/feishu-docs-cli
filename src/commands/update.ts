@@ -101,16 +101,12 @@ async function appendToDocument(
   bodyContent: string,
   globalOpts: GlobalOpts,
 ): Promise<void> {
-  // Strip H1 heading from body — append should not include title in content
-  const { body: strippedBody } = extractMarkdownTitle(bodyContent);
-  const contentToWrite = strippedBody.trim() ? strippedBody : bodyContent;
-
   const docInfo = await getDocumentInfo(authInfo, documentId);
 
   await convertAndWrite(
     authInfo,
     documentId,
-    contentToWrite,
+    bodyContent,
     docInfo.revisionId,
     -1,
   );
@@ -137,7 +133,7 @@ async function overwriteDocument(
   // Extract first H1 heading as document title, strip from body
   const { title: extractedTitle, body: strippedBody } =
     extractMarkdownTitle(bodyContent);
-  const contentToWrite = strippedBody.trim() ? strippedBody : bodyContent;
+  const contentToWrite = strippedBody.trim() || undefined;
 
   let backupPath: string;
   try {
@@ -162,26 +158,11 @@ async function overwriteDocument(
     throw err;
   }
 
-  // Update document title if extracted from markdown
-  if (extractedTitle) {
-    try {
-      await fetchWithAuth(
-        authInfo,
-        `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
-        {
-          method: "PATCH",
-          body: { title: extractedTitle },
-        },
-      );
-    } catch {
-      process.stderr.write(
-        `feishu-docs: warning: 更新文档标题失败，标题可能未同步\n`,
-      );
-    }
-  }
-
   try {
-    await convertAndWrite(authInfo, documentId, contentToWrite, rev);
+    // Write body content first (if any), then update title
+    if (contentToWrite) {
+      rev = await convertAndWrite(authInfo, documentId, contentToWrite, rev);
+    }
   } catch (err) {
     process.stderr.write(
       `feishu-docs: error: 写入新内容失败，尝试从备份恢复...\n`,
@@ -201,6 +182,24 @@ async function overwriteDocument(
       );
     }
     throw err;
+  }
+
+  // Update document title after successful content write
+  if (extractedTitle) {
+    try {
+      await fetchWithAuth(
+        authInfo,
+        `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
+        {
+          method: "PATCH",
+          body: { title: extractedTitle },
+        },
+      );
+    } catch {
+      process.stderr.write(
+        `feishu-docs: warning: 更新文档标题失败，标题可能未同步\n`,
+      );
+    }
   }
 
   // Write succeeded — clean up backup file

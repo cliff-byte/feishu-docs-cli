@@ -42,13 +42,19 @@ export async function create(
     if (!rawBody.trim()) {
       throw new CliError("INVALID_ARGS", "文档内容为空，至少需要一行内容");
     }
-    // Extract H1 heading: use as title if no title arg given, strip from body
-    const { title: extractedTitle, body: strippedBody } =
-      extractMarkdownTitle(rawBody);
-    if (!title && extractedTitle) {
-      title = extractedTitle;
+    // Only extract H1 when no title argument — avoid stripping content headings
+    if (!title) {
+      const { title: extractedTitle, body: strippedBody } =
+        extractMarkdownTitle(rawBody);
+      if (extractedTitle) {
+        title = extractedTitle;
+        bodyContent = strippedBody.trim() ? strippedBody : undefined;
+      } else {
+        bodyContent = rawBody;
+      }
+    } else {
+      bodyContent = rawBody;
     }
-    bodyContent = strippedBody.trim() ? strippedBody : rawBody;
   }
 
   if (!title) {
