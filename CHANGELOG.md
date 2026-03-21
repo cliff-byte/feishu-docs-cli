@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.0-beta.14] - 2026-03-21
+
+### Fixed
+
+- **Root cause of frequent "token expired" — `offline_access` scope was missing from login.** Without this scope, the Feishu API never returned a `refresh_token`, so `user_access_token` expired after 2 hours with no way to refresh. Now `offline_access` is included in `BASE_SCOPES`, giving `refresh_token` a 7-day validity with automatic renewal. Users need to re-run `feishu-docs login` once to get the new scope.
+- **Token refresh failure no longer silently switches to tenant mode.** Previously in `--auth auto` mode, if `refresh_token` refresh failed, the CLI silently fell back to tenant auth — causing permission errors that looked like token expiration. Now refresh failures throw `TOKEN_EXPIRED` with a clear message.
+- **`login --scope` always includes `offline_access`.** Even when users specify a custom `--scope` argument, `offline_access` is automatically injected to ensure `refresh_token` is always available.
+- Token-expired-without-refresh-token still falls back to tenant when credentials are available, but now emits a visible warning.
+
+### Removed
+
+- Silent tenant fallback on refresh failure — replaced with explicit error reporting.
+
 ## [0.1.0-beta.12] - 2026-03-21
 
 ### Fixed

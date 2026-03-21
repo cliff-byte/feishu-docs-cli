@@ -259,8 +259,11 @@ export async function resolveAuth(
     const canRefresh = !!saved.tokens.refresh_token;
     const hasTenantCreds = envAppId && envAppSecret;
 
-    // In auto mode, skip stale user token when tenant creds are available
-    // and the token cannot be refreshed (no refresh_token).
+    // Only skip stale user token when it's expired, has no refresh_token,
+    // AND tenant credentials are available. In this case, fall through to
+    // tenant mode (createClient will warn the user).
+    // When refresh_token exists, always return user auth — createClient
+    // will attempt refresh and throw explicit errors on failure.
     if (isExpired && !canRefresh && hasTenantCreds) {
       // Fall through to tenant mode
     } else {

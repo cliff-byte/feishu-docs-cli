@@ -83,31 +83,20 @@ export async function createClient(
           }
         } catch (refreshErr) {
           const refreshError = refreshErr as Error;
-          // In auto mode, fall back to tenant auth instead of failing
-          if (authMode === "auto" && appId && appSecret) {
-            process.stderr.write(
-              `feishu-docs: info: 自动刷新失败 (${refreshError.message})，回退到 tenant 模式\n`,
-            );
-            const tenantAuthInfo: AuthInfo = {
-              ...authInfo,
-              mode: "tenant",
-              userToken: undefined,
-            };
-            return { authInfo: tenantAuthInfo };
-          }
           throw new CliError(
             "TOKEN_EXPIRED",
-            "自动刷新 token 失败，请重新运行 feishu-docs login",
+            `自动刷新 token 失败: ${refreshError.message}。请重新运行 feishu-docs login`,
             {
               recovery: "运行 feishu-docs login 重新认证",
             },
           );
         }
       } else {
-        // In auto mode, fall back to tenant auth instead of failing
+        // No refresh_token — fall back to tenant if credentials available,
+        // but warn the user so they know they're not in user mode.
         if (authMode === "auto" && appId && appSecret) {
           process.stderr.write(
-            "feishu-docs: info: user token 已过期，回退到 tenant 模式\n",
+            "feishu-docs: warning: user token 已过期且无法刷新，回退到 tenant 模式（部分操作可能需要 user 权限）\n",
           );
           const tenantAuthInfo: AuthInfo = {
             ...authInfo,
@@ -118,7 +107,7 @@ export async function createClient(
         }
         throw new CliError(
           "TOKEN_EXPIRED",
-          "token 已过期，请重新运行 feishu-docs login",
+          "token 已过期且无 refresh_token，请重新运行 feishu-docs login",
           {
             recovery: "运行 feishu-docs login 重新认证",
           },

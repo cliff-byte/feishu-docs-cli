@@ -68,8 +68,9 @@ describe("buildScopeHint", () => {
 });
 
 describe("BASE_SCOPES", () => {
-  it("contains all six expected no-review scopes", () => {
+  it("contains all expected no-review scopes including offline_access", () => {
     assert.deepEqual(BASE_SCOPES, [
+      "offline_access",
       "wiki:wiki",
       "docx:document",
       "docx:document.block:convert",
