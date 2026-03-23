@@ -5,15 +5,16 @@
  * Restore uses the old children API (backup data is raw blocks, not markdown).
  */
 
-import { readFile, unlink } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, normalize, sep } from "node:path";
-import { randomUUID } from "node:crypto";
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import {
   convertAndWrite,
   extractMarkdownTitle,
+  sanitizeBlocks,
+  writeDescendant,
 } from "../services/markdown-convert.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import {
@@ -21,9 +22,6 @@ import {
   getDocumentInfo,
   clearDocument,
   backupDocument,
-  sleep,
-  BATCH_SIZE,
-  QPS_DELAY,
   BACKUPS_DIR,
 } from "../services/block-writer.js";
 import {
@@ -92,7 +90,14 @@ export async function update(
     return appendToDocument(authInfo, documentId, bodyContent, globalOpts);
   }
 
-  return overwriteDocument(authInfo, documentId, bodyContent, globalOpts);
+  return overwriteDocument(
+    authInfo,
+    documentId,
+    bodyContent,
+    globalOpts,
+    doc.spaceId,
+    doc.nodeToken,
+  );
 }
 
 async function appendToDocument(
@@ -129,6 +134,8 @@ async function overwriteDocument(
   documentId: string,
   bodyContent: string,
   globalOpts: GlobalOpts,
+  spaceId?: string,
+  nodeToken?: string,
 ): Promise<void> {
   // Extract first H1 heading as document title, strip from body
   const { title: extractedTitle, body: strippedBody } =
@@ -187,14 +194,27 @@ async function overwriteDocument(
   // Update document title after successful content write
   if (extractedTitle) {
     try {
-      await fetchWithAuth(
-        authInfo,
-        `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
-        {
-          method: "PATCH",
-          body: { title: extractedTitle },
-        },
-      );
+      if (spaceId && nodeToken) {
+        // Wiki documents use the wiki node rename API
+        await fetchWithAuth(
+          authInfo,
+          `/open-apis/wiki/v2/spaces/${encodeURIComponent(spaceId)}/nodes/${encodeURIComponent(nodeToken)}/update_title`,
+          {
+            method: "POST",
+            body: { title: extractedTitle },
+          },
+        );
+      } else {
+        // Drive documents use the docx PATCH API
+        await fetchWithAuth(
+          authInfo,
+          `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
+          {
+            method: "PATCH",
+            body: { title: extractedTitle },
+          },
+        );
+      }
     } catch {
       process.stderr.write(
         `feishu-docs: warning: 更新文档标题失败，标题可能未同步\n`,
@@ -202,12 +222,7 @@ async function overwriteDocument(
     }
   }
 
-  // Write succeeded — clean up backup file
-  try {
-    await unlink(backupPath);
-  } catch {
-    // Non-critical: backup file cleanup failure is silent
-  }
+  // Backup kept for undo — rotateBackups() in backupDocument handles cleanup
 
   if (globalOpts.json) {
     process.stdout.write(
@@ -220,79 +235,6 @@ async function overwriteDocument(
   } else {
     process.stdout.write(`已覆盖更新文档 ${documentId}\n`);
   }
-}
-
-/**
- * Recursively restore blocks and their descendants from a backup block map.
- * Uses the old children API (backup data is raw blocks, not markdown).
- */
-const MAX_RESTORE_DEPTH = 20;
-
-async function restoreChildren(
-  authInfo: AuthInfo,
-  documentId: string,
-  parentBlockId: string,
-  childIds: string[],
-  blockMap: Map<string, Block>,
-  revisionId: number,
-  depth: number = 0,
-): Promise<number> {
-  let rev = revisionId;
-  if (!childIds || childIds.length === 0) return rev;
-  if (depth >= MAX_RESTORE_DEPTH) {
-    process.stderr.write(
-      `feishu-docs: warning: 恢复深度超过 ${MAX_RESTORE_DEPTH} 层，跳过更深层级\n`,
-    );
-    return rev;
-  }
-
-  for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
-    const batchIds = childIds.slice(i, i + BATCH_SIZE);
-    const batch = batchIds
-      .map((id) => blockMap.get(id))
-      .filter(Boolean)
-      .map((b) => {
-        const { block_id, parent_id, children, ...rest } = b as Block;
-        return rest;
-      });
-
-    if (batch.length === 0) continue;
-    if (i > 0) await sleep(QPS_DELAY);
-
-    const res = await fetchWithAuth(
-      authInfo,
-      `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(parentBlockId)}/children`,
-      {
-        method: "POST",
-        body: { children: batch, index: i },
-        params: { document_revision_id: rev, client_token: randomUUID() },
-      },
-    );
-
-    const resData = res?.data as Record<string, unknown> | undefined;
-    rev = (resData?.document_revision_id as number) ?? rev;
-    const createdIds: string[] = (
-      (resData?.children as Array<Record<string, string>>) ?? []
-    ).map((c) => c.block_id);
-
-    for (let j = 0; j < createdIds.length && j < batchIds.length; j++) {
-      const original = blockMap.get(batchIds[j]);
-      if (original?.children?.length && original.children.length > 0) {
-        await sleep(QPS_DELAY);
-        rev = await restoreChildren(
-          authInfo,
-          documentId,
-          createdIds[j],
-          original.children,
-          blockMap,
-          rev,
-          depth + 1,
-        );
-      }
-    }
-  }
-
-  return rev;
 }
 
 async function restoreFromBackup(
@@ -346,18 +288,23 @@ async function restoreFromBackup(
     return;
   }
 
-  const blockMap = new Map(blocks.map((b) => [b.block_id, b]));
+  // Build ConvertedBlocks for Descendant API (supports all block types)
+  const allBlocks = sanitizeBlocks(blocks.filter((b) => b.block_type !== 1));
+  const converted = {
+    blocks: allBlocks,
+    firstLevelBlockIds: topLevelIds,
+    blockIdToImageUrls: {} as Record<string, string>,
+  };
 
   const docInfo = await getDocumentInfo(authInfo, documentId);
   let rev = await clearDocument(authInfo, documentId, docInfo.revisionId);
 
   try {
-    rev = await restoreChildren(
+    rev = await writeDescendant(
       authInfo,
       documentId,
       documentId,
-      topLevelIds,
-      blockMap,
+      converted,
       rev,
     );
   } catch (restoreErr) {
