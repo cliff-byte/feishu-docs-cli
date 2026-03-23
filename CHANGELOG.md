@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-beta.16] - 2026-03-23
+
+### Fixed
+
+- **Wiki document title update now works.** Previously, updating a wiki document with a Markdown file containing `# Title` failed to set the document title because the code used the docx API (`PATCH /docx/v1/documents`) instead of the wiki node rename API (`POST /wiki/v2/spaces/{spaceId}/nodes/{nodeToken}/update_title`). Now the correct API is chosen based on document type.
+- **Mermaid flowchart `\n` converted to `<br>` on write.** AI tools generate mermaid node labels with literal `\n` for line breaks, but standard mermaid requires `<br>`. The CLI now automatically converts these inside mermaid code blocks before sending to the Feishu Convert API.
+
 ## [0.1.0-beta.15] - 2026-03-23
 
 ### Fixed
