@@ -373,6 +373,28 @@ async function restoreFromBackup(
 
   const blockMap = new Map(blocks.map((b) => [b.block_id, b]));
 
+  // Check for block types that the children API cannot write
+  const unsupportedTypes = new Set<number>();
+  const UNSUPPORTED_BLOCK_NAMES: Record<number, string> = { 40: "组件/流程图" };
+  for (const b of blocks) {
+    if (UNSUPPORTED_BLOCK_NAMES[b.block_type]) {
+      unsupportedTypes.add(b.block_type);
+    }
+  }
+  if (unsupportedTypes.size > 0) {
+    const names = [...unsupportedTypes]
+      .map((t) => UNSUPPORTED_BLOCK_NAMES[t])
+      .join(", ");
+    throw new CliError(
+      "NOT_SUPPORTED",
+      `该备份包含飞书 API 不支持写入的 block 类型（${names}），无法通过 CLI 恢复完整内容`,
+      {
+        recovery:
+          "请在飞书客户端中打开该文档，使用「版本历史」功能恢复到之前的版本",
+      },
+    );
+  }
+
   const docInfo = await getDocumentInfo(authInfo, documentId);
   let rev = await clearDocument(authInfo, documentId, docInfo.revisionId);
 
