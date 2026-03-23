@@ -88,6 +88,23 @@ export function extractMarkdownTitle(markdown: string): {
 }
 
 /**
+ * Replace literal `\n` with `<br>` inside mermaid code blocks.
+ *
+ * Claude and other AI tools generate mermaid node labels with `\n` for
+ * line breaks (e.g. `A[Line 1\nLine 2]`), but standard mermaid syntax
+ * requires `<br>` (e.g. `A[Line 1<br>Line 2]`).
+ */
+export function normalizeMermaidLineBreaks(markdown: string): string {
+  return markdown.replace(
+    /^```mermaid\s*\n([\s\S]*?)^```/gm,
+    (_match, block: string) => {
+      const fixed = block.replace(/\\n/g, "<br>");
+      return "```mermaid\n" + fixed + "```";
+    },
+  );
+}
+
+/**
  * Convert markdown string to Feishu block array via Convert API.
  * Requires scope: docx:document.block:convert
  *
@@ -102,7 +119,10 @@ export async function convertMarkdown(
     "/open-apis/docx/v1/documents/blocks/convert",
     {
       method: "POST",
-      body: { content: normalizeLangNames(markdown), content_type: "markdown" },
+      body: {
+        content: normalizeMermaidLineBreaks(normalizeLangNames(markdown)),
+        content_type: "markdown",
+      },
     },
   );
 
