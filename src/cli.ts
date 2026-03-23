@@ -178,18 +178,20 @@ function parseAndRun(
 }
 
 export async function run(argv: string[]): Promise<void> {
+  // Non-blocking update check (runs in background, never throws)
+  const updateCheck = checkForUpdates();
+
   if (argv.includes("--version") || argv.includes("-v")) {
     process.stdout.write(`feishu-docs ${getLocalVersion()}\n`);
+    await updateCheck;
     return;
   }
 
   if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(HELP_TEXT);
+    await updateCheck;
     return;
   }
-
-  // Non-blocking update check (runs in background, never throws)
-  const updateCheck = checkForUpdates();
 
   const command = argv[0];
   const restArgs = argv.slice(1);
