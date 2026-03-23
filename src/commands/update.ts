@@ -5,7 +5,7 @@
  * Restore uses the old children API (backup data is raw blocks, not markdown).
  */
 
-import { readFile, unlink } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, normalize, sep } from "node:path";
 import { createClient, fetchWithAuth } from "../client.js";
@@ -222,12 +222,7 @@ async function overwriteDocument(
     }
   }
 
-  // Write succeeded — clean up backup file
-  try {
-    await unlink(backupPath);
-  } catch {
-    // Non-critical: backup file cleanup failure is silent
-  }
+  // Backup kept for undo — rotateBackups() in backupDocument handles cleanup
 
   if (globalOpts.json) {
     process.stdout.write(

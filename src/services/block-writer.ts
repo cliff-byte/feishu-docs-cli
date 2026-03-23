@@ -162,14 +162,30 @@ export async function backupDocument(
   return { filepath, blocks };
 }
 
+const MAX_BACKUPS_PER_DOC = 10;
+
 async function rotateBackups(): Promise<void> {
   try {
     const files = await readdir(BACKUPS_DIR);
     const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
-    if (jsonFiles.length > 10) {
-      const toDelete = jsonFiles.slice(0, jsonFiles.length - 10);
-      for (const f of toDelete) {
-        await unlink(join(BACKUPS_DIR, f));
+
+    // Group by documentId (filename format: {documentId}-{timestamp}.json)
+    const byDoc = new Map<string, string[]>();
+    for (const f of jsonFiles) {
+      const lastDash = f.lastIndexOf("-");
+      const docId = lastDash > 0 ? f.slice(0, lastDash) : f;
+      const group = byDoc.get(docId) || [];
+      group.push(f);
+      byDoc.set(docId, group);
+    }
+
+    // Keep only the most recent N per document
+    for (const [, group] of byDoc) {
+      if (group.length > MAX_BACKUPS_PER_DOC) {
+        const toDelete = group.slice(0, group.length - MAX_BACKUPS_PER_DOC);
+        for (const f of toDelete) {
+          await unlink(join(BACKUPS_DIR, f));
+        }
       }
     }
   } catch (err: unknown) {
