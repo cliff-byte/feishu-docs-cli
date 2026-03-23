@@ -92,7 +92,14 @@ export async function update(
     return appendToDocument(authInfo, documentId, bodyContent, globalOpts);
   }
 
-  return overwriteDocument(authInfo, documentId, bodyContent, globalOpts);
+  return overwriteDocument(
+    authInfo,
+    documentId,
+    bodyContent,
+    globalOpts,
+    doc.spaceId,
+    doc.nodeToken,
+  );
 }
 
 async function appendToDocument(
@@ -129,6 +136,8 @@ async function overwriteDocument(
   documentId: string,
   bodyContent: string,
   globalOpts: GlobalOpts,
+  spaceId?: string,
+  nodeToken?: string,
 ): Promise<void> {
   // Extract first H1 heading as document title, strip from body
   const { title: extractedTitle, body: strippedBody } =
@@ -187,14 +196,27 @@ async function overwriteDocument(
   // Update document title after successful content write
   if (extractedTitle) {
     try {
-      await fetchWithAuth(
-        authInfo,
-        `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
-        {
-          method: "PATCH",
-          body: { title: extractedTitle },
-        },
-      );
+      if (spaceId && nodeToken) {
+        // Wiki documents use the wiki node rename API
+        await fetchWithAuth(
+          authInfo,
+          `/open-apis/wiki/v2/spaces/${encodeURIComponent(spaceId)}/nodes/${encodeURIComponent(nodeToken)}/update_title`,
+          {
+            method: "POST",
+            body: { title: extractedTitle },
+          },
+        );
+      } else {
+        // Drive documents use the docx PATCH API
+        await fetchWithAuth(
+          authInfo,
+          `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
+          {
+            method: "PATCH",
+            body: { title: extractedTitle },
+          },
+        );
+      }
     } catch {
       process.stderr.write(
         `feishu-docs: warning: 更新文档标题失败，标题可能未同步\n`,
