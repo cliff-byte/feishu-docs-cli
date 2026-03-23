@@ -14,6 +14,7 @@ import { CliError } from "../utils/errors.js";
 import {
   convertAndWrite,
   extractMarkdownTitle,
+  sanitizeBlocks,
 } from "../services/markdown-convert.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import {
@@ -270,13 +271,15 @@ async function restoreChildren(
 
   for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
     const batchIds = childIds.slice(i, i + BATCH_SIZE);
-    const batch = batchIds
+    const rawBatch = batchIds
       .map((id) => blockMap.get(id))
       .filter(Boolean)
       .map((b) => {
         const { block_id, parent_id, children, ...rest } = b as Block;
         return rest;
       });
+    // Strip read-only fields (merge_info, comment_ids, etc.)
+    const batch = sanitizeBlocks(rawBatch as Block[]);
 
     if (batch.length === 0) continue;
     if (i > 0) await sleep(QPS_DELAY);
