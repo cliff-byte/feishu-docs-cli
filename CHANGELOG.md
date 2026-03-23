@@ -6,6 +6,7 @@
 
 - **Wiki document title update now works.** Previously, updating a wiki document with a Markdown file containing `# Title` failed to set the document title because the code used the docx API (`PATCH /docx/v1/documents`) instead of the wiki node rename API (`POST /wiki/v2/spaces/{spaceId}/nodes/{nodeToken}/update_title`). Now the correct API is chosen based on document type.
 - **Mermaid flowchart `\n` converted to `<br>` on write.** AI tools generate mermaid node labels with literal `\n` for line breaks, but standard mermaid requires `<br>`. The CLI now automatically converts these inside mermaid code blocks before sending to the Feishu Convert API.
+- **Backup restore no longer fails with `invalid param` (1770001).** Table blocks in backups contained read-only `merge_info` fields that the children API rejects. Now uses `sanitizeBlocks()` to strip these before writing.
 
 ## [0.1.0-beta.15] - 2026-03-23
 
