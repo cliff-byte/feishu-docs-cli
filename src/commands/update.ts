@@ -8,13 +8,13 @@
 import { readFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, normalize, sep } from "node:path";
-import { randomUUID } from "node:crypto";
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import {
   convertAndWrite,
   extractMarkdownTitle,
   sanitizeBlocks,
+  writeDescendant,
 } from "../services/markdown-convert.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import {
@@ -22,9 +22,6 @@ import {
   getDocumentInfo,
   clearDocument,
   backupDocument,
-  sleep,
-  BATCH_SIZE,
-  QPS_DELAY,
   BACKUPS_DIR,
 } from "../services/block-writer.js";
 import {
@@ -245,81 +242,6 @@ async function overwriteDocument(
   }
 }
 
-/**
- * Recursively restore blocks and their descendants from a backup block map.
- * Uses the old children API (backup data is raw blocks, not markdown).
- */
-const MAX_RESTORE_DEPTH = 20;
-
-async function restoreChildren(
-  authInfo: AuthInfo,
-  documentId: string,
-  parentBlockId: string,
-  childIds: string[],
-  blockMap: Map<string, Block>,
-  revisionId: number,
-  depth: number = 0,
-): Promise<number> {
-  let rev = revisionId;
-  if (!childIds || childIds.length === 0) return rev;
-  if (depth >= MAX_RESTORE_DEPTH) {
-    process.stderr.write(
-      `feishu-docs: warning: 恢复深度超过 ${MAX_RESTORE_DEPTH} 层，跳过更深层级\n`,
-    );
-    return rev;
-  }
-
-  for (let i = 0; i < childIds.length; i += BATCH_SIZE) {
-    const batchIds = childIds.slice(i, i + BATCH_SIZE);
-    const rawBatch = batchIds
-      .map((id) => blockMap.get(id))
-      .filter(Boolean)
-      .map((b) => {
-        const { block_id, parent_id, children, ...rest } = b as Block;
-        return rest;
-      });
-    // Strip read-only fields (merge_info, comment_ids, etc.)
-    const batch = sanitizeBlocks(rawBatch as Block[]);
-
-    if (batch.length === 0) continue;
-    if (i > 0) await sleep(QPS_DELAY);
-
-    const res = await fetchWithAuth(
-      authInfo,
-      `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(parentBlockId)}/children`,
-      {
-        method: "POST",
-        body: { children: batch, index: i },
-        params: { document_revision_id: rev, client_token: randomUUID() },
-      },
-    );
-
-    const resData = res?.data as Record<string, unknown> | undefined;
-    rev = (resData?.document_revision_id as number) ?? rev;
-    const createdIds: string[] = (
-      (resData?.children as Array<Record<string, string>>) ?? []
-    ).map((c) => c.block_id);
-
-    for (let j = 0; j < createdIds.length && j < batchIds.length; j++) {
-      const original = blockMap.get(batchIds[j]);
-      if (original?.children?.length && original.children.length > 0) {
-        await sleep(QPS_DELAY);
-        rev = await restoreChildren(
-          authInfo,
-          documentId,
-          createdIds[j],
-          original.children,
-          blockMap,
-          rev,
-          depth + 1,
-        );
-      }
-    }
-  }
-
-  return rev;
-}
-
 async function restoreFromBackup(
   authInfo: AuthInfo,
   documentId: string,
@@ -371,40 +293,23 @@ async function restoreFromBackup(
     return;
   }
 
-  const blockMap = new Map(blocks.map((b) => [b.block_id, b]));
-
-  // Check for block types that the children API cannot write
-  const unsupportedTypes = new Set<number>();
-  const UNSUPPORTED_BLOCK_NAMES: Record<number, string> = { 40: "组件/流程图" };
-  for (const b of blocks) {
-    if (UNSUPPORTED_BLOCK_NAMES[b.block_type]) {
-      unsupportedTypes.add(b.block_type);
-    }
-  }
-  if (unsupportedTypes.size > 0) {
-    const names = [...unsupportedTypes]
-      .map((t) => UNSUPPORTED_BLOCK_NAMES[t])
-      .join(", ");
-    throw new CliError(
-      "NOT_SUPPORTED",
-      `该备份包含飞书 API 不支持写入的 block 类型（${names}），无法通过 CLI 恢复完整内容`,
-      {
-        recovery:
-          "请在飞书客户端中打开该文档，使用「版本历史」功能恢复到之前的版本",
-      },
-    );
-  }
+  // Build ConvertedBlocks for Descendant API (supports all block types)
+  const allBlocks = sanitizeBlocks(blocks.filter((b) => b.block_type !== 1));
+  const converted = {
+    blocks: allBlocks,
+    firstLevelBlockIds: topLevelIds,
+    blockIdToImageUrls: {} as Record<string, string>,
+  };
 
   const docInfo = await getDocumentInfo(authInfo, documentId);
   let rev = await clearDocument(authInfo, documentId, docInfo.revisionId);
 
   try {
-    rev = await restoreChildren(
+    rev = await writeDescendant(
       authInfo,
       documentId,
       documentId,
-      topLevelIds,
-      blockMap,
+      converted,
       rev,
     );
   } catch (restoreErr) {
