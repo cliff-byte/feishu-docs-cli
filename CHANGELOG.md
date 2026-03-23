@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0-beta.15] - 2026-03-23
+
+### Fixed
+
+- **Update check now runs on all commands.** Previously `feishu-docs --help` and `feishu-docs` (no args) skipped the version update check because it was placed after the early return. Now `checkForUpdates()` runs before any early exits.
+
 ## [0.1.0-beta.14] - 2026-03-21
 
 ### Fixed
