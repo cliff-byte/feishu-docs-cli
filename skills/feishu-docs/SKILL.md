@@ -9,7 +9,23 @@ description: Read, write, search, and manage Feishu (Lark) cloud documents and k
 
 ## Prerequisites
 
-Before using any command, verify the environment is ready:
+Before using any command, check that the CLI is installed and authenticated. Run these two checks in order:
+
+### Step 1: Check installation
+
+```bash
+command -v feishu-docs >/dev/null 2>&1 && feishu-docs --version || echo "NOT_INSTALLED"
+```
+
+If the output is `NOT_INSTALLED`, install the CLI first:
+
+```bash
+npm install -g feishu-docs-cli
+```
+
+This installs the `feishu-docs` command globally. Requires Node.js 18+. After installation, verify with `feishu-docs --version`.
+
+### Step 2: Check authentication
 
 ```bash
 feishu-docs whoami
@@ -90,7 +106,7 @@ feishu-docs update <url> --body ./extra.md --append
 echo "## New Section" | feishu-docs update <url> --body - --append
 ```
 
-Overwrite mode automatically backs up the current document to `~/.feishu-docs/backups/` before writing. If the write fails, it auto-recovers from the backup.
+Overwrite mode automatically backs up the current document to `~/.feishu-docs/backups/` before writing. If the write fails, it auto-recovers from the backup. The backup file is deleted automatically after a successful write.
 
 To restore a previous version:
 ```bash
@@ -170,6 +186,7 @@ Every command accepts these flags:
 | `--auth tenant` | Force app token (CI/CD, shared docs) |
 | `--json` | Output structured JSON instead of text |
 | `--lark` | Use Lark (international) domain |
+| `-v, --version` | Show version number |
 
 Default auth mode is `auto` — tries user token first, falls back to tenant.
 
@@ -189,6 +206,9 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 
 - Only `docx` (new document format) is fully supported for read/write
 - Legacy `doc` format is not supported
+- Embedded `sheet` and `bitable` are rendered as tables (lossy)
+- Embedded `board`/`whiteboard` are exported as local PNG images (temporary file paths)
+- `mindnote` renders as a link only
 - Images cannot be written; read returns temporary URLs valid ~24 hours
 - Markdown conversion is lossy — use `--blocks` for lossless JSON when precision matters
 - Search requires user-level auth (run `feishu-docs login` first)
