@@ -8,8 +8,8 @@ import {
   fetchBinaryWithAuth,
   getTenantToken,
 } from "../client.js";
-import { writeFile, mkdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, mkdir, stat } from "node:fs/promises";
+import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { BlockType } from "../parser/block-types.js";
@@ -42,28 +42,102 @@ async function fetchRawContent(
 
 /**
  * Batch get temporary download URLs for file tokens (images, files).
+ * The API accepts at most 5 file_tokens per request, so larger sets
+ * are split into chunks automatically.
  */
+const TMP_URL_BATCH_SIZE = 5;
+
 async function batchGetTmpUrls(
   authInfo: AuthInfo,
   fileTokens: string[],
 ): Promise<Map<string, string>> {
   if (fileTokens.length === 0) return new Map();
 
-  const res = await fetchWithAuth(
-    authInfo,
-    "/open-apis/drive/v1/medias/batch_get_tmp_download_url",
-    { params: { file_tokens: fileTokens } },
-  );
-
   const urlMap = new Map<string, string>();
-  const data = res?.data as Record<string, unknown> | undefined;
-  const items = (data?.tmp_download_urls || []) as Array<
-    Record<string, string>
-  >;
-  for (const item of items) {
-    urlMap.set(item.file_token, item.tmp_download_url);
+  for (let i = 0; i < fileTokens.length; i += TMP_URL_BATCH_SIZE) {
+    const chunk = fileTokens.slice(i, i + TMP_URL_BATCH_SIZE);
+    const res = await fetchWithAuth(
+      authInfo,
+      "/open-apis/drive/v1/medias/batch_get_tmp_download_url",
+      { params: { file_tokens: chunk } },
+    );
+    const data = res?.data as Record<string, unknown> | undefined;
+    const items = (data?.tmp_download_urls || []) as Array<
+      Record<string, string>
+    >;
+    for (const item of items) {
+      urlMap.set(item.file_token, item.tmp_download_url);
+    }
   }
   return urlMap;
+}
+
+const IMAGES_DIR = join(homedir(), ".feishu-docs", "images");
+
+const CONTENT_TYPE_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg",
+};
+
+/**
+ * Check if a file already exists.
+ */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Download images from temporary URLs and save to ~/.feishu-docs/images/.
+ * Returns a map of file_token → local file path. Already-downloaded images
+ * are skipped (simple disk cache by file_token).
+ */
+async function downloadImages(
+  tmpUrlMap: Map<string, string>,
+): Promise<Map<string, string>> {
+  if (tmpUrlMap.size === 0) return new Map();
+
+  await mkdir(IMAGES_DIR, { recursive: true });
+
+  const localMap = new Map<string, string>();
+  for (const [fileToken, tmpUrl] of tmpUrlMap) {
+    // Check if any file with this token prefix already exists (cached)
+    const pngPath = join(IMAGES_DIR, `${fileToken}.png`);
+    const jpgPath = join(IMAGES_DIR, `${fileToken}.jpg`);
+    if (await fileExists(pngPath)) {
+      localMap.set(fileToken, pngPath);
+      continue;
+    }
+    if (await fileExists(jpgPath)) {
+      localMap.set(fileToken, jpgPath);
+      continue;
+    }
+
+    try {
+      const res = await fetch(tmpUrl);
+      if (!res.ok) continue;
+
+      const contentType = res.headers.get("content-type") || "";
+      const ext = CONTENT_TYPE_EXT[contentType.split(";")[0].trim()] || ".png";
+      const filePath = join(IMAGES_DIR, `${fileToken}${ext}`);
+
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength === 0) continue;
+
+      await writeFile(filePath, Buffer.from(buf));
+      localMap.set(fileToken, filePath);
+    } catch {
+      // Download failed for this image — skip it
+    }
+  }
+  return localMap;
 }
 
 /**
@@ -449,13 +523,13 @@ export async function read(
   }
 
   // Default: convert to Markdown
-  // Batch resolve image/file URLs (needs drive:drive scope)
+  // Batch resolve image/file URLs → download to local files for persistent access
   // Uses withScopeRecovery for interactive auth recovery; falls back gracefully on failure
   const fileTokens = extractFileTokens(blocks);
   let imageUrlMap = new Map<string, string>();
   if (fileTokens.length > 0) {
     try {
-      imageUrlMap = await withScopeRecovery(
+      const tmpUrlMap = await withScopeRecovery(
         async () => {
           const { authInfo: freshAuth } = await createClient(globalOpts);
           return batchGetTmpUrls(freshAuth, fileTokens);
@@ -463,6 +537,7 @@ export async function read(
         globalOpts,
         ["drive:drive"],
       );
+      imageUrlMap = await downloadImages(tmpUrlMap);
     } catch {
       process.stderr.write(
         "feishu-docs: warning: 获取图片/文件链接失败，链接将为空\n",

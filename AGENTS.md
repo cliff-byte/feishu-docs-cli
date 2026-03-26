@@ -142,6 +142,7 @@ const memberType = detectMemberType(memberId);  // Auto-detect: email, openid, u
 | **Wiki member API requires admin** | The calling identity must already be a wiki space administrator |
 | **No wiki space delete API** | Feishu does not provide an API to delete wiki spaces (returns 404) |
 | **Convert API returns blocks array** | The `blocks` field from Convert API can be passed directly to Descendant API |
+| **batch_get_tmp_download_url 5-token limit** | Max 5 `file_tokens` per request; more returns error 1061002. Split into chunks of 5 |
 
 ## Immutability Rules
 
