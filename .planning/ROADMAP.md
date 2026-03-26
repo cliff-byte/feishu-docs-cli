@@ -30,7 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. fetchWithAuth、createClient、resolveAuth 的认证解析和错误处理路径有测试覆盖
   4. token 加密/解密 round-trip、clearDocument 批量删除、备份/恢复管道有测试覆盖
   5. document-resolver 的 allowFallback 选项和回退行为有测试覆盖
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md -- Testing infrastructure: c8, coverage pipeline, test helpers, npm scripts
+- [ ] 01-02-PLAN.md -- Auth module tests: resolveAuth multi-mode + token crypto round-trip
+- [ ] 01-03-PLAN.md -- Client module tests: fetchWithAuth + createClient + getTenantToken
+- [ ] 01-04-PLAN.md -- Block-writer + document-resolver tests: clearDocument, backup/restore, wiki fallback
 
 ### Phase 2: 命令处理器集成测试
 **Goal**: 所有命令处理器的业务逻辑有测试保护，整体覆盖率达到 80%，任何命令行为变更都会被测试捕获
@@ -94,7 +100,7 @@ Phase 1 (测试基础设施)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. 测试基础设施与核心路径测试 | 0/0 | Not started | - |
+| 1. 测试基础设施与核心路径测试 | 0/4 | Planning complete | - |
 | 2. 命令处理器集成测试 | 0/0 | Not started | - |
 | 3. 安全加固与类型化 API 响应 | 0/0 | Not started | - |
 | 4. 代码重构 | 0/0 | Not started | - |
