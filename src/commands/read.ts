@@ -8,13 +8,14 @@ import {
   fetchBinaryWithAuth,
   getTenantToken,
 } from "../client.js";
-import { writeFile, mkdir, stat } from "node:fs/promises";
-import { tmpdir, homedir } from "node:os";
+import { writeFile, mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { BlockType } from "../parser/block-types.js";
 import { CliError } from "../utils/errors.js";
 import { withScopeRecovery } from "../utils/scope-prompt.js";
+import { downloadImages } from "../services/image-download.js";
 import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
@@ -70,74 +71,6 @@ async function batchGetTmpUrls(
     }
   }
   return urlMap;
-}
-
-const IMAGES_DIR = join(homedir(), ".feishu-docs", "images");
-
-const CONTENT_TYPE_EXT: Record<string, string> = {
-  "image/png": ".png",
-  "image/jpeg": ".jpg",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-  "image/svg+xml": ".svg",
-};
-
-/**
- * Check if a file already exists.
- */
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Download images from temporary URLs and save to ~/.feishu-docs/images/.
- * Returns a map of file_token → local file path. Already-downloaded images
- * are skipped (simple disk cache by file_token).
- */
-async function downloadImages(
-  tmpUrlMap: Map<string, string>,
-): Promise<Map<string, string>> {
-  if (tmpUrlMap.size === 0) return new Map();
-
-  await mkdir(IMAGES_DIR, { recursive: true });
-
-  const localMap = new Map<string, string>();
-  for (const [fileToken, tmpUrl] of tmpUrlMap) {
-    // Check if any file with this token prefix already exists (cached)
-    const pngPath = join(IMAGES_DIR, `${fileToken}.png`);
-    const jpgPath = join(IMAGES_DIR, `${fileToken}.jpg`);
-    if (await fileExists(pngPath)) {
-      localMap.set(fileToken, pngPath);
-      continue;
-    }
-    if (await fileExists(jpgPath)) {
-      localMap.set(fileToken, jpgPath);
-      continue;
-    }
-
-    try {
-      const res = await fetch(tmpUrl);
-      if (!res.ok) continue;
-
-      const contentType = res.headers.get("content-type") || "";
-      const ext = CONTENT_TYPE_EXT[contentType.split(";")[0].trim()] || ".png";
-      const filePath = join(IMAGES_DIR, `${fileToken}${ext}`);
-
-      const buf = await res.arrayBuffer();
-      if (buf.byteLength === 0) continue;
-
-      await writeFile(filePath, Buffer.from(buf));
-      localMap.set(fileToken, filePath);
-    } catch {
-      // Download failed for this image — skip it
-    }
-  }
-  return localMap;
 }
 
 /**
