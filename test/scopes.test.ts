@@ -77,6 +77,7 @@ describe("BASE_SCOPES", () => {
       "sheets:spreadsheet:readonly",
       "board:whiteboard:node:read",
       "bitable:app:readonly",
+      "docs:document.media:download",
     ]);
   });
 });

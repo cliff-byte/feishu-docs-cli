@@ -77,6 +77,7 @@ npm install -g github:cliff-byte/feishu-docs-cli
    | `sheets:spreadsheet:readonly` | 嵌入式电子表格只读（read 命令） |
    | `board:whiteboard:node:read` | 画板导出为图片（read 命令） |
    | `bitable:app:readonly` | 嵌入式多维表格只读（read 命令） |
+   | `docs:document.media:download` | 下载云文档中的图片和附件 |
 
    **额外权限**会按需自动提示 — 当 API 调用需要你未授权的权限时，CLI 会从 API 错误响应中检测并提示你授权。常见权限：
 

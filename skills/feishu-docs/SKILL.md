@@ -106,7 +106,7 @@ feishu-docs update <url> --body ./extra.md --append
 echo "## New Section" | feishu-docs update <url> --body - --append
 ```
 
-Overwrite mode automatically backs up the current document to `~/.feishu-docs/backups/` before writing. If the write fails, it auto-recovers from the backup. The backup file is deleted automatically after a successful write.
+Overwrite mode automatically backs up the current document to `~/.feishu-docs/backups/` before writing. If the write fails, it auto-recovers from the backup. Backups are kept for undo; old backups are rotated automatically (max 10 per document).
 
 To restore a previous version:
 ```bash

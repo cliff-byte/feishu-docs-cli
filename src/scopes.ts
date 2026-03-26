@@ -23,6 +23,8 @@ export const BASE_SCOPES = [
   "board:whiteboard:node:read",
   // Embedded bitable / multi-dimensional tables (read command, bitable/v1 API)
   "bitable:app:readonly",
+  // Document media download (images/attachments temp URLs, drive/v1/medias API)
+  "docs:document.media:download",
 ];
 
 /**

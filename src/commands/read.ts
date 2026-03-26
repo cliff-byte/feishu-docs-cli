@@ -15,6 +15,7 @@ import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { BlockType } from "../parser/block-types.js";
 import { CliError } from "../utils/errors.js";
 import { withScopeRecovery } from "../utils/scope-prompt.js";
+import { downloadImages } from "../services/image-download.js";
 import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
@@ -42,26 +43,32 @@ async function fetchRawContent(
 
 /**
  * Batch get temporary download URLs for file tokens (images, files).
+ * The API accepts at most 5 file_tokens per request, so larger sets
+ * are split into chunks automatically.
  */
+const TMP_URL_BATCH_SIZE = 5;
+
 async function batchGetTmpUrls(
   authInfo: AuthInfo,
   fileTokens: string[],
 ): Promise<Map<string, string>> {
   if (fileTokens.length === 0) return new Map();
 
-  const res = await fetchWithAuth(
-    authInfo,
-    "/open-apis/drive/v1/medias/batch_get_tmp_download_url",
-    { params: { file_tokens: fileTokens } },
-  );
-
   const urlMap = new Map<string, string>();
-  const data = res?.data as Record<string, unknown> | undefined;
-  const items = (data?.tmp_download_urls || []) as Array<
-    Record<string, string>
-  >;
-  for (const item of items) {
-    urlMap.set(item.file_token, item.tmp_download_url);
+  for (let i = 0; i < fileTokens.length; i += TMP_URL_BATCH_SIZE) {
+    const chunk = fileTokens.slice(i, i + TMP_URL_BATCH_SIZE);
+    const res = await fetchWithAuth(
+      authInfo,
+      "/open-apis/drive/v1/medias/batch_get_tmp_download_url",
+      { params: { file_tokens: chunk } },
+    );
+    const data = res?.data as Record<string, unknown> | undefined;
+    const items = (data?.tmp_download_urls || []) as Array<
+      Record<string, string>
+    >;
+    for (const item of items) {
+      urlMap.set(item.file_token, item.tmp_download_url);
+    }
   }
   return urlMap;
 }
@@ -449,13 +456,13 @@ export async function read(
   }
 
   // Default: convert to Markdown
-  // Batch resolve image/file URLs (needs drive:drive scope)
+  // Batch resolve image/file URLs → download to local files for persistent access
   // Uses withScopeRecovery for interactive auth recovery; falls back gracefully on failure
   const fileTokens = extractFileTokens(blocks);
   let imageUrlMap = new Map<string, string>();
   if (fileTokens.length > 0) {
     try {
-      imageUrlMap = await withScopeRecovery(
+      const tmpUrlMap = await withScopeRecovery(
         async () => {
           const { authInfo: freshAuth } = await createClient(globalOpts);
           return batchGetTmpUrls(freshAuth, fileTokens);
@@ -463,6 +470,7 @@ export async function read(
         globalOpts,
         ["drive:drive"],
       );
+      imageUrlMap = await downloadImages(tmpUrlMap);
     } catch {
       process.stderr.write(
         "feishu-docs: warning: 获取图片/文件链接失败，链接将为空\n",
