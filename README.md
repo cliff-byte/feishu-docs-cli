@@ -78,6 +78,7 @@ Requires Node.js >= 18.3.
    | `sheets:spreadsheet:readonly` | Embedded spreadsheet read (read command) |
    | `board:whiteboard:node:read` | Whiteboard export as image (read command) |
    | `bitable:app:readonly` | Embedded bitable/table read (read command) |
+   | `docs:document.media:download` | Download images and attachments from documents |
 
    **Additional scopes** are requested reactively — when an API call needs a scope you haven't authorized, the CLI detects this from the API error response and prompts you. Common ones:
 

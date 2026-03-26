@@ -209,6 +209,7 @@ docx:document.block:convert
 sheets:spreadsheet:readonly
 board:whiteboard:node:read
 bitable:app:readonly
+docs:document.media:download
 ```
 
 **Additional scopes** are requested reactively. When an API call fails due to missing
