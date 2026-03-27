@@ -1,0 +1,11 @@
+{
+  "all": true,
+  "src": ["src"],
+  "exclude": ["src/types/**", "dist/**", "test/**"],
+  "reporter": ["html", "lcov", "text"],
+  "report-dir": "coverage",
+  "check-coverage": false,
+  "lines": 80,
+  "branches": 70,
+  "functions": 80
+}
