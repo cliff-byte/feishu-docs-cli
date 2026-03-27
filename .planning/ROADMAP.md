@@ -46,13 +46,14 @@ Plans:
   1. read/create/update/delete 四个核心命令在 --json 和人类可读模式下均有集成测试
   2. cat/tree/spaces、wiki 子命令、share 子命令、ls/mv/cp/mkdir 云盘操作、search 命令均有测试覆盖
   3. `npm run test:coverage` 报告的行覆盖率 >= 80%、分支覆盖率 >= 70%、函数覆盖率 >= 80%
-**Plans:** 3/4 plans executed
+**Plans:** 5 plans
 
 Plans:
 - [x] 02-01-PLAN.md -- Document operations: captureOutput helper + read, create, update, delete, cat tests
 - [x] 02-02-PLAN.md -- Knowledge base and navigation: wiki (6 subcommands), tree, spaces tests
 - [x] 02-03-PLAN.md -- Drive operations: ls, mv, cp, mkdir tests
 - [x] 02-04-PLAN.md -- Permissions and coverage: share (5 subcommands), search, info, login/whoami/logout, authorize + coverage enforcement
+- [ ] 02-05-PLAN.md -- Gap closure: deeper tests for update overwrite/restore, read enrichment, errors, install-skill + coverage enforcement
 
 ### Phase 3: 安全加固与类型化 API 响应
 **Goal**: 消除已知安全隐患，建立类型化 API 响应接口体系，为后续重构提供类型安全基础
@@ -107,7 +108,7 @@ Phase 1 (测试基础设施)
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. 测试基础设施与核心路径测试 | 0/4 | Planning complete | - |
-| 2. 命令处理器集成测试 | 3/4 | In Progress|  |
+| 2. 命令处理器集成测试 | 4/5 | Gap closure | |
 | 3. 安全加固与类型化 API 响应 | 0/0 | Not started | - |
 | 4. 代码重构 | 0/0 | Not started | - |
 | 5. 健壮性增强 | 0/0 | Not started | - |
