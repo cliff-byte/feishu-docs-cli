@@ -57,9 +57,9 @@
 ### 健壮性增强
 
 - [ ] **ROB-01**: 为 fetchWithAuth 添加可配置重试逻辑（指数退避+抖动，仅 429/502/503/timeout）
-- [ ] **ROB-02**: 图片缓存添加 TTL 淘汰策略（30 天最大存活时间）
-- [ ] **ROB-03**: 优化 clearDocument QPS 延迟参数
-- [ ] **ROB-04**: 安装 knip 并集成死代码检测到开发流程
+- [x] **ROB-02**: 图片缓存添加 TTL 淘汰策略（30 天最大存活时间）
+- [x] **ROB-03**: 优化 clearDocument QPS 延迟参数
+- [x] **ROB-04**: 安装 knip 并集成死代码检测到开发流程
 
 ## v2 Requirements
 
@@ -125,9 +125,9 @@
 | REF-02 | Phase 4 | Complete |
 | REF-03 | Phase 4 | Complete |
 | ROB-01 | Phase 5 | Pending |
-| ROB-02 | Phase 5 | Pending |
-| ROB-03 | Phase 5 | Pending |
-| ROB-04 | Phase 5 | Pending |
+| ROB-02 | Phase 5 | Complete |
+| ROB-03 | Phase 5 | Complete |
+| ROB-04 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 33 total

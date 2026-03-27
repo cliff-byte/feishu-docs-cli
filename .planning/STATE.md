@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-27T11:58:11.386Z"
+status: executing
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-27T12:20:35.501Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
   percent: 82
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** 核心路径必须有测试保护 -- 认证、API 通信、命令处理器等关键路径需达到 80% 测试覆盖率
-**Current focus:** Phase 04 — refactoring-performance
+**Current focus:** Phase 05 — robustness
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 05 (robustness) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-03-27
 
 Progress: [========..] 82%
@@ -62,6 +62,7 @@ Progress: [========..] 82%
 | Phase 02 P05 | 8min | 2 tasks | 5 files |
 | Phase 04 P02 | 6min | 2 tasks | 5 files |
 | Phase 04 P01 | 13min | 1 tasks | 1 files |
+| Phase 05 P02 | 4min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ Recent decisions affecting current work:
 - [Phase 04]: pLimit concurrency limiter built as zero-dep utility (40 lines) to honor zero-dependency constraint
 - [Phase 04]: enrichBlocks() as single entry point with EnrichmentOptions for selective enrichment and pLimit(5) parallelism
 - [Phase 04]: ReadonlyMap dispatch table pattern replacing 31-branch if/else-if chain in blocks-to-md.ts
+- [Phase 05]: ignoreExportsUsedInFile: true in knip config for dynamic command dispatch pattern
+- [Phase 05]: QPS_DELAY halved from 400ms to 200ms, safe with retry logic from Plan 01 as 429 safety net
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T11:58:11.382Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-robustness/05-CONTEXT.md
+Last session: 2026-03-27T12:20:35.498Z
+Stopped at: Completed 05-02-PLAN.md
+Resume file: None
