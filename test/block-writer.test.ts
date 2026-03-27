@@ -4,7 +4,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readdir, rm, readFile, mkdir } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  readdir,
+  rm,
+  readFile,
+  mkdir,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { sanitizeBlocks } from "../src/services/markdown-convert.js";
@@ -13,6 +20,7 @@ import {
   backupDocument,
   rotateBackups,
   getBackupsDir,
+  QPS_DELAY,
 } from "../src/services/block-writer.js";
 import { setupMockFetch, jsonResponse } from "./helpers/mock-fetch.js";
 import { makeUserAuthInfo } from "./helpers/factory.js";
@@ -57,6 +65,12 @@ function resolveWithTimers(
     }, intervalMs);
   });
 }
+
+describe("QPS_DELAY", () => {
+  it("QPS_DELAY is 200ms", () => {
+    assert.equal(QPS_DELAY, 200);
+  });
+});
 
 describe("sanitizeBlocks (from block-writer perspective)", () => {
   it("should remove merge_info from table blocks in array", () => {
@@ -156,10 +170,10 @@ describe("clearDocument", { concurrency: 1 }, () => {
     });
 
     try {
-      const rev = await resolveWithTimers(
+      const rev = (await resolveWithTimers(
         clearDocument(auth, "doc-123", 5),
         t,
-      ) as number;
+      )) as number;
 
       assert.equal(rev, 7);
       assert.equal(calls.length, 3);
@@ -216,10 +230,10 @@ describe("clearDocument", { concurrency: 1 }, () => {
     });
 
     try {
-      const rev = await resolveWithTimers(
+      const rev = (await resolveWithTimers(
         clearDocument(auth, "doc-123", 5),
         t,
-      ) as number;
+      )) as number;
 
       assert.equal(rev, 11);
       assert.equal(calls.length, 5);

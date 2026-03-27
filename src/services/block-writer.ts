@@ -22,7 +22,7 @@ export function getBackupsDir(): string {
   return join(homedir(), ".feishu-docs", "backups");
 }
 export const BATCH_SIZE: number = 50;
-export const QPS_DELAY: number = 400;
+export const QPS_DELAY: number = 200;
 
 /**
  * Read body content from file path or stdin ("-").
