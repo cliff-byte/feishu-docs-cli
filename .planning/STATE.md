@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-27T02:36:13.118Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-27T02:49:27Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
-  percent: 0
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** 核心路径必须有测试保护 -- 认证、API 通信、命令处理器等关键路径需达到 80% 测试覆盖率
-**Current focus:** Phase 01 — testing-infra-core-tests
+**Current focus:** Phase 02 — command-handler-tests
 
 ## Current Position
 
 Phase: 2
-Plan: Not started
-Status: Ready to execute
+Plan: 4 of 4 (complete)
+Status: Phase 2 complete
 Last activity: 2026-03-27
 
-Progress: [..........] 0%
+Progress: [=======...] 75%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [..........] 0%
 | Phase 01 P03 | 2min | 1 tasks | 1 files |
 | Phase 01 P04 | 7min | 2 tasks | 4 files |
 | Phase 02 P01 | 10min | 2 tasks | 6 files |
+| Phase 02 P04 | 9min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Used HOME env var override and mock.timers for ESM-compatible test mocking
 - [Phase 02]: captureOutput uses process.stdout.write interception for zero-dependency CLI output capture
 - [Phase 02]: Convert API mock responses require snake_case field names (first_level_block_ids) matching actual Feishu API
+- [Phase 02]: check-coverage kept at false -- overall coverage 53% in isolated worktree (other plan tests not merged yet)
+- [Phase 02]: share add fallback tested via CliError.apiCode 1201003 -- confirms catch-and-retry pattern works
+- [Phase 02]: Validation-only testing for login/authorize -- full OAuth flow untestable (spawns HTTP server + browser)
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T02:35:24.048Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-03-27T02:49:27Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
