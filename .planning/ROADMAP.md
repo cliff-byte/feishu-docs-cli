@@ -82,7 +82,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Dispatch table: blocks-to-md.ts if-chain to ReadonlyMap<number, BlockRenderer> dispatch table
+- [x] 04-01-PLAN.md -- Dispatch table: blocks-to-md.ts if-chain to ReadonlyMap<number, BlockRenderer> dispatch table
 - [x] 04-02-PLAN.md -- Enrichment extraction + parallelization: concurrency limiter, doc-enrichment.ts service, read.ts slimming
 
 ### Phase 5: 健壮性增强
