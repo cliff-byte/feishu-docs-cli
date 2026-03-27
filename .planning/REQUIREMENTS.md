@@ -32,7 +32,7 @@
 - [ ] **CMD-05**: cat/tree/spaces 命令测试（分页、递归、限制）
 - [ ] **CMD-06**: wiki 子命令测试（create-space、add-member、rename、move、copy）
 - [ ] **CMD-07**: share 子命令测试（list、add、remove、update、set）
-- [ ] **CMD-08**: ls/mv/cp/mkdir 云盘操作测试
+- [x] **CMD-08**: ls/mv/cp/mkdir 云盘操作测试
 - [ ] **CMD-09**: search 命令测试（用户令牌验证、搜索参数）
 - [ ] **CMD-10**: 测试覆盖率整体达到 80%
 
@@ -112,7 +112,7 @@
 | CMD-05 | Phase 2 | Pending |
 | CMD-06 | Phase 2 | Pending |
 | CMD-07 | Phase 2 | Pending |
-| CMD-08 | Phase 2 | Pending |
+| CMD-08 | Phase 2 | Complete |
 | CMD-09 | Phase 2 | Pending |
 | CMD-10 | Phase 2 | Pending |
 | SEC-01 | Phase 3 | Pending |

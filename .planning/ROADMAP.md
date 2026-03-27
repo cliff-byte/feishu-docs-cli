@@ -51,7 +51,7 @@ Plans:
 Plans:
 - [ ] 02-01-PLAN.md -- Document operations: captureOutput helper + read, create, update, delete, cat tests
 - [ ] 02-02-PLAN.md -- Knowledge base and navigation: wiki (6 subcommands), tree, spaces tests
-- [ ] 02-03-PLAN.md -- Drive operations: ls, mv, cp, mkdir tests
+- [x] 02-03-PLAN.md -- Drive operations: ls, mv, cp, mkdir tests
 - [ ] 02-04-PLAN.md -- Permissions and coverage: share (5 subcommands), search, info, login/whoami/logout, authorize + coverage enforcement
 
 ### Phase 3: 安全加固与类型化 API 响应

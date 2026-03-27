@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 planned (4 plans, 2 waves)
-last_updated: "2026-03-27T02:14:48.384Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-03-27T02:33:00.651Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** 核心路径必须有测试保护 -- 认证、API 通信、命令处理器等关键路径需达到 80% 测试覆盖率
-**Current focus:** Phase 01 — testing-infra-core-tests
+**Current focus:** Phase 02 — command-handler-tests
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (command-handler-tests) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
 Last activity: 2026-03-27
 
@@ -56,6 +56,7 @@ Progress: [..........] 0%
 | Phase 01 P02 | 5min | 2 tasks | 3 files |
 | Phase 01 P03 | 2min | 1 tasks | 1 files |
 | Phase 01 P04 | 7min | 2 tasks | 4 files |
+| Phase 02 P03 | 7min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Lazy path computation in auth.ts (getConfigDir/getAuthFile/getLockFile) enables predictable test isolation
 - [Phase 01]: Direct globalThis.fetch replacement for AbortError timeout testing (setupMockFetch cannot throw)
 - [Phase 01]: Used HOME env var override and mock.timers for ESM-compatible test mocking
+- [Phase 02]: captureOutput filters binary TAP from Node 24 test runner -- only captures string writes from application code
+- [Phase 02]: Each fetchWithAuth needs its own tenant token mock -- resolveBearer does not cache tenant tokens
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T02:14:48.381Z
-Stopped at: Phase 2 planned (4 plans, 2 waves)
-Resume file: .planning/phases/02-command-handler-tests/02-01-PLAN.md
+Last session: 2026-03-27T02:33:00.649Z
+Stopped at: Completed 02-03-PLAN.md
+Resume file: None
