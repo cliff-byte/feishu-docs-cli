@@ -1,40 +1,23 @@
 ---
 phase: 02-command-handler-tests
-verified: 2026-03-27T16:30:00Z
+verified: 2026-03-27T17:00:00Z
 status: passed
 score: 3/3 success criteria verified
-re_verification: true
-gaps:
-  - truth: "npm run test:coverage reports line coverage >= 80%, branch coverage >= 70%, function coverage >= 80%"
-    status: resolved
-    reason: "Gap closure plan 02-05 added update overwrite/restore, errors, install-skill tests. Line coverage now 80.00%, branches 72.42%, functions 88.23%. check-coverage: true enforced."
-    artifacts:
-      - path: ".c8rc.json"
-        issue: "check-coverage remains false -- threshold enforcement was not enabled as planned in 02-04"
-      - path: "src/commands/read.ts"
-        issue: "46.11% line coverage -- largest uncovered command handler"
-      - path: "src/commands/update.ts"
-        issue: "35.15% line coverage -- overwrite and restore paths untested"
-      - path: "src/auth.ts"
-        issue: "56.77% line coverage -- OAuth login flow, token refresh largely untested"
-      - path: "src/commands/install-skill.ts"
-        issue: "45.94% line coverage -- no test file exists (not in CMD requirements, but drags overall average)"
-      - path: "src/utils/errors.ts"
-        issue: "65.16% line coverage -- handleError and several mapApiError branches uncovered"
-    missing:
-      - "Additional tests for read.ts enrichment paths (--with-meta deep paths, image download, bitable/sheet embed)"
-      - "Additional tests for update.ts overwrite-with-backup and restore-from-backup code paths"
-      - "Additional tests for auth.ts token refresh logic and OAuth error handling paths"
-      - "Additional tests for errors.ts handleError formatting and edge-case mapApiError codes"
-      - "Set check-coverage to true in .c8rc.json once line coverage reaches 80%"
+re_verification:
+  previous_status: gaps_found
+  previous_score: 2/3
+  gaps_closed:
+    - "npm run test:coverage reports line coverage >= 80%, branch coverage >= 70%, function coverage >= 80%"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 2: Command Handler Integration Tests Verification Report
 
 **Phase Goal:** All command handlers have test-protected business logic, overall coverage reaches 80%, any command behavior change is caught by tests
-**Verified:** 2026-03-27T15:30:00Z
-**Status:** gaps_found
-**Re-verification:** No -- initial verification
+**Verified:** 2026-03-27T17:00:00Z
+**Status:** passed
+**Re-verification:** Yes -- after gap closure (plan 02-05)
 
 ## Goal Achievement
 
@@ -42,58 +25,62 @@ gaps:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | read/create/update/delete four core commands have integration tests in both --json and human-readable modes | VERIFIED | read.test.ts (7 tests), create.test.ts (5), update.test.ts (5), delete.test.ts (5) -- each file contains both json:true and json:false test variants |
-| 2 | cat/tree/spaces, wiki subcommands, share subcommands, ls/mv/cp/mkdir, search all have test coverage | VERIFIED | cat.test.ts (5), tree.test.ts (5), spaces.test.ts (4), wiki.test.ts (13), share.test.ts (25), ls.test.ts (8), mv.test.ts (4), cp.test.ts (4), mkdir.test.ts (4), search.test.ts (6) |
-| 3 | npm run test:coverage reports line coverage >= 80%, branch coverage >= 70%, function coverage >= 80% | FAILED | Lines: 76.94% (BELOW 80%), Branches: 71.69% (above 70%), Functions: 85.56% (above 80%). check-coverage in .c8rc.json is false so threshold is not enforced. |
+| 1 | read/create/update/delete four core commands have integration tests in both --json and human-readable modes | VERIFIED | read.test.ts (14 test blocks, 901 lines), create.test.ts (6 blocks, 271 lines), update.test.ts (12 blocks, 746 lines), delete.test.ts (6 blocks, 234 lines). Each file contains both `json: true` and `json: false` test variants confirmed via grep. |
+| 2 | cat/tree/spaces, wiki subcommands, share subcommands, ls/mv/cp/mkdir, search all have test coverage | VERIFIED | cat.test.ts (313 lines), tree.test.ts (312), spaces.test.ts (197), wiki.test.ts (547, 19 blocks covering all 6 subcommands), share.test.ts (449, 33 blocks covering all 5 subcommands), ls.test.ts (292), mv.test.ts (159), cp.test.ts (209), mkdir.test.ts (139), search.test.ts (224). |
+| 3 | npm run test:coverage reports line coverage >= 80%, branch coverage >= 70%, function coverage >= 80% | VERIFIED | Lines: 83.70% (>= 80%), Branches: 73.76% (>= 70%), Functions: 90.90% (>= 80%). check-coverage: true in .c8rc.json enforces thresholds. All 400 tests pass, 0 fail. |
 
-**Score:** 2/3 success criteria verified
+**Score:** 3/3 success criteria verified
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `test/helpers/capture-output.ts` | stdout/stderr capture helper | VERIFIED | 55 lines, exports captureOutput with stdout/stderr/stdoutJson/restore methods, intercepts process.stdout.write |
-| `test/read.test.ts` | read command integration tests (min 150 lines) | VERIFIED | 390 lines, 7 test cases, imports read from src/commands/read.js |
-| `test/create.test.ts` | create command integration tests (min 100 lines) | VERIFIED | 271 lines, 5 test cases, imports create from src/commands/create.js |
-| `test/update.test.ts` | update command integration tests (min 120 lines) | VERIFIED | 306 lines, 5 test cases, imports update from src/commands/update.js |
-| `test/delete.test.ts` | delete command integration tests (min 80 lines) | VERIFIED | 234 lines, 5 test cases, imports del from src/commands/delete.js |
-| `test/cat.test.ts` | cat command integration tests (min 80 lines) | VERIFIED | 313 lines, 5 test cases, imports meta from src/commands/cat.js |
-| `test/wiki.test.ts` | wiki subcommand integration tests (min 200 lines) | VERIFIED | 547 lines, 13 test cases covering all 6 subcommands |
-| `test/tree.test.ts` | tree command integration tests (min 80 lines) | VERIFIED | 312 lines, 5 test cases |
-| `test/spaces.test.ts` | spaces command integration tests (min 60 lines) | VERIFIED | 197 lines, 4 test cases |
-| `test/ls.test.ts` | ls command integration tests (min 80 lines) | VERIFIED | 292 lines, 8 test cases |
-| `test/mv.test.ts` | mv command integration tests (min 80 lines) | VERIFIED | 159 lines, 4 test cases |
-| `test/cp.test.ts` | cp command integration tests (min 60 lines) | VERIFIED | 209 lines, 4 test cases |
-| `test/mkdir.test.ts` | mkdir command integration tests (min 50 lines) | VERIFIED | 139 lines, 4 test cases |
-| `test/share.test.ts` | share subcommand integration tests (min 150 lines) | VERIFIED | 449 lines, 25 test cases covering all 5 subcommands |
-| `test/search.test.ts` | search command integration tests (min 60 lines) | VERIFIED | 224 lines, 6 test cases with FEISHU_USER_TOKEN auth mode |
-| `test/info.test.ts` | info command integration tests (min 100 lines) | VERIFIED | 276 lines, 9 test cases |
-| `test/login.test.ts` | login/whoami/logout tests (min 60 lines) | VERIFIED | 144 lines, 6 test cases |
-| `test/authorize.test.ts` | authorize validation tests (min 40 lines) | VERIFIED | 85 lines, 3 test cases |
-| `.c8rc.json` | check-coverage: true | FAILED | check-coverage is still false -- threshold enforcement not enabled |
+| `test/helpers/capture-output.ts` | stdout/stderr capture helper | VERIFIED | Used by 17 test files (113 occurrences) |
+| `test/read.test.ts` | read command integration tests | VERIFIED | 901 lines, 14 test/describe blocks; enrichment paths (image, bitable, sheet, board, mentions, graceful degradation) added in 02-05 |
+| `test/create.test.ts` | create command integration tests | VERIFIED | 271 lines, 6 blocks; drive create, wiki create, --body, validation, human-readable |
+| `test/update.test.ts` | update command integration tests | VERIFIED | 746 lines, 12 blocks; append, overwrite+backup, restore, validation, human-readable added in 02-05 |
+| `test/delete.test.ts` | delete command integration tests | VERIFIED | 234 lines, 6 blocks |
+| `test/cat.test.ts` | cat command integration tests | VERIFIED | 313 lines, 6 blocks |
+| `test/wiki.test.ts` | wiki subcommand integration tests | VERIFIED | 547 lines, 19 blocks covering all 6 subcommands |
+| `test/tree.test.ts` | tree command integration tests | VERIFIED | 312 lines, 6 blocks |
+| `test/spaces.test.ts` | spaces command integration tests | VERIFIED | 197 lines, 5 blocks |
+| `test/ls.test.ts` | ls command integration tests | VERIFIED | 292 lines, 9 blocks |
+| `test/mv.test.ts` | mv command integration tests | VERIFIED | 159 lines, 5 blocks |
+| `test/cp.test.ts` | cp command integration tests | VERIFIED | 209 lines, 5 blocks |
+| `test/mkdir.test.ts` | mkdir command integration tests | VERIFIED | 139 lines, 5 blocks |
+| `test/share.test.ts` | share subcommand integration tests | VERIFIED | 449 lines, 33 blocks covering all 5 subcommands |
+| `test/search.test.ts` | search command integration tests | VERIFIED | 224 lines, 7 blocks |
+| `test/info.test.ts` | info command integration tests | VERIFIED | 276 lines, 11 blocks |
+| `test/login.test.ts` | login/whoami/logout tests | VERIFIED | 188 lines, 11 blocks |
+| `test/authorize.test.ts` | authorize validation tests | VERIFIED | 85 lines, 4 blocks |
+| `test/errors.test.ts` | error utility tests (gap closure) | VERIFIED | 199 lines, 24 blocks; formatError, handleError, mapApiError |
+| `test/install-skill.test.ts` | install-skill command tests (gap closure) | VERIFIED | 76 lines, 3 blocks |
+| `.c8rc.json` | check-coverage: true with thresholds | VERIFIED | check-coverage: true, lines: 80, branches: 70, functions: 80 |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| test/read.test.ts | src/commands/read.ts | `import { read } from "../src/commands/read.js"` | WIRED | Line 26 |
-| test/create.test.ts | src/commands/create.ts | `import { create } from "../src/commands/create.js"` | WIRED | Line 26 |
-| test/update.test.ts | src/commands/update.ts | `import { update } from "../src/commands/update.js"` | WIRED | Line 26 |
-| test/delete.test.ts | src/commands/delete.ts | `import { del } from "../src/commands/delete.js"` | WIRED | Line 26 |
-| test/cat.test.ts | src/commands/cat.ts | `import { meta } from "../src/commands/cat.js"` | WIRED | Line 26 |
-| test/wiki.test.ts | src/commands/wiki.ts | `import { meta } from "../src/commands/wiki.js"` | WIRED | Line 22 |
-| test/tree.test.ts | src/commands/tree.ts | `import { meta } from "../src/commands/tree.js"` | WIRED | Line 22 |
-| test/spaces.test.ts | src/commands/spaces.ts | `import { spaces } from "../src/commands/spaces.js"` | WIRED | Line 21 |
-| test/ls.test.ts | src/commands/ls.ts | `import { ls } from "../src/commands/ls.js"` | WIRED | Line 19 |
-| test/mv.test.ts | src/commands/mv.ts | `import { mv } from "../src/commands/mv.js"` | WIRED | Line 19 |
-| test/cp.test.ts | src/commands/cp.ts | `import { cp } from "../src/commands/cp.js"` | WIRED | Line 19 |
-| test/mkdir.test.ts | src/commands/mkdir.ts | `import { mkdir } from "../src/commands/mkdir.js"` | WIRED | Line 15 |
-| test/share.test.ts | src/commands/share.ts | `import { mapRole, mapPublicMode, meta } from "../src/commands/share.js"` | WIRED | Line 15 |
-| test/search.test.ts | src/commands/search.ts | `import { search } from "../src/commands/search.js"` | WIRED | Line 24 |
-| test/info.test.ts | src/commands/info.ts | `import { info } from "../src/commands/info.js"` | WIRED | Line 23 |
-| test/login.test.ts | src/commands/login.ts | `import { login, logout, whoami } from "../src/commands/login.js"` | WIRED | Line 17 |
-| test/authorize.test.ts | src/commands/authorize.ts | `import { authorize } from "../src/commands/authorize.js"` | WIRED | Line 16 |
-| test/helpers/capture-output.ts | process.stdout.write | stdout/stderr interception | WIRED | Lines 23-24 replace process.stdout.write and process.stderr.write |
+| test/read.test.ts | src/commands/read.ts | `import { read }` | WIRED | Confirmed |
+| test/create.test.ts | src/commands/create.ts | `import { create }` | WIRED | Confirmed |
+| test/update.test.ts | src/commands/update.ts | `import { update }` | WIRED | Confirmed |
+| test/delete.test.ts | src/commands/delete.ts | `import { del }` | WIRED | Confirmed |
+| test/cat.test.ts | src/commands/cat.ts | `import { meta }` | WIRED | Confirmed |
+| test/wiki.test.ts | src/commands/wiki.ts | `import { meta }` | WIRED | Confirmed |
+| test/tree.test.ts | src/commands/tree.ts | `import { meta }` | WIRED | Confirmed |
+| test/spaces.test.ts | src/commands/spaces.ts | `import { spaces }` | WIRED | Confirmed |
+| test/ls.test.ts | src/commands/ls.ts | `import { ls }` | WIRED | Confirmed |
+| test/mv.test.ts | src/commands/mv.ts | `import { mv }` | WIRED | Confirmed |
+| test/cp.test.ts | src/commands/cp.ts | `import { cp }` | WIRED | Confirmed |
+| test/mkdir.test.ts | src/commands/mkdir.ts | `import { mkdir }` | WIRED | Confirmed |
+| test/share.test.ts | src/commands/share.ts | `import { mapRole, mapPublicMode, meta }` | WIRED | Confirmed |
+| test/search.test.ts | src/commands/search.ts | `import { search }` | WIRED | Confirmed |
+| test/info.test.ts | src/commands/info.ts | `import { info }` | WIRED | Confirmed |
+| test/login.test.ts | src/commands/login.ts | `import { login, logout, whoami }` | WIRED | Confirmed |
+| test/authorize.test.ts | src/commands/authorize.ts | `import { authorize }` | WIRED | Confirmed |
+| test/errors.test.ts | src/utils/errors.ts | `import { CliError, formatError, handleError, mapApiError }` | WIRED | Confirmed |
+| test/install-skill.test.ts | src/commands/install-skill.ts | `import { meta }` | WIRED | Confirmed |
+| test/helpers/capture-output.ts | process.stdout.write | stdout/stderr interception | WIRED | Used by 17 test files |
 
 ### Data-Flow Trace (Level 4)
 
@@ -103,64 +90,68 @@ Not applicable -- test files are not data-rendering artifacts. The tests themsel
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| All 354 tests pass | `npx tsx --test test/*.test.ts` | 354 pass, 0 fail, 0 skipped | PASS |
-| Coverage report generates | `npm run test:coverage` | Exit code 0, coverage table produced | PASS |
-| Line coverage >= 80% | `npm run test:coverage` | 76.94% (below 80%) | FAIL |
-| Branch coverage >= 70% | `npm run test:coverage` | 71.69% (above 70%) | PASS |
-| Function coverage >= 80% | `npm run test:coverage` | 85.56% (above 80%) | PASS |
+| All tests pass | `npm run test:coverage` | 400 pass, 0 fail, 0 skipped | PASS |
+| Line coverage >= 80% | `npm run test:coverage` | 83.70% | PASS |
+| Branch coverage >= 70% | `npm run test:coverage` | 73.76% | PASS |
+| Function coverage >= 80% | `npm run test:coverage` | 90.90% | PASS |
+| Coverage enforcement active | `.c8rc.json` check-coverage | true with 80/70/80 thresholds | PASS |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|------------|-------------|--------|----------|
-| CMD-01 | 02-01 | read command integration tests | SATISFIED | test/read.test.ts: 7 tests covering --raw, --blocks, default markdown, non-docx, --with-meta, validation, human-readable |
-| CMD-02 | 02-01 | create command integration tests | SATISFIED | test/create.test.ts: 5 tests covering drive create, wiki create, --body, validation, human-readable |
-| CMD-03 | 02-01 | update command integration tests | SATISFIED | test/update.test.ts: 5 tests covering --append, non-docx rejection, missing body, validation, human-readable |
-| CMD-04 | 02-01 | delete command integration tests | SATISFIED | test/delete.test.ts: 5 tests covering --confirm, wiki rejection, drive delete, validation, human-readable |
-| CMD-05 | 02-01, 02-02 | cat/tree/spaces tests | SATISFIED | cat.test.ts (5), tree.test.ts (5), spaces.test.ts (4) |
-| CMD-06 | 02-02 | wiki subcommand tests | SATISFIED | test/wiki.test.ts: 13 tests covering all 6 subcommands (create-space, add-member, remove-member, rename, move, copy). Note: REQUIREMENTS.md still shows Pending -- documentation not updated. |
-| CMD-07 | 02-04 | share subcommand tests | SATISFIED | test/share.test.ts: 25 tests covering list, add (with 1201003 fallback), remove, update, set |
-| CMD-08 | 02-03 | ls/mv/cp/mkdir tests | SATISFIED | ls.test.ts (8), mv.test.ts (4), cp.test.ts (4), mkdir.test.ts (4) |
-| CMD-09 | 02-04 | search command tests | SATISFIED | test/search.test.ts: 6 tests with FEISHU_USER_TOKEN user auth mode |
-| CMD-10 | 02-04 | Coverage reaches 80% | BLOCKED | Line coverage at 76.94% -- 3.06 percentage points below threshold. Branches and functions meet targets. |
+| CMD-01 | 02-01, 02-05 | read command integration tests | SATISFIED | test/read.test.ts: 14 test blocks covering --raw, --blocks, markdown, non-docx, --with-meta, validation, human-readable, image download, bitable, sheet, board, mentions, graceful degradation |
+| CMD-02 | 02-01 | create command integration tests | SATISFIED | test/create.test.ts: 6 tests covering drive create, wiki create, --body, validation, human-readable |
+| CMD-03 | 02-01, 02-05 | update command integration tests | SATISFIED | test/update.test.ts: 12 tests covering append, overwrite+backup, restore, validation, human-readable, backup failure abort, restore path validation, non-json rejection |
+| CMD-04 | 02-01 | delete command integration tests | SATISFIED | test/delete.test.ts: 6 tests covering --confirm, wiki rejection, drive delete, validation, human-readable |
+| CMD-05 | 02-01, 02-02 | cat/tree/spaces tests | SATISFIED | cat.test.ts (6 blocks), tree.test.ts (6), spaces.test.ts (5) |
+| CMD-06 | 02-02 | wiki subcommand tests | SATISFIED | test/wiki.test.ts: 19 blocks covering all 6 subcommands (create-space, add-member, remove-member, rename, move, copy) |
+| CMD-07 | 02-04 | share subcommand tests | SATISFIED | test/share.test.ts: 33 blocks covering list, add (with 1201003 fallback), remove, update, set |
+| CMD-08 | 02-03 | ls/mv/cp/mkdir tests | SATISFIED | ls.test.ts (9), mv.test.ts (5), cp.test.ts (5), mkdir.test.ts (5) |
+| CMD-09 | 02-04 | search command tests | SATISFIED | test/search.test.ts: 7 tests with FEISHU_USER_TOKEN user auth mode |
+| CMD-10 | 02-05 | Coverage reaches 80% | SATISFIED | Lines 83.70% >= 80%, Branches 73.76% >= 70%, Functions 90.90% >= 80%. check-coverage: true enforces thresholds. |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| .c8rc.json | 7 | `"check-coverage": false` | Warning | Threshold enforcement not enabled; coverage can regress silently |
-
-No TODO/FIXME/placeholder patterns found in any phase 2 test files. No empty implementations. No stub patterns.
+| (none) | - | - | - | No TODO, FIXME, placeholder, or stub patterns found in phase 2 test files or .c8rc.json |
 
 ### Human Verification Required
 
 No items require human verification. All test behaviors are programmatically verifiable through test execution and coverage reports.
 
-### Gaps Summary
+### Gap Closure Summary (Re-verification)
 
-**One gap blocks full phase goal achievement: line coverage is 76.94%, below the 80% target.**
+**Previous verification (initial):** 2/3 truths verified. Line coverage was 76.94% (below 80% target). `.c8rc.json` had `check-coverage: false`.
 
-The gap is entirely in line coverage. Branch (71.69%) and function (85.56%) targets are met. The line coverage shortfall is concentrated in a few files:
+**Gap closure plan 02-05 delivered:**
+1. read.test.ts enrichment path tests (image download, bitable, sheet, board, mentions, graceful degradation) -- 6 new tests, file grew from 390 to 901 lines
+2. update.test.ts overwrite/restore tests (overwrite+backup, overwrite human-readable, backup failure abort, restore --json, path validation, non-json rejection) -- 6 new tests, file grew from 306 to 746 lines
+3. errors.test.ts (new file, 199 lines, 24 test blocks) covering formatError, handleError, mapApiError
+4. install-skill.test.ts (new file, 76 lines, 3 test blocks)
+5. `.c8rc.json` updated: `check-coverage: true` with 80/70/80 thresholds
 
-| File | Line Coverage | Primary Uncovered Paths |
-|------|-------------|------------------------|
-| src/commands/update.ts | 35.15% | Overwrite-with-backup and restore-from-backup paths |
-| src/commands/read.ts | 46.11% | Enrichment paths (image download, bitable/sheet embed, user mentions) |
-| src/commands/install-skill.ts | 45.94% | Entire command (no test, not in CMD requirements) |
-| src/auth.ts | 56.77% | OAuth login flow, token refresh, lock file management |
-| src/utils/errors.ts | 65.16% | handleError formatting, mapApiError edge cases |
-| src/utils/version.ts | 71.42% | Update check logic |
-| src/utils/scope-prompt.ts | 72.54% | Interactive scope authorization prompt |
-| src/cli.ts | 73.44% | CLI routing edge cases |
-| src/parser/blocks-to-md.ts | 74.45% | Block type rendering for less common block types |
+**Coverage improvement:**
 
-**Root cause:** The tests focus on happy paths and key validation paths for each command, but the complex internal code paths (enrichment in read.ts, overwrite/restore in update.ts, OAuth flow in auth.ts) have minimal coverage. These paths have many branches that are difficult to test without deep mock chains.
+| Metric | Before (02-04) | After (02-05) | Threshold | Status |
+|--------|----------------|---------------|-----------|--------|
+| Lines | 76.94% | 83.70% | 80% | PASS |
+| Branches | 71.69% | 73.76% | 70% | PASS |
+| Functions | 85.56% | 90.90% | 80% | PASS |
 
-**Documentation discrepancy:** CMD-06 (wiki subcommand tests) is marked "Pending" in REQUIREMENTS.md but is fully implemented in test/wiki.test.ts with 13 tests. The REQUIREMENTS.md traceability table was not updated after plan 02-02 execution.
+**Key file improvements:**
 
-**Missing summaries:** Plans 02-03 and 02-04 have no SUMMARY.md files, though their code was committed and merged.
+| File | Before | After |
+|------|--------|-------|
+| src/commands/read.ts | 46.11% | 84.62% |
+| src/commands/update.ts | 35.15% | 80.90% |
+| src/utils/errors.ts | 65.16% | 100% |
+| src/commands/install-skill.ts | 45.94% | 91.89% |
+
+All gaps from the initial verification are now closed. No regressions detected in previously-passed items.
 
 ---
 
-_Verified: 2026-03-27T15:30:00Z_
+_Verified: 2026-03-27T17:00:00Z_
 _Verifier: Claude (gsd-verifier)_
