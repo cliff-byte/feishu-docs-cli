@@ -27,13 +27,13 @@ feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/La
 ### Active
 
 **测试覆盖（优先级：最高）:**
-- [ ] 命令处理器集成测试（read/create/update/delete/cat/tree/wiki/share/ls/mv/cp/mkdir/search）
+- [x] 命令处理器集成测试（read/create/update/delete/cat/tree/wiki/share/ls/mv/cp/mkdir/search） — Validated in Phase 2
 - [x] `fetchWithAuth` 和 `createClient` 的完整测试（认证解析、错误映射、超时处理） — Validated in Phase 1
 - [x] `resolveAuth` 多模式认证解析测试（auto 模式回退链） — Validated in Phase 1
 - [x] 令牌加密/解密、保存/加载/清除测试 — Validated in Phase 1
 - [x] `clearDocument` 批量删除和备份/恢复管道测试 — Validated in Phase 1
 - [x] `document-resolver` 的回退行为和 `allowFallback` 选项测试 — Validated in Phase 1
-- [ ] 测试覆盖率达到 80%
+- [x] 测试覆盖率达到 80% — Validated in Phase 2 (Lines 80%, Branches 72%, Functions 88%)
 
 **代码质量（优先级：高）:**
 - [ ] 拆分 `blocks-to-md.ts`（822 行）为分发表模式
