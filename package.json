@@ -21,7 +21,7 @@
     "build:check": "tsc --noEmit",
     "pretest": "npm run build:check",
     "test": "tsx --test test/*.test.ts",
-    "test:coverage": "c8 tsx --test test/*.test.ts",
+    "lint:dead-code": "knip",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -48,7 +48,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "c8": "^11.0.0",
+    "knip": "^6.0.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
