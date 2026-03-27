@@ -12,9 +12,9 @@
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: 测试基础设施与核心路径测试** - 搭建覆盖率管道、测试辅助工具，覆盖认证链和核心服务的单元测试
-- [ ] **Phase 2: 命令处理器集成测试** - 为全部命令处理器补充集成测试，达到 80% 覆盖率门槛
-- [ ] **Phase 3: 安全加固与类型化 API 响应** - 修复安全问题，建立类型化 API 接口，为重构提供类型支撑
+- [x] **Phase 1: 测试基础设施与核心路径测试** - 搭建覆盖率管道、测试辅助工具，覆盖认证链和核心服务的单元测试
+- [x] **Phase 2: 命令处理器集成测试** - 为全部命令处理器补充集成测试，达到 80% 覆盖率门槛
+- [x] **Phase 3: 安全加固与类型化 API 响应** - 修复安全问题，建立类型化 API 接口，为重构提供类型支撑
 - [ ] **Phase 4: 代码重构** - 在测试保护下拆分大文件，提取服务模块，串行改并行
 - [ ] **Phase 5: 健壮性增强** - 添加重试逻辑、缓存淘汰、QPS 优化和死代码检测
 
@@ -68,7 +68,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md -- Security fixes: whoami token removal, OAuth CSP headers, CI/container documentation
-- [ ] 03-02-PLAN.md -- Typed API responses: api-responses.ts types, generic fetchWithAuth<T>, doc-blocks + wiki-nodes migration
+- [x] 03-02-PLAN.md -- Typed API responses: api-responses.ts types, generic fetchWithAuth<T>, doc-blocks + wiki-nodes migration
 
 ### Phase 4: 代码重构
 **Goal**: 大文件被拆分为职责单一的小模块，嵌入内容获取从串行改为并行，所有既有测试继续通过
@@ -111,8 +111,8 @@ Phase 1 (测试基础设施)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. 测试基础设施与核心路径测试 | 0/4 | Planning complete | - |
-| 2. 命令处理器集成测试 | 4/5 | Gap closure | |
-| 3. 安全加固与类型化 API 响应 | 1/2 | In progress | - |
+| 1. 测试基础设施与核心路径测试 | 4/4 | Complete | 2026-03-26 |
+| 2. 命令处理器集成测试 | 5/5 | Complete | 2026-03-27 |
+| 3. 安全加固与类型化 API 响应 | 2/2 | Complete | 2026-03-27 |
 | 4. 代码重构 | 0/0 | Not started | - |
 | 5. 健壮性增强 | 0/0 | Not started | - |
