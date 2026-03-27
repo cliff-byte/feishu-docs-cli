@@ -79,7 +79,11 @@ Plans:
   2. read.ts 的丰富化逻辑已提取到 services/doc-enrichment.ts，read.ts 行数降至约 200 行以内
   3. 嵌入内容获取使用 Promise.allSettled() 并行化（含并发限制），可观测到多文档场景下的性能提升
   4. 所有既有测试（Phase 1 + Phase 2）继续通过，覆盖率不低于重构前
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md -- Dispatch table: blocks-to-md.ts if-chain to ReadonlyMap<number, BlockRenderer> dispatch table
+- [ ] 04-02-PLAN.md -- Enrichment extraction + parallelization: concurrency limiter, doc-enrichment.ts service, read.ts slimming
 
 ### Phase 5: 健壮性增强
 **Goal**: CLI 工具在网络不稳定、缓存膨胀、代码冗余等场景下表现更健壮
@@ -114,5 +118,5 @@ Phase 1 (测试基础设施)
 | 1. 测试基础设施与核心路径测试 | 4/4 | Complete | 2026-03-26 |
 | 2. 命令处理器集成测试 | 5/5 | Complete | 2026-03-27 |
 | 3. 安全加固与类型化 API 响应 | 2/2 | Complete | 2026-03-27 |
-| 4. 代码重构 | 0/0 | Not started | - |
+| 4. 代码重构 | 0/2 | Planning complete | - |
 | 5. 健壮性增强 | 0/0 | Not started | - |
