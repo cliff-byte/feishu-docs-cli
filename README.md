@@ -123,6 +123,23 @@ feishu-docs login --redirect-uri http://127.0.0.1:3456/callback
 feishu-docs login --port 4567
 ```
 
+### CI / Container Environments
+
+In CI pipelines, Docker containers, or headless servers where interactive OAuth login is not possible, use the `FEISHU_USER_TOKEN` environment variable instead of `feishu-docs login`:
+
+```bash
+export FEISHU_APP_ID="cli_xxx"
+export FEISHU_APP_SECRET="xxx"
+export FEISHU_USER_TOKEN="u-xxx"   # User access token from Feishu API
+```
+
+With these three variables set, all commands work without `feishu-docs login`. The token is used directly without local encryption or storage.
+
+**Important:**
+- `FEISHU_USER_TOKEN` has no auto-refresh -- you are responsible for rotating it before expiry
+- Do NOT use `feishu-docs login` in containers -- it spawns a local HTTP server and attempts to open a browser
+- For tenant-only access (no user context), `FEISHU_APP_ID` and `FEISHU_APP_SECRET` are sufficient
+
 ## Usage
 
 ### Read
