@@ -38,9 +38,9 @@
 
 ### 安全加固
 
-- [ ] **SEC-01**: whoami 不再输出用户令牌前缀（移除 slice(0, 10)）
-- [ ] **SEC-02**: OAuth 回调响应 HTML 添加 Content-Security-Policy 头
-- [ ] **SEC-03**: 文档化 CI/容器环境应使用 FEISHU_USER_TOKEN 而非 feishu-docs login
+- [x] **SEC-01**: whoami 不再输出用户令牌前缀（移除 slice(0, 10)）
+- [x] **SEC-02**: OAuth 回调响应 HTML 添加 Content-Security-Policy 头
+- [x] **SEC-03**: 文档化 CI/容器环境应使用 FEISHU_USER_TOKEN 而非 feishu-docs login
 
 ### 类型化 API 响应
 
@@ -115,9 +115,9 @@
 | CMD-08 | Phase 2 | Complete |
 | CMD-09 | Phase 2 | Complete |
 | CMD-10 | Phase 2 | Complete |
-| SEC-01 | Phase 3 | Pending |
-| SEC-02 | Phase 3 | Pending |
-| SEC-03 | Phase 3 | Pending |
+| SEC-01 | Phase 3 | Complete |
+| SEC-02 | Phase 3 | Complete |
+| SEC-03 | Phase 3 | Complete |
 | TYPE-01 | Phase 3 | Pending |
 | TYPE-02 | Phase 3 | Pending |
 | TYPE-03 | Phase 3 | Pending |
