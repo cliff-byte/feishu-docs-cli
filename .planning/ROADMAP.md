@@ -94,7 +94,11 @@ Plans:
   2. 图片缓存目录中超过 30 天的文件会被自动清理
   3. clearDocument 的 QPS 延迟参数经过优化，批量删除耗时减少
   4. knip 已集成到开发流程，`npm run lint:dead-code` 可执行且无误报
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md -- Retry logic: withRetry utility, FetchOptions.retry extension, fetchWithAuth/fetchBinaryWithAuth retry loops
+- [ ] 05-02-PLAN.md -- Cache eviction + QPS optimization + knip: cleanExpiredImages, QPS_DELAY 200ms, dead code detection
 
 ## Progress
 
@@ -119,4 +123,4 @@ Phase 1 (测试基础设施)
 | 2. 命令处理器集成测试 | 5/5 | Complete | 2026-03-27 |
 | 3. 安全加固与类型化 API 响应 | 2/2 | Complete | 2026-03-27 |
 | 4. 代码重构 | 2/2 | Complete | 2026-03-27 |
-| 5. 健壮性增强 | 0/0 | Not started | - |
+| 5. 健壮性增强 | 0/2 | In progress | - |
