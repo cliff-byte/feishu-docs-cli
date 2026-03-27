@@ -7,11 +7,11 @@
 
 ### 测试基础设施
 
-- [ ] **TEST-01**: 安装 c8 覆盖率工具，配置 .c8rc.json 阈值（行 80% / 分支 70% / 函数 80%）
-- [ ] **TEST-02**: 验证 c8 + tsx 覆盖率管道可靠性，若不可靠则切换到 tsc 编译后测量
-- [ ] **TEST-03**: 创建测试辅助工具库（test/helpers/）：mock-fetch、env-guard、factory 函数
-- [ ] **TEST-04**: 建立 node:test 并发控制约定（涉及全局状态的 describe 使用 `{ concurrency: 1 }`）
-- [ ] **TEST-05**: 在 package.json 中添加 test:coverage 脚本
+- [x] **TEST-01**: 安装 c8 覆盖率工具，配置 .c8rc.json 阈值（行 80% / 分支 70% / 函数 80%）
+- [x] **TEST-02**: 验证 c8 + tsx 覆盖率管道可靠性，若不可靠则切换到 tsc 编译后测量
+- [x] **TEST-03**: 创建测试辅助工具库（test/helpers/）：mock-fetch、env-guard、factory 函数
+- [x] **TEST-04**: 建立 node:test 并发控制约定（涉及全局状态的 describe 使用 `{ concurrency: 1 }`）
+- [x] **TEST-05**: 在 package.json 中添加 test:coverage 脚本
 
 ### 核心路径测试
 
@@ -93,11 +93,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 1 | Pending |
-| TEST-02 | Phase 1 | Pending |
-| TEST-03 | Phase 1 | Pending |
-| TEST-04 | Phase 1 | Pending |
-| TEST-05 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Complete |
+| TEST-02 | Phase 1 | Complete |
+| TEST-03 | Phase 1 | Complete |
+| TEST-04 | Phase 1 | Complete |
+| TEST-05 | Phase 1 | Complete |
 | CORE-01 | Phase 1 | Pending |
 | CORE-02 | Phase 1 | Pending |
 | CORE-03 | Phase 1 | Pending |

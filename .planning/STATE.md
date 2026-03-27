@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 planned (4 plans, 2 waves)
-last_updated: "2026-03-26T11:21:05.687Z"
-last_activity: 2026-03-26 -- Roadmap created
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-27T01:24:13.344Z"
+last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** 核心路径必须有测试保护 -- 认证、API 通信、命令处理器等关键路径需达到 80% 测试覆盖率
-**Current focus:** Phase 1: 测试基础设施与核心路径测试
+**Current focus:** Phase 01 — testing-infra-core-tests
 
 ## Current Position
 
-Phase: 1 of 5 (测试基础设施与核心路径测试)
-Plan: 0 of 0 in current phase (awaiting planning)
-Status: Ready to plan
-Last activity: 2026-03-26 -- Roadmap created
+Phase: 01 (testing-infra-core-tests) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-03-27
 
 Progress: [..........] 0%
 
@@ -52,6 +52,7 @@ Progress: [..........] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P01 | 3min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 - [Roadmap]: 测试先行策略 -- 所有重构和增强必须在测试保护下进行
 - [Roadmap]: Phase 2/3 可并行 -- 安全修复和类型化与命令测试无依赖冲突
 - [Roadmap]: Phase 5 可与 Phase 4 部分并行 -- 重试逻辑仅依赖 Phase 1 的 fetchWithAuth 测试
+- [Phase 01]: c8 + tsx pipeline produces accurate coverage data -- no tsc fallback needed
+- [Phase 01]: check-coverage disabled for Phase 1 (enforced after Phase 2)
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-26T11:21:05.684Z
-Stopped at: Phase 1 planned (4 plans, 2 waves)
-Resume file: .planning/phases/01-testing-infra-core-tests/01-01-PLAN.md
+Last session: 2026-03-27T01:24:13.340Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
