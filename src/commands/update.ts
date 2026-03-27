@@ -22,7 +22,7 @@ import {
   getDocumentInfo,
   clearDocument,
   backupDocument,
-  BACKUPS_DIR,
+  getBackupsDir,
 } from "../services/block-writer.js";
 import {
   CommandMeta,
@@ -244,7 +244,7 @@ async function restoreFromBackup(
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const resolvedPath = resolve(normalize(backupPath));
-  const resolvedBackups = resolve(BACKUPS_DIR);
+  const resolvedBackups = resolve(getBackupsDir());
 
   if (!resolvedPath.startsWith(resolvedBackups + sep)) {
     throw new CliError(
