@@ -6,6 +6,9 @@ dist/
 .DS_Store
 tmp-*.js
 
+# Coverage reports
+coverage/
+
 # Development artifacts
 findings.md
 progress.md
