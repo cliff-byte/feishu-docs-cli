@@ -51,8 +51,8 @@
 ### 代码重构
 
 - [ ] **REF-01**: blocks-to-md.ts 从 if-chain 重构为 ReadonlyMap<number, BlockRenderer> 分发表
-- [ ] **REF-02**: read.ts 提取丰富化逻辑到 services/doc-enrichment.ts（图片/用户/bitable/sheet/board）
-- [ ] **REF-03**: 嵌入内容串行获取改为 Promise.allSettled() 并行化（含并发限制器）
+- [x] **REF-02**: read.ts 提取丰富化逻辑到 services/doc-enrichment.ts（图片/用户/bitable/sheet/board）
+- [x] **REF-03**: 嵌入内容串行获取改为 Promise.allSettled() 并行化（含并发限制器）
 
 ### 健壮性增强
 
@@ -122,8 +122,8 @@
 | TYPE-02 | Phase 3 | Pending |
 | TYPE-03 | Phase 3 | Pending |
 | REF-01 | Phase 4 | Pending |
-| REF-02 | Phase 4 | Pending |
-| REF-03 | Phase 4 | Pending |
+| REF-02 | Phase 4 | Complete |
+| REF-03 | Phase 4 | Complete |
 | ROB-01 | Phase 5 | Pending |
 | ROB-02 | Phase 5 | Pending |
 | ROB-03 | Phase 5 | Pending |

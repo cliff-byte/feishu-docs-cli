@@ -83,7 +83,7 @@ Plans:
 
 Plans:
 - [ ] 04-01-PLAN.md -- Dispatch table: blocks-to-md.ts if-chain to ReadonlyMap<number, BlockRenderer> dispatch table
-- [ ] 04-02-PLAN.md -- Enrichment extraction + parallelization: concurrency limiter, doc-enrichment.ts service, read.ts slimming
+- [x] 04-02-PLAN.md -- Enrichment extraction + parallelization: concurrency limiter, doc-enrichment.ts service, read.ts slimming
 
 ### Phase 5: 健壮性增强
 **Goal**: CLI 工具在网络不稳定、缓存膨胀、代码冗余等场景下表现更健壮
