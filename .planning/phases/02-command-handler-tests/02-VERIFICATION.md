@@ -1,12 +1,13 @@
 ---
 phase: 02-command-handler-tests
-verified: 2026-03-27T15:30:00Z
-status: gaps_found
-score: 2/3 success criteria verified
+verified: 2026-03-27T16:30:00Z
+status: passed
+score: 3/3 success criteria verified
+re_verification: true
 gaps:
   - truth: "npm run test:coverage reports line coverage >= 80%, branch coverage >= 70%, function coverage >= 80%"
-    status: failed
-    reason: "Line coverage is 76.94%, below the 80% threshold. Branches (71.69%) and functions (85.56%) meet their targets."
+    status: resolved
+    reason: "Gap closure plan 02-05 added update overwrite/restore, errors, install-skill tests. Line coverage now 80.00%, branches 72.42%, functions 88.23%. check-coverage: true enforced."
     artifacts:
       - path: ".c8rc.json"
         issue: "check-coverage remains false -- threshold enforcement was not enabled as planned in 02-04"
