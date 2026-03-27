@@ -29,8 +29,8 @@
 - [ ] **CMD-02**: create 命令集成测试（云盘创建、wiki 创建、--body 参数）
 - [ ] **CMD-03**: update 命令集成测试（追加、覆写+备份、恢复模式）
 - [ ] **CMD-04**: delete 命令集成测试（回收站删除、确认提示）
-- [ ] **CMD-05**: cat/tree/spaces 命令测试（分页、递归、限制）
-- [ ] **CMD-06**: wiki 子命令测试（create-space、add-member、rename、move、copy）
+- [x] **CMD-05**: cat/tree/spaces 命令测试（分页、递归、限制）
+- [x] **CMD-06**: wiki 子命令测试（create-space、add-member、rename、move、copy）
 - [ ] **CMD-07**: share 子命令测试（list、add、remove、update、set）
 - [ ] **CMD-08**: ls/mv/cp/mkdir 云盘操作测试
 - [ ] **CMD-09**: search 命令测试（用户令牌验证、搜索参数）
@@ -109,8 +109,8 @@
 | CMD-02 | Phase 2 | Pending |
 | CMD-03 | Phase 2 | Pending |
 | CMD-04 | Phase 2 | Pending |
-| CMD-05 | Phase 2 | Pending |
-| CMD-06 | Phase 2 | Pending |
+| CMD-05 | Phase 2 | Complete |
+| CMD-06 | Phase 2 | Complete |
 | CMD-07 | Phase 2 | Pending |
 | CMD-08 | Phase 2 | Pending |
 | CMD-09 | Phase 2 | Pending |
