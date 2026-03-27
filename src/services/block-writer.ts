@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
+import { sleep } from "../utils/retry.js";
 import { fetchAllBlocks } from "./doc-blocks.js";
 import { AuthInfo, Block } from "../types/index.js";
 
@@ -22,10 +23,6 @@ export function getBackupsDir(): string {
 }
 export const BATCH_SIZE: number = 50;
 export const QPS_DELAY: number = 400;
-
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 /**
  * Read body content from file path or stdin ("-").

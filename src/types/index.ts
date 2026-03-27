@@ -107,11 +107,18 @@ export interface ApiResponse<T = unknown> {
   data?: T;
 }
 
+export interface RetryConfig {
+  maxRetries?: number;
+  initialDelay?: number;
+  maxDelay?: number;
+}
+
 export interface FetchOptions {
   method?: string;
   params?: Record<string, string | number | string[] | undefined>;
   body?: unknown;
   headers?: Record<string, string>;
+  retry?: RetryConfig | false;
 }
 
 // ── Block types ──
