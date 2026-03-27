@@ -23,13 +23,23 @@ export function captureOutput(): CapturedOutput {
   const origStdout = process.stdout.write.bind(process.stdout);
   const origStderr = process.stderr.write.bind(process.stderr);
 
-  process.stdout.write = ((chunk: string | Uint8Array) => {
-    stdoutChunks.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+  process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    if (typeof chunk === "string") {
+      stdoutChunks.push(chunk);
+    } else {
+      // Binary data from test runner protocol — pass through to original
+      return origStdout(chunk, ...(args as []));
+    }
     return true;
   }) as typeof process.stdout.write;
 
-  process.stderr.write = ((chunk: string | Uint8Array) => {
-    stderrChunks.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+  process.stderr.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    if (typeof chunk === "string") {
+      stderrChunks.push(chunk);
+    } else {
+      // Binary data from test runner protocol — pass through to original
+      return origStderr(chunk, ...(args as []));
+    }
     return true;
   }) as typeof process.stderr.write;
 
