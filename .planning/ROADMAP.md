@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md -- Testing infrastructure: c8, coverage pipeline, test helpers, npm scripts
 - [x] 01-02-PLAN.md -- Auth module tests: resolveAuth multi-mode + token crypto round-trip
-- [ ] 01-03-PLAN.md -- Client module tests: fetchWithAuth + createClient + getTenantToken
+- [x] 01-03-PLAN.md -- Client module tests: fetchWithAuth + createClient + getTenantToken
 - [ ] 01-04-PLAN.md -- Block-writer + document-resolver tests: clearDocument, backup/restore, wiki fallback
 
 ### Phase 2: 命令处理器集成测试

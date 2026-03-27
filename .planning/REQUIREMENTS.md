@@ -15,9 +15,9 @@
 
 ### 核心路径测试
 
-- [ ] **CORE-01**: fetchWithAuth 完整测试（Bearer 令牌解析、错误映射、超时处理、权限范围错误提取）
-- [ ] **CORE-02**: createClient 测试（auto/user/tenant 模式解析、令牌自动刷新触发）
-- [x] **CORE-03**: resolveAuth 多模式认证解析测试（env 变量 → 本地令牌 → 应用凭证回退链）
+- [x] **CORE-01**: fetchWithAuth 完整测试（Bearer 令牌解析、错误映射、超时处理、权限范围错误提取）
+- [x] **CORE-02**: createClient 测试（auto/user/tenant 模式解析、令牌自动刷新触发）
+- [x] **CORE-03**: resolveAuth 多模式认证解析测试（env 变量 → 本地令牌 → 应用凭集回退链）
 - [x] **CORE-04**: 令牌加密/解密 round-trip 测试（AES-256-GCM + scrypt 密钥派生）
 - [ ] **CORE-05**: clearDocument 批量删除测试（批次拆分、QPS 延迟、冲突重试）
 - [ ] **CORE-06**: backupDocument / rotateBackups 备份管道测试
@@ -98,8 +98,8 @@
 | TEST-03 | Phase 1 | Complete |
 | TEST-04 | Phase 1 | Complete |
 | TEST-05 | Phase 1 | Complete |
-| CORE-01 | Phase 1 | Pending |
-| CORE-02 | Phase 1 | Pending |
+| CORE-01 | Phase 1 | Complete |
+| CORE-02 | Phase 1 | Complete |
 | CORE-03 | Phase 1 | Complete |
 | CORE-04 | Phase 1 | Complete |
 | CORE-05 | Phase 1 | Pending |
