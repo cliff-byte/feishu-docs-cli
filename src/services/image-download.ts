@@ -6,7 +6,7 @@
  * skipped (disk cache by file_token).
  */
 
-import { writeFile, mkdir, stat } from "node:fs/promises";
+import { writeFile, mkdir, stat, readdir, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { validateToken } from "../utils/validate.js";
@@ -20,6 +20,9 @@ export const CONTENT_TYPE_EXT: Record<string, string> = {
   "image/webp": ".webp",
   "image/svg+xml": ".svg",
 };
+
+/** Maximum age for cached images (30 days in milliseconds). */
+export const IMAGE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const KNOWN_EXTENSIONS = Object.values(CONTENT_TYPE_EXT);
 
@@ -58,6 +61,39 @@ export async function findCachedImage(
 }
 
 /**
+ * Remove cached image files older than IMAGE_TTL_MS.
+ * Errors are caught and logged to stderr -- never throws.
+ */
+export async function cleanExpiredImages(dir: string): Promise<void> {
+  try {
+    const files = await readdir(dir);
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const file of files) {
+      try {
+        const filePath = join(dir, file);
+        const fileStat = await stat(filePath);
+        if (now - fileStat.mtimeMs > IMAGE_TTL_MS) {
+          await unlink(filePath);
+          cleaned++;
+        }
+      } catch {
+        // Individual file cleanup failure -- skip silently
+      }
+    }
+
+    if (cleaned > 0) {
+      process.stderr.write(
+        `feishu-docs: info: 已清理 ${cleaned} 个过期图片缓存\n`,
+      );
+    }
+  } catch {
+    process.stderr.write("feishu-docs: warning: 图片缓存清理失败\n");
+  }
+}
+
+/**
  * Download images from temporary URLs and save to local directory.
  * Returns a map of file_token → local file path. Already-downloaded images
  * are skipped (simple disk cache by file_token).
@@ -69,6 +105,7 @@ export async function downloadImages(
   if (tmpUrlMap.size === 0) return new Map();
 
   await mkdir(dir, { recursive: true });
+  void cleanExpiredImages(dir);
 
   const localMap = new Map<string, string>();
   for (const [fileToken, tmpUrl] of tmpUrlMap) {
