@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-27T08:25:58.323Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-03-27T09:05:16.933Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 82
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** 核心路径必须有测试保护 -- 认证、API 通信、命令处理器等关键路径需达到 80% 测试覆盖率
-**Current focus:** Phase 03 — security-typed-api
+**Current focus:** Phase 02 — command-handler-tests
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
-Status: Executing phase 3
+Phase: 02 (command-handler-tests) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
 Last activity: 2026-03-27
 
 Progress: [========..] 82%
@@ -59,6 +59,7 @@ Progress: [========..] 82%
 | Phase 02 P01 | 10min | 2 tasks | 6 files |
 | Phase 02 P04 | 9min | 2 tasks | 13 files |
 | Phase 03 P01 | 2min | 2 tasks | 5 files |
+| Phase 02 P05 | 8min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Validation-only testing for login/authorize -- full OAuth flow untestable (spawns HTTP server + browser)
 - [Phase 03]: Source-analysis testing for OAuth CSP -- OAuth flow spawns HTTP server + browser, so tests verify CSP headers by reading auth.ts source code
 - [Phase 03]: Token display replaced with type indicator -- whoami shows 'Token Type: user' instead of any token substring
+- [Phase 02]: enrichment tests use strictCount: false for complex interleaved Promise.all mock ordering
+- [Phase 02]: coverage enforcement enabled at 80% line / 70% branch / 80% function -- CMD-10 satisfied
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T08:13:56Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-security-typed-api/03-02-PLAN.md
+Last session: 2026-03-27T09:05:16.930Z
+Stopped at: Completed 02-05-PLAN.md
+Resume file: None

@@ -53,7 +53,7 @@ Plans:
 - [x] 02-02-PLAN.md -- Knowledge base and navigation: wiki (6 subcommands), tree, spaces tests
 - [x] 02-03-PLAN.md -- Drive operations: ls, mv, cp, mkdir tests
 - [x] 02-04-PLAN.md -- Permissions and coverage: share (5 subcommands), search, info, login/whoami/logout, authorize + coverage enforcement
-- [ ] 02-05-PLAN.md -- Gap closure: deeper tests for update overwrite/restore, read enrichment, errors, install-skill + coverage enforcement
+- [x] 02-05-PLAN.md -- Gap closure: deeper tests for update overwrite/restore, read enrichment, errors, install-skill + coverage enforcement
 
 ### Phase 3: 安全加固与类型化 API 响应
 **Goal**: 消除已知安全隐患，建立类型化 API 响应接口体系，为后续重构提供类型安全基础
