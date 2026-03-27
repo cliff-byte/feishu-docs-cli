@@ -16,7 +16,10 @@ import { CliError } from "../utils/errors.js";
 import { fetchAllBlocks } from "./doc-blocks.js";
 import { AuthInfo, Block } from "../types/index.js";
 
-export const BACKUPS_DIR: string = join(homedir(), ".feishu-docs", "backups");
+/** Lazy computation of backups directory for testability (mock homedir). */
+export function getBackupsDir(): string {
+  return join(homedir(), ".feishu-docs", "backups");
+}
 export const BATCH_SIZE: number = 50;
 export const QPS_DELAY: number = 400;
 
@@ -147,10 +150,11 @@ export async function backupDocument(
 ): Promise<{ filepath: string; blocks: Block[] }> {
   const blocks = await fetchAllBlocks(authInfo, documentId);
 
-  await mkdir(BACKUPS_DIR, { recursive: true, mode: 0o700 });
+  const backupsDir = getBackupsDir();
+  await mkdir(backupsDir, { recursive: true, mode: 0o700 });
 
   const filename = `${documentId}-${Date.now()}.json`;
-  const filepath = join(BACKUPS_DIR, filename);
+  const filepath = join(backupsDir, filename);
   await writeFile(filepath, JSON.stringify(blocks, null, 2), {
     encoding: "utf8",
     mode: 0o600,
@@ -164,9 +168,10 @@ export async function backupDocument(
 
 const MAX_BACKUPS_PER_DOC = 10;
 
-async function rotateBackups(): Promise<void> {
+export async function rotateBackups(): Promise<void> {
   try {
-    const files = await readdir(BACKUPS_DIR);
+    const backupsDir = getBackupsDir();
+    const files = await readdir(backupsDir);
     const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
 
     // Group by documentId (filename format: {documentId}-{timestamp}.json)
@@ -184,7 +189,7 @@ async function rotateBackups(): Promise<void> {
       if (group.length > MAX_BACKUPS_PER_DOC) {
         const toDelete = group.slice(0, group.length - MAX_BACKUPS_PER_DOC);
         for (const f of toDelete) {
-          await unlink(join(BACKUPS_DIR, f));
+          await unlink(join(backupsDir, f));
         }
       }
     }
