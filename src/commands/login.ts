@@ -102,9 +102,7 @@ export async function whoami(
         process.stdout.write(`App ID: ${authInfo.appId}\n`);
       }
       if (authInfo.userToken) {
-        process.stdout.write(
-          `User Token: ${authInfo.userToken.slice(0, 10)}...\n`,
-        );
+        process.stdout.write("Token Type: user\n");
         if (authInfo.expiresAt) {
           const expires = new Date(authInfo.expiresAt).toLocaleString();
           const expired = Date.now() >= authInfo.expiresAt;

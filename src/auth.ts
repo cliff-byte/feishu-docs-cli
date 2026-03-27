@@ -39,6 +39,8 @@ const DEFAULT_OAUTH_HOST = "127.0.0.1";
 const DEFAULT_OAUTH_PORT = 3456;
 const DEFAULT_OAUTH_PATH = "/callback";
 const LOCAL_CALLBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const CSP_HEADER =
+  "default-src 'none'; style-src 'unsafe-inline'; script-src 'none'";
 
 interface StoredTokens {
   appId: string;
@@ -553,6 +555,7 @@ export async function oauthLogin(
 
           res.writeHead(200, {
             "Content-Type": "text/html; charset=utf-8",
+            "Content-Security-Policy": CSP_HEADER,
             Connection: "close",
           });
           res.end("<h1>登录成功！</h1><p>你可以关闭此页面。</p>");
@@ -563,7 +566,10 @@ export async function oauthLogin(
           resolve(tokenData);
         } catch (err) {
           const error = err as Error;
-          res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
+          res.writeHead(500, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Content-Security-Policy": CSP_HEADER,
+          });
           const safeMsg = (error.message || "").replace(
             /[&<>"']/g,
             (c) =>

@@ -101,6 +101,56 @@ describe("whoami command", { concurrency: 1 }, () => {
     });
   });
 
+  it("whoami human-readable with user token should not contain token value", async () => {
+    const testToken = "u-test-secret-token-12345";
+    await withCleanEnv(
+      {
+        FEISHU_USER_TOKEN: testToken,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+      },
+      async () => {
+        output = captureOutput();
+        await whoami({}, makeGlobalOpts({ json: false }));
+        const out = output.stdout();
+        assert.ok(
+          out.includes("Token Type: user"),
+          `Expected "Token Type: user" in: ${out}`,
+        );
+        assert.ok(
+          !out.includes(testToken),
+          "Token value must not appear in output",
+        );
+        assert.ok(
+          !out.includes(testToken.slice(0, 10)),
+          "Token prefix must not appear in output",
+        );
+      },
+    );
+  });
+
+  it("whoami --json should not contain token value", async () => {
+    const testToken = "u-test-secret-token-67890";
+    await withCleanEnv(
+      {
+        FEISHU_USER_TOKEN: testToken,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+      },
+      async () => {
+        output = captureOutput();
+        await whoami({}, makeGlobalOpts({ json: true }));
+        const raw = output.stdout();
+        assert.ok(
+          !raw.includes(testToken),
+          "Token value must not appear in JSON output",
+        );
+        const json = JSON.parse(raw) as Record<string, unknown>;
+        assert.equal(json.has_user_token, true);
+      },
+    );
+  });
+
   it("whoami human-readable with tenant auth", async () => {
     await withCleanEnv(
       {
@@ -113,10 +163,7 @@ describe("whoami command", { concurrency: 1 }, () => {
         await whoami({}, makeGlobalOpts({ json: false }));
 
         const out = output.stdout();
-        assert.ok(
-          out.includes("tenant"),
-          `Expected "tenant" in: ${out}`,
-        );
+        assert.ok(out.includes("tenant"), `Expected "tenant" in: ${out}`);
       },
     );
   });
@@ -136,9 +183,6 @@ describe("logout command", { concurrency: 1 }, () => {
     await logout({}, makeGlobalOpts());
 
     const err = output.stderr();
-    assert.ok(
-      err.includes("已清除"),
-      `Expected "已清除" in stderr: ${err}`,
-    );
+    assert.ok(err.includes("已清除"), `Expected "已清除" in stderr: ${err}`);
   });
 });
