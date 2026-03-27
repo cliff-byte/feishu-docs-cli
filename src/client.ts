@@ -179,11 +179,11 @@ async function resolveBearer(authInfo: AuthInfo): Promise<string> {
 /**
  * Direct fetch wrapper that correctly passes user/tenant token.
  */
-export async function fetchWithAuth(
+export async function fetchWithAuth<T = unknown>(
   authInfo: AuthInfo,
   path: string,
   options: FetchOptions = {},
-): Promise<ApiResponse> {
+): Promise<ApiResponse<T>> {
   const base = getApiBase(authInfo);
   const bearer = await resolveBearer(authInfo);
   const url = new URL(path, base);
@@ -233,7 +233,7 @@ export async function fetchWithAuth(
   } finally {
     clearTimeout(timeoutId);
   }
-  const body = (await res.json()) as ApiResponse;
+  const body = (await res.json()) as ApiResponse<T>;
 
   if (body.code !== undefined && body.code !== 0) {
     // Scope errors: extract missing scopes from permission_violations
@@ -265,7 +265,7 @@ export async function fetchWithAuth(
  * Newer APIs include `error.permission_violations[].subject` with exact scope names.
  * Older APIs may omit this field entirely — returns empty array in that case.
  */
-function extractScopesFromError(body: ApiResponse): string[] {
+function extractScopesFromError(body: ApiResponse<unknown>): string[] {
   const error = (body as Record<string, unknown>).error as
     | { permission_violations?: Array<{ subject?: string }> }
     | undefined;

@@ -4,7 +4,11 @@
 
 import { fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
-import { AuthInfo, WikiNode } from "../types/index.js";
+import type { AuthInfo, WikiNode } from "../types/index.js";
+import type {
+  WikiChildrenResponse,
+  WikiGetNodeResponse,
+} from "../types/api-responses.js";
 
 export interface ResolvedWikiNode {
   objToken: string;
@@ -33,17 +37,17 @@ export async function fetchChildren(
       ...(parentNodeToken && { parent_node_token: parentNodeToken }),
     };
 
-    const res = await fetchWithAuth(
+    const res = await fetchWithAuth<WikiChildrenResponse>(
       authInfo,
       `/open-apis/wiki/v2/spaces/${encodeURIComponent(spaceId)}/nodes`,
       { params },
     );
 
-    const data = res?.data as Record<string, unknown> | undefined;
+    const data = res.data;
     if (data?.items) {
-      nodes.push(...(data.items as WikiNode[]));
+      nodes.push(...data.items);
     }
-    pageToken = data?.has_more ? (data.page_token as string) : undefined;
+    pageToken = data?.has_more ? data.page_token : undefined;
   } while (pageToken);
 
   return nodes;
@@ -56,24 +60,23 @@ export async function resolveWikiToken(
   authInfo: AuthInfo,
   wikiToken: string,
 ): Promise<ResolvedWikiNode> {
-  const res = await fetchWithAuth(
+  const res = await fetchWithAuth<WikiGetNodeResponse>(
     authInfo,
     "/open-apis/wiki/v2/spaces/get_node",
     { params: { token: wikiToken, obj_type: "wiki" } },
   );
 
-  const data = res?.data as Record<string, unknown> | undefined;
-  const node = data?.node as Record<string, unknown> | undefined;
+  const node = res.data?.node;
   if (!node) {
     throw new CliError("NOT_FOUND", `知识库节点不存在: ${wikiToken}`);
   }
 
   return {
-    objToken: (node.obj_token as string) ?? "",
-    objType: (node.obj_type as string) ?? "",
-    title: (node.title as string) ?? "",
-    nodeToken: (node.node_token as string) ?? "",
-    spaceId: (node.space_id as string) ?? "",
-    hasChild: (node.has_child as boolean) || false,
+    objToken: node.obj_token ?? "",
+    objType: node.obj_type ?? "",
+    title: node.title ?? "",
+    nodeToken: node.node_token ?? "",
+    spaceId: node.space_id ?? "",
+    hasChild: node.has_child || false,
   };
 }
