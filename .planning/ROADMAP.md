@@ -68,7 +68,7 @@ Plans:
 
 Plans:
 - [ ] 03-01-PLAN.md -- Security fixes: whoami token removal, OAuth CSP headers, CI/container documentation
-- [ ] 03-02-PLAN.md -- Typed API responses: api-responses.ts types, generic fetchWithAuth<T>, doc-blocks + wiki-nodes migration
+- [x] 03-02-PLAN.md -- Typed API responses: api-responses.ts types, generic fetchWithAuth<T>, doc-blocks + wiki-nodes migration
 
 ### Phase 4: 代码重构
 **Goal**: 大文件被拆分为职责单一的小模块，嵌入内容获取从串行改为并行，所有既有测试继续通过
@@ -113,6 +113,6 @@ Phase 1 (测试基础设施)
 |-------|----------------|--------|-----------|
 | 1. 测试基础设施与核心路径测试 | 0/4 | Planning complete | - |
 | 2. 命令处理器集成测试 | 4/5 | Gap closure | |
-| 3. 安全加固与类型化 API 响应 | 0/2 | Planning complete | - |
+| 3. 安全加固与类型化 API 响应 | 1/2 | Executing | - |
 | 4. 代码重构 | 0/0 | Not started | - |
 | 5. 健壮性增强 | 0/0 | Not started | - |

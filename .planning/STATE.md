@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 3 planned (2 plans, 1 wave)
-last_updated: "2026-03-27T08:09:52.225Z"
-last_activity: 2026-03-27
+status: executing
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-27T08:15:57Z"
+last_activity: 2026-03-27 -- Completed 03-02-PLAN.md (typed API responses)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
-  percent: 75
+  completed_plans: 9
+  percent: 81
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** 核心路径必须有测试保护 -- 认证、API 通信、命令处理器等关键路径需达到 80% 测试覆盖率
-**Current focus:** Phase 02 — command-handler-tests
+**Current focus:** Phase 03 — security-typed-api
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Phase 2 complete
-Last activity: 2026-03-27
+Phase: 03 (security-typed-api) — EXECUTING
+Plan: 2 of 2
+Status: Executing Phase 03
+Last activity: 2026-03-27 -- Completed 03-02-PLAN.md (typed API responses)
 
-Progress: [=======...] 75%
+Progress: [========..] 81%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [=======...] 75%
 | Phase 01 P04 | 7min | 2 tasks | 4 files |
 | Phase 02 P01 | 10min | 2 tasks | 6 files |
 | Phase 02 P04 | 9min | 2 tasks | 13 files |
+| Phase 03 P02 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 02]: check-coverage kept at false -- overall coverage 53% in isolated worktree (other plan tests not merged yet)
 - [Phase 02]: share add fallback tested via CliError.apiCode 1201003 -- confirms catch-and-retry pattern works
 - [Phase 02]: Validation-only testing for login/authorize -- full OAuth flow untestable (spawns HTTP server + browser)
+- [Phase 03]: Default T=unknown on fetchWithAuth ensures zero breaking changes for existing callers
+- [Phase 03]: WikiGetNodeResponse.node uses inline object type (not WikiNode) because API fields differ from WikiNode interface
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T08:09:52.221Z
-Stopped at: Phase 3 planned (2 plans, 1 wave)
+Last session: 2026-03-27T08:15:57Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: .planning/phases/03-security-typed-api/03-01-PLAN.md

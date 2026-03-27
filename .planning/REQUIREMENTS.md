@@ -44,9 +44,9 @@
 
 ### 类型化 API 响应
 
-- [ ] **TYPE-01**: 创建 types/api-responses.ts，定义主要 API 端点的类型接口
-- [ ] **TYPE-02**: fetchWithAuth 添加泛型参数 `<T = unknown>`，启用渐进式类型安全
-- [ ] **TYPE-03**: 按模块替换 `as Record<string, unknown>` 断言（从 doc-blocks → wiki-nodes → 其他）
+- [x] **TYPE-01**: 创建 types/api-responses.ts，定义主要 API 端点的类型接口
+- [x] **TYPE-02**: fetchWithAuth 添加泛型参数 `<T = unknown>`，启用渐进式类型安全
+- [x] **TYPE-03**: 按模块替换 `as Record<string, unknown>` 断言（从 doc-blocks → wiki-nodes → 其他）
 
 ### 代码重构
 
@@ -118,9 +118,9 @@
 | SEC-01 | Phase 3 | Pending |
 | SEC-02 | Phase 3 | Pending |
 | SEC-03 | Phase 3 | Pending |
-| TYPE-01 | Phase 3 | Pending |
-| TYPE-02 | Phase 3 | Pending |
-| TYPE-03 | Phase 3 | Pending |
+| TYPE-01 | Phase 3 | Complete |
+| TYPE-02 | Phase 3 | Complete |
+| TYPE-03 | Phase 3 | Complete |
 | REF-01 | Phase 4 | Pending |
 | REF-02 | Phase 4 | Pending |
 | REF-03 | Phase 4 | Pending |
