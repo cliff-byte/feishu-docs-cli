@@ -21,9 +21,15 @@ import { CliError } from "./utils/errors.js";
 import { BASE_SCOPES } from "./scopes.js";
 import type { AuthMode, AuthInfo, TokenData } from "./types/index.js";
 
-const CONFIG_DIR = join(homedir(), ".feishu-docs");
-const AUTH_FILE = join(CONFIG_DIR, "auth.json");
-const LOCK_FILE = join(CONFIG_DIR, ".refresh.lock");
+function getConfigDir(): string {
+  return join(homedir(), ".feishu-docs");
+}
+function getAuthFile(): string {
+  return join(getConfigDir(), "auth.json");
+}
+function getLockFile(): string {
+  return join(getConfigDir(), ".refresh.lock");
+}
 
 const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32;
@@ -140,13 +146,13 @@ export async function saveTokens(
   appId: string,
   tokenData: TokenData & { scope?: string },
 ): Promise<void> {
-  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  await mkdir(getConfigDir(), { recursive: true, mode: 0o700 });
   const payload: StoredPayload = {
     version: 2,
     app_id: appId,
     encrypted_data: encrypt(tokenData),
   };
-  await writeFile(AUTH_FILE, JSON.stringify(payload, null, 2), {
+  await writeFile(getAuthFile(), JSON.stringify(payload, null, 2), {
     encoding: "utf8",
     mode: 0o600,
   });
@@ -157,9 +163,9 @@ export async function saveTokens(
  * Returns null if not found.
  */
 export async function loadTokens(): Promise<StoredTokens | null> {
-  if (!existsSync(AUTH_FILE)) return null;
+  if (!existsSync(getAuthFile())) return null;
   try {
-    const raw = await readFile(AUTH_FILE, "utf8");
+    const raw = await readFile(getAuthFile(), "utf8");
     if (!raw.trim()) return null;
     const payload: StoredPayload = JSON.parse(raw);
     if (payload.version !== 2) return null;
@@ -176,8 +182,8 @@ export async function loadTokens(): Promise<StoredTokens | null> {
  * Clear saved auth tokens.
  */
 export async function clearTokens(): Promise<void> {
-  if (existsSync(AUTH_FILE)) {
-    await unlink(AUTH_FILE);
+  if (existsSync(getAuthFile())) {
+    await unlink(getAuthFile());
   }
 }
 
@@ -623,14 +629,14 @@ export async function oauthLogin(
 export async function acquireRefreshLock(): Promise<
   (() => Promise<void>) | null
 > {
-  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  await mkdir(getConfigDir(), { recursive: true, mode: 0o700 });
   try {
-    const fh = await open(LOCK_FILE, "wx");
+    const fh = await open(getLockFile(), "wx");
     await fh.write(String(process.pid));
     return async () => {
       await fh.close();
       try {
-        await unlink(LOCK_FILE);
+        await unlink(getLockFile());
       } catch {
         // ignore cleanup errors
       }
@@ -640,14 +646,14 @@ export async function acquireRefreshLock(): Promise<
     if (error.code === "EEXIST") {
       // Check for stale lock (process no longer alive)
       try {
-        const pidStr = await readFile(LOCK_FILE, "utf8");
+        const pidStr = await readFile(getLockFile(), "utf8");
         const pid = Number(pidStr.trim());
         if (pid && pid !== process.pid) {
           try {
             process.kill(pid, 0); // check if process is alive
           } catch {
             // Process is dead — stale lock, remove and retry
-            await unlink(LOCK_FILE);
+            await unlink(getLockFile());
             return acquireRefreshLock();
           }
         }
