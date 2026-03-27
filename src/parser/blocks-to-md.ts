@@ -1,10 +1,4 @@
-/**
- * Convert Feishu document blocks to Markdown.
- *
- * Input: Block[] (flat array with parent_id + children)
- * Output: Markdown string
- */
-
+/** Convert Feishu document blocks (flat array with parent_id + children) to Markdown string. */
 import {
   BlockType,
   isHeading,
@@ -14,9 +8,6 @@ import {
 import { elementsToMarkdown } from "./text-elements.js";
 import { Block, TextElement } from "../types/index.js";
 
-/**
- * Emoji ID to Unicode mapping for common callout emojis.
- */
 const EMOJI_MAP: Record<string, string> = {
   round_pushpin: "\u{1F4CD}",
   bulb: "\u{1F4A1}",
@@ -87,42 +78,42 @@ const EMOJI_MAP: Record<string, string> = {
 };
 
 type TreeNode = Block & { _children: TreeNode[] };
+type TableData = { fields: string[]; records: unknown[][] };
+type SheetData = TableData & { title?: string };
 
 interface BlocksRenderCtx {
   imageUrlMap: Map<string, string>;
   userNameMap: Map<string, string>;
-  bitableDataMap: Map<string, { fields: string[]; records: unknown[][] }>;
+  bitableDataMap: Map<string, TableData>;
   boardImageMap: Map<string, string>;
-  sheetDataMap: Map<
-    string,
-    { fields: string[]; records: unknown[][]; title?: string }
-  >;
+  sheetDataMap: Map<string, SheetData>;
   warnings: string[];
 }
 
+interface RenderContext {
+  lines: string[];
+  ctx: BlocksRenderCtx;
+  depth: number;
+  state: RenderState;
+}
 interface RenderState {
   orderedIndex?: number;
 }
+type BlockRenderer = (node: TreeNode, rctx: RenderContext) => void;
 
 interface BlocksToMarkdownOptions {
   imageUrlMap?: Map<string, string>;
   userNameMap?: Map<string, string>;
-  bitableDataMap?: Map<string, { fields: string[]; records: unknown[][] }>;
+  bitableDataMap?: Map<string, TableData>;
   boardImageMap?: Map<string, string>;
-  sheetDataMap?: Map<
-    string,
-    { fields: string[]; records: unknown[][]; title?: string }
-  >;
+  sheetDataMap?: Map<string, SheetData>;
 }
 
 function emojiIdToUnicode(emojiId: string): string {
   return EMOJI_MAP[emojiId] || `:${emojiId}:`;
 }
 
-/**
- * Build a tree from flat block array.
- * Each block gains a `_children` array of child block objects.
- */
+/** Build a tree from flat block array. */
 function buildTree(blocks: Block[]): TreeNode | null {
   const map = new Map<string, TreeNode>();
   for (const block of blocks) {
@@ -139,7 +130,6 @@ function buildTree(blocks: Block[]): TreeNode | null {
     }
   }
 
-  // Sort children according to `children` order if available
   for (const node of map.values()) {
     if (node.children && node.children.length > 0) {
       const order = new Map(
@@ -156,9 +146,7 @@ function buildTree(blocks: Block[]): TreeNode | null {
   return root;
 }
 
-/**
- * Main entry: convert blocks to markdown string.
- */
+/** Main entry: convert blocks to markdown string. */
 export function blocksToMarkdown(
   blocks: Block[],
   options: BlocksToMarkdownOptions = {},
@@ -178,7 +166,6 @@ export function blocksToMarkdown(
     warnings: [],
   };
 
-  // Extract document title from root PAGE block
   if (root.block_type === BlockType.PAGE) {
     const titleText = getElements(root as TreeNode, "page", ctx);
     if (titleText) {
@@ -198,7 +185,6 @@ export function blocksToMarkdown(
     }
   }
 
-  // Emit warnings to stderr
   for (const w of ctx.warnings) {
     process.stderr.write(`feishu-docs: warning: ${w}\n`);
   }
@@ -211,9 +197,7 @@ export function blocksToMarkdown(
   );
 }
 
-/**
- * Render children with ordered list index tracking.
- */
+/** Render children with ordered list index tracking. */
 function renderChildren(
   children: TreeNode[],
   lines: string[],
@@ -232,9 +216,7 @@ function renderChildren(
   }
 }
 
-/**
- * Render a single node and its children.
- */
+/** Render a single node via dispatch table lookup. */
 function renderNode(
   node: TreeNode,
   lines: string[],
@@ -242,462 +224,415 @@ function renderNode(
   depth: number,
   state: RenderState,
 ): void {
-  const type = node.block_type;
-  const indent = "  ".repeat(depth);
-
-  if (type === BlockType.PAGE) {
-    renderChildren(node._children, lines, ctx, depth);
-    return;
-  }
-
-  if (type === BlockType.TEXT) {
-    const text = getElements(node, "text", ctx);
-    lines.push(indent + text);
+  const renderer = RENDERERS.get(node.block_type);
+  if (renderer) {
+    renderer(node, { lines, ctx, depth, state });
+  } else {
+    ctx.warnings.push(
+      `\u4E0D\u652F\u6301\u7684\u5185\u5BB9\u7C7B\u578B: ${node.block_type}`,
+    );
+    lines.push(
+      `[\u4E0D\u652F\u6301\u7684\u5185\u5BB9\u7C7B\u578B: ${node.block_type}]`,
+    );
     lines.push("");
-    return;
   }
-
-  if (isHeading(type)) {
-    const level = headingLevel(type);
-    const key = `heading${level}`;
-    const text = getElements(node, key, ctx);
-    const hashes = "#".repeat(Math.min(level, 6));
-    lines.push(`${hashes} ${text}`);
-    lines.push("");
-    // Headings in Feishu can have children (folded/collapsible content)
-    renderChildren(node._children, lines, ctx, depth);
-    return;
-  }
-
-  if (type === BlockType.BULLET) {
-    const text = getElements(node, "bullet", ctx);
-    lines.push(`${indent}- ${text}`);
-    renderChildren(node._children, lines, ctx, depth + 1);
-    if (depth === 0) lines.push("");
-    return;
-  }
-
-  if (type === BlockType.ORDERED) {
-    const idx = (state.orderedIndex || 0) + 1;
-    const text = getElements(node, "ordered", ctx);
-    lines.push(`${indent}${idx}. ${text}`);
-    renderChildren(node._children, lines, ctx, depth + 1);
-    if (depth === 0) lines.push("");
-    return;
-  }
-
-  if (type === BlockType.TODO) {
-    const todo = (node.todo || {}) as { done?: boolean };
-    const text = getElements(node, "todo", ctx);
-    const check = todo.done ? "x" : " ";
-    lines.push(`${indent}- [${check}] ${text}`);
-    renderChildren(node._children, lines, ctx, depth + 1);
-    if (depth === 0) lines.push("");
-    return;
-  }
-
-  if (type === BlockType.CODE) {
-    const codeData = (node.code || {}) as { style?: { language?: number } };
-    const langNum = codeData.style?.language;
-    const lang =
-      langNum !== undefined
-        ? (CODE_LANGUAGES as Record<number, string>)[langNum] || ""
-        : "";
-    const text = getElements(node, "code", ctx);
-    lines.push(`\`\`\`${lang}`);
-    lines.push(text);
-    lines.push("```");
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.QUOTE) {
-    const text = getElements(node, "quote", ctx);
-    const quotedLines = text.split("\n").map((l) => `> ${l}`);
-    lines.push(...quotedLines);
-    for (const child of node._children) {
-      const childLines: string[] = [];
-      renderNode(child, childLines, ctx, 0, {});
-      lines.push(...childLines.map((l) => (l ? `> ${l}` : ">")));
-    }
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.QUOTE_CONTAINER) {
-    for (const child of node._children) {
-      const childLines: string[] = [];
-      renderNode(child, childLines, ctx, 0, {});
-      lines.push(...childLines.map((l) => (l ? `> ${l}` : ">")));
-    }
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.EQUATION) {
-    const eq = (node.equation || {}) as { content?: string };
-    const content = (eq.content || "").trim();
-    lines.push(`$$`);
-    lines.push(content);
-    lines.push(`$$`);
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.DIVIDER) {
-    lines.push("---");
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.IMAGE) {
-    const imageData = (node.image || {}) as { token?: string; alt?: string };
-    const fileToken = imageData.token;
-    const url = fileToken ? ctx.imageUrlMap.get(fileToken) || "" : "";
-    const alt = imageData.alt || "";
-    if (url) {
-      lines.push(`![${alt}](${url})`);
-    } else {
-      lines.push(`![${alt}](${fileToken || ""})`);
-    }
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.TABLE) {
-    renderTable(node, lines, ctx);
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.CALLOUT) {
-    const callout = (node.callout || {}) as { emoji_id?: string };
-    const emoji = callout.emoji_id
-      ? emojiIdToUnicode(callout.emoji_id) + " "
-      : "";
-    let isFirst = true;
-    for (const child of node._children) {
-      const childLines: string[] = [];
-      renderNode(child, childLines, ctx, 0, {});
-      const first = childLines.shift() || "";
-      // Emoji only on the very first line of the callout
-      const prefix = isFirst ? emoji : "";
-      isFirst = false;
-      lines.push(`> ${prefix}${first}`);
-      for (const cl of childLines) {
-        lines.push(cl ? `> ${cl}` : ">");
-      }
-    }
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.DIAGRAM) {
-    const text = getElements(node, "diagram", ctx);
-    lines.push("```mermaid");
-    lines.push(sanitizeMermaid(text));
-    lines.push("```");
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.IFRAME) {
-    const iframe = (node.iframe || {}) as { component?: { url?: string } };
-    const url = iframe.component?.url || "";
-    lines.push(`[嵌入](${url})`);
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.GRID) {
-    for (const child of node._children) {
-      for (const grandchild of child._children) {
-        renderNode(grandchild, lines, ctx, depth, {});
-      }
-    }
-    return;
-  }
-
-  if (type === BlockType.GRID_COLUMN) {
-    for (const child of node._children) {
-      renderNode(child, lines, ctx, depth, {});
-    }
-    return;
-  }
-
-  if (type === BlockType.TABLE_CELL) {
-    // Handled by renderTable
-    return;
-  }
-
-  if (type === BlockType.FILE) {
-    const fileData = (node.file || {}) as { name?: string; token?: string };
-    const name = fileData.name || "文件";
-    const token = fileData.token || "";
-    const url = ctx.imageUrlMap.get(token) || "";
-    lines.push(`[${name}](${url || token})`);
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.ADDONS) {
-    const addOns =
-      ((node as Record<string, unknown>)["add_ons"] as { record?: string }) ||
-      {};
-    // Try to extract Mermaid diagram from record
-    try {
-      const record = JSON.parse(addOns.record || "{}") as { data?: string };
-      if (
-        (record.data &&
-          typeof record.data === "string" &&
-          record.data.includes("graph")) ||
-        record.data?.includes("flowchart") ||
-        record.data?.includes("sequenceDiagram") ||
-        record.data?.includes("classDiagram") ||
-        record.data?.includes("gantt") ||
-        record.data?.includes("pie") ||
-        record.data?.includes("erDiagram")
-      ) {
-        lines.push("```mermaid");
-        lines.push(sanitizeMermaid(record.data.trim()));
-        lines.push("```");
-        lines.push("");
-        return;
-      }
-    } catch {
-      // not parseable, skip
-    }
-    // TOC, Jira, OKR etc. — skip gracefully
-    return;
-  }
-
-  // Bitable — render as Markdown table if data available
-  if (type === BlockType.BITABLE) {
-    const token = (node.bitable as { token?: string })?.token || "";
-    const data = ctx.bitableDataMap.get(token);
-    if (data && data.fields.length > 0) {
-      lines.push(
-        "| " +
-          data.fields.map((f) => f.replace(/\|/g, "\\|")).join(" | ") +
-          " |",
-      );
-      lines.push("| " + data.fields.map(() => "---").join(" | ") + " |");
-      for (const row of data.records) {
-        lines.push(
-          "| " +
-            (row as unknown[])
-              .map((c) => String(c).replace(/\|/g, "\\|").replace(/\n/g, " "))
-              .join(" | ") +
-            " |",
-        );
-      }
-    } else {
-      lines.push(`[多维表格: ${token}]`);
-    }
-    lines.push("");
-    return;
-  }
-
-  // Board — whiteboard/flowchart, rendered as image if available
-  if (type === BlockType.BOARD) {
-    const token =
-      (node as Record<string, unknown> & { board?: { token?: string } }).board
-        ?.token || "";
-    const imagePath = ctx.boardImageMap.get(token);
-    if (imagePath) {
-      lines.push(`![画板](${imagePath})`);
-    } else {
-      lines.push(`[画板: ${token}]`);
-    }
-    lines.push("");
-    return;
-  }
-
-  // Sheet — render as Markdown table if data available
-  if (type === BlockType.SHEET) {
-    const token = (node.sheet as { token?: string })?.token || "";
-    const data = ctx.sheetDataMap.get(token);
-    if (data && data.fields.length > 0) {
-      if (data.title) {
-        lines.push(`**${data.title}**`);
-        lines.push("");
-      }
-      lines.push(
-        "| " +
-          data.fields.map((f) => f.replace(/\|/g, "\\|")).join(" | ") +
-          " |",
-      );
-      lines.push("| " + data.fields.map(() => "---").join(" | ") + " |");
-      for (const row of data.records) {
-        lines.push(
-          "| " +
-            (row as unknown[])
-              .map((c) => String(c).replace(/\|/g, "\\|").replace(/\n/g, " "))
-              .join(" | ") +
-            " |",
-        );
-      }
-    } else {
-      lines.push(`[电子表格: ${token}]`);
-    }
-    lines.push("");
-    return;
-  }
-
-  // Task — render as TODO with metadata
-  if (type === BlockType.TASK) {
-    const task = (node.task || {}) as {
-      task_id?: string;
-      summary?: string;
-      assignees?: Array<{ name?: string; id?: string }>;
-      due?: string;
-      completed?: boolean;
-    };
-    const taskId = task.task_id || "";
-    const text = getElements(node, "task", ctx);
-    const summary = text || task.summary || taskId || "未命名任务";
-    const parts: string[] = [];
-    if (task.assignees && task.assignees.length > 0) {
-      const names = task.assignees.map((a) => `@${a.name || a.id || "?"}`);
-      parts.push(names.join(", "));
-    }
-    if (task.due) {
-      parts.push(`截止: ${task.due}`);
-    }
-    const meta = parts.length > 0 ? ` (${parts.join(", ")})` : "";
-    const check = task.completed ? "x" : " ";
-    lines.push(`${indent}- [${check}] ${summary}${meta}`);
-    if (depth === 0) lines.push("");
-    return;
-  }
-
-  // LinkPreview — degrade to hyperlink
-  if (type === BlockType.LINK_PREVIEW) {
-    const preview =
-      ((node as Record<string, unknown>)["link_preview"] as {
-        url?: string;
-        title?: string;
-      }) || {};
-    const url = preview.url || "";
-    const title = preview.title || url || "链接";
-    lines.push(`[${title}](${url})`);
-    lines.push("");
-    return;
-  }
-
-  // JiraIssue — render as JIRA link
-  if (type === BlockType.JIRA_ISSUE) {
-    const jira =
-      ((node as Record<string, unknown>)["jira_issue"] as {
-        key?: string;
-        url?: string;
-        summary?: string;
-      }) || {};
-    const key = jira.key || "";
-    const url = jira.url || "";
-    const summary = jira.summary || key || "JIRA Issue";
-    if (url) {
-      lines.push(`[JIRA: ${key || summary}](${url})`);
-    } else {
-      lines.push(`[JIRA: ${key || summary}]`);
-    }
-    lines.push("");
-    return;
-  }
-
-  // WikiCatalog — render children or placeholder
-  if (type === BlockType.WIKI_CATALOG) {
-    if (node._children.length > 0) {
-      renderChildren(node._children, lines, ctx, depth);
-    } else {
-      lines.push("[知识库目录]");
-      lines.push("");
-    }
-    return;
-  }
-
-  // SubPageList — render children or placeholder
-  if (type === BlockType.SUB_PAGE_LIST) {
-    if (node._children.length > 0) {
-      renderChildren(node._children, lines, ctx, depth);
-    } else {
-      lines.push("[子页面列表]");
-      lines.push("");
-    }
-    return;
-  }
-
-  // Agenda blocks — meeting agenda rendering
-  if (type === BlockType.AGENDA || type === BlockType.AGENDA_ITEM) {
-    renderChildren(node._children, lines, ctx, depth);
-    return;
-  }
-
-  if (type === BlockType.AGENDA_ITEM_TITLE) {
-    const text = getElements(node, "agenda_item_title", ctx);
-    lines.push(`${indent}**${text}**`);
-    lines.push("");
-    return;
-  }
-
-  if (type === BlockType.AGENDA_ITEM_CONTENT) {
-    renderChildren(node._children, lines, ctx, depth);
-    return;
-  }
-
-  // OKR blocks — complex business data, skip silently
-  if (
-    type === BlockType.OKR ||
-    type === BlockType.OKR_OBJECTIVE ||
-    type === BlockType.OKR_KEY_RESULT ||
-    type === BlockType.OKR_PROGRESS
-  ) {
-    return;
-  }
-
-  // Synced blocks and AI template — no extractable content, skip silently
-  if (
-    type === BlockType.SOURCE_SYNCED ||
-    type === BlockType.REFERENCE_SYNCED ||
-    type === BlockType.AI_TEMPLATE
-  ) {
-    return;
-  }
-
-  // Reference types — show as label with token
-  const refTypes: Record<number, string> = {
-    [BlockType.MINDNOTE]: "思维笔记",
-    [BlockType.VIEW]: "视图",
-    [BlockType.CHAT_CARD]: "群消息卡片",
-    [BlockType.ISV]: "三方块",
-  };
-
-  if (refTypes[type]) {
-    const data =
-      ((node as Record<string, unknown>)[
-        Object.keys(node).find(
-          (k) =>
-            typeof (node as Record<string, unknown>)[k] === "object" &&
-            (node as Record<string, unknown>)[k] !== null &&
-            ((node as Record<string, unknown>)[k] as Record<string, unknown>)
-              ?.token,
-        ) || ""
-      ] as { token?: string }) || {};
-    const token = data.token || "";
-    lines.push(`[${refTypes[type]}: ${token}]`);
-    lines.push("");
-    return;
-  }
-
-  // Unknown type
-  ctx.warnings.push(`不支持的内容类型: ${type}`);
-  lines.push(`[不支持的内容类型: ${type}]`);
-  lines.push("");
 }
 
-/**
- * Get inline text from a block's elements.
- */
+function renderPage(node: TreeNode, rctx: RenderContext): void {
+  renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth);
+}
+
+function renderText(node: TreeNode, rctx: RenderContext): void {
+  const text = getElements(node, "text", rctx.ctx);
+  rctx.lines.push("  ".repeat(rctx.depth) + text);
+  rctx.lines.push("");
+}
+
+function renderHeading(node: TreeNode, rctx: RenderContext): void {
+  const level = headingLevel(node.block_type);
+  const text = getElements(node, `heading${level}`, rctx.ctx);
+  rctx.lines.push(`${"#".repeat(Math.min(level, 6))} ${text}`);
+  rctx.lines.push("");
+  renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth);
+}
+
+function renderBullet(node: TreeNode, rctx: RenderContext): void {
+  const text = getElements(node, "bullet", rctx.ctx);
+  rctx.lines.push(`${"  ".repeat(rctx.depth)}- ${text}`);
+  renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth + 1);
+  if (rctx.depth === 0) rctx.lines.push("");
+}
+
+function renderOrdered(node: TreeNode, rctx: RenderContext): void {
+  const idx = (rctx.state.orderedIndex || 0) + 1;
+  const text = getElements(node, "ordered", rctx.ctx);
+  rctx.lines.push(`${"  ".repeat(rctx.depth)}${idx}. ${text}`);
+  renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth + 1);
+  if (rctx.depth === 0) rctx.lines.push("");
+}
+
+function renderTodo(node: TreeNode, rctx: RenderContext): void {
+  const todo = (node.todo || {}) as { done?: boolean };
+  const text = getElements(node, "todo", rctx.ctx);
+  const check = todo.done ? "x" : " ";
+  rctx.lines.push(`${"  ".repeat(rctx.depth)}- [${check}] ${text}`);
+  renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth + 1);
+  if (rctx.depth === 0) rctx.lines.push("");
+}
+
+function renderCode(node: TreeNode, rctx: RenderContext): void {
+  const codeData = (node.code || {}) as { style?: { language?: number } };
+  const langNum = codeData.style?.language;
+  const lang =
+    langNum !== undefined
+      ? (CODE_LANGUAGES as Record<number, string>)[langNum] || ""
+      : "";
+  const text = getElements(node, "code", rctx.ctx);
+  rctx.lines.push(`\`\`\`${lang}`, text, "```", "");
+}
+
+function renderQuote(node: TreeNode, rctx: RenderContext): void {
+  const text = getElements(node, "quote", rctx.ctx);
+  rctx.lines.push(...text.split("\n").map((l) => `> ${l}`));
+  for (const child of node._children) {
+    const childLines: string[] = [];
+    renderNode(child, childLines, rctx.ctx, 0, {});
+    rctx.lines.push(...childLines.map((l) => (l ? `> ${l}` : ">")));
+  }
+  rctx.lines.push("");
+}
+
+function renderQuoteContainer(node: TreeNode, rctx: RenderContext): void {
+  for (const child of node._children) {
+    const childLines: string[] = [];
+    renderNode(child, childLines, rctx.ctx, 0, {});
+    rctx.lines.push(...childLines.map((l) => (l ? `> ${l}` : ">")));
+  }
+  rctx.lines.push("");
+}
+
+function renderEquation(node: TreeNode, rctx: RenderContext): void {
+  const eq = (node.equation || {}) as { content?: string };
+  rctx.lines.push("$$", (eq.content || "").trim(), "$$", "");
+}
+
+function renderDivider(_node: TreeNode, rctx: RenderContext): void {
+  rctx.lines.push("---", "");
+}
+
+function renderImage(node: TreeNode, rctx: RenderContext): void {
+  const imageData = (node.image || {}) as { token?: string; alt?: string };
+  const fileToken = imageData.token;
+  const url = fileToken ? rctx.ctx.imageUrlMap.get(fileToken) || "" : "";
+  const alt = imageData.alt || "";
+  rctx.lines.push(url ? `![${alt}](${url})` : `![${alt}](${fileToken || ""})`);
+  rctx.lines.push("");
+}
+
+function renderTableBlock(node: TreeNode, rctx: RenderContext): void {
+  renderTable(node, rctx.lines, rctx.ctx);
+  rctx.lines.push("");
+}
+
+function renderCallout(node: TreeNode, rctx: RenderContext): void {
+  const callout = (node.callout || {}) as { emoji_id?: string };
+  const emoji = callout.emoji_id
+    ? emojiIdToUnicode(callout.emoji_id) + " "
+    : "";
+  let isFirst = true;
+  for (const child of node._children) {
+    const childLines: string[] = [];
+    renderNode(child, childLines, rctx.ctx, 0, {});
+    const first = childLines.shift() || "";
+    const prefix = isFirst ? emoji : "";
+    isFirst = false;
+    rctx.lines.push(`> ${prefix}${first}`);
+    for (const cl of childLines) {
+      rctx.lines.push(cl ? `> ${cl}` : ">");
+    }
+  }
+  rctx.lines.push("");
+}
+
+function renderDiagram(node: TreeNode, rctx: RenderContext): void {
+  const text = getElements(node, "diagram", rctx.ctx);
+  rctx.lines.push("```mermaid", sanitizeMermaid(text), "```", "");
+}
+
+function renderIframe(node: TreeNode, rctx: RenderContext): void {
+  const url =
+    ((node.iframe || {}) as { component?: { url?: string } }).component?.url ||
+    "";
+  rctx.lines.push(`[嵌入](${url})`, "");
+}
+
+function renderGrid(node: TreeNode, rctx: RenderContext): void {
+  for (const child of node._children) {
+    for (const grandchild of child._children) {
+      renderNode(grandchild, rctx.lines, rctx.ctx, rctx.depth, {});
+    }
+  }
+}
+
+function renderGridColumn(node: TreeNode, rctx: RenderContext): void {
+  for (const child of node._children) {
+    renderNode(child, rctx.lines, rctx.ctx, rctx.depth, {});
+  }
+}
+
+function renderTableCell(): void {
+  /* Handled by renderTable */
+}
+
+function renderFile(node: TreeNode, rctx: RenderContext): void {
+  const fileData = (node.file || {}) as { name?: string; token?: string };
+  const name = fileData.name || "文件";
+  const token = fileData.token || "";
+  const url = rctx.ctx.imageUrlMap.get(token) || "";
+  rctx.lines.push(`[${name}](${url || token})`, "");
+}
+
+const MERMAID_KEYWORDS = [
+  "graph",
+  "flowchart",
+  "sequenceDiagram",
+  "classDiagram",
+  "gantt",
+  "pie",
+  "erDiagram",
+];
+
+function renderAddons(node: TreeNode, rctx: RenderContext): void {
+  const addOns =
+    ((node as Record<string, unknown>)["add_ons"] as { record?: string }) || {};
+  try {
+    const record = JSON.parse(addOns.record || "{}") as { data?: string };
+    if (
+      record.data &&
+      typeof record.data === "string" &&
+      MERMAID_KEYWORDS.some((k) => record.data!.includes(k))
+    ) {
+      rctx.lines.push(
+        "```mermaid",
+        sanitizeMermaid(record.data.trim()),
+        "```",
+        "",
+      );
+      return;
+    }
+  } catch {
+    /* not parseable, skip */
+  }
+}
+
+function renderMdTable(
+  fields: string[],
+  records: unknown[][],
+  lines: string[],
+): void {
+  lines.push(
+    "| " + fields.map((f) => f.replace(/\|/g, "\\|")).join(" | ") + " |",
+  );
+  lines.push("| " + fields.map(() => "---").join(" | ") + " |");
+  for (const row of records) {
+    lines.push(
+      "| " +
+        (row as unknown[])
+          .map((c) => String(c).replace(/\|/g, "\\|").replace(/\n/g, " "))
+          .join(" | ") +
+        " |",
+    );
+  }
+}
+
+function renderBitable(node: TreeNode, rctx: RenderContext): void {
+  const token = (node.bitable as { token?: string })?.token || "";
+  const data = rctx.ctx.bitableDataMap.get(token);
+  if (data && data.fields.length > 0) {
+    renderMdTable(data.fields, data.records, rctx.lines);
+  } else {
+    rctx.lines.push(`[多维表格: ${token}]`);
+  }
+  rctx.lines.push("");
+}
+
+function renderBoard(node: TreeNode, rctx: RenderContext): void {
+  const token =
+    (node as Record<string, unknown> & { board?: { token?: string } }).board
+      ?.token || "";
+  const imagePath = rctx.ctx.boardImageMap.get(token);
+  rctx.lines.push(imagePath ? `![画板](${imagePath})` : `[画板: ${token}]`);
+  rctx.lines.push("");
+}
+
+function renderSheet(node: TreeNode, rctx: RenderContext): void {
+  const token = (node.sheet as { token?: string })?.token || "";
+  const data = rctx.ctx.sheetDataMap.get(token);
+  if (data && data.fields.length > 0) {
+    if (data.title) {
+      rctx.lines.push(`**${data.title}**`, "");
+    }
+    renderMdTable(data.fields, data.records, rctx.lines);
+  } else {
+    rctx.lines.push(`[电子表格: ${token}]`);
+  }
+  rctx.lines.push("");
+}
+
+function renderTask(node: TreeNode, rctx: RenderContext): void {
+  const indent = "  ".repeat(rctx.depth);
+  const task = (node.task || {}) as {
+    task_id?: string;
+    summary?: string;
+    assignees?: Array<{ name?: string; id?: string }>;
+    due?: string;
+    completed?: boolean;
+  };
+  const text = getElements(node, "task", rctx.ctx);
+  const summary = text || task.summary || task.task_id || "未命名任务";
+  const parts: string[] = [];
+  if (task.assignees && task.assignees.length > 0) {
+    parts.push(
+      task.assignees.map((a) => `@${a.name || a.id || "?"}`).join(", "),
+    );
+  }
+  if (task.due) parts.push(`截止: ${task.due}`);
+  const meta = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+  rctx.lines.push(
+    `${indent}- [${task.completed ? "x" : " "}] ${summary}${meta}`,
+  );
+  if (rctx.depth === 0) rctx.lines.push("");
+}
+
+function renderLinkPreview(node: TreeNode, rctx: RenderContext): void {
+  const preview =
+    ((node as Record<string, unknown>)["link_preview"] as {
+      url?: string;
+      title?: string;
+    }) || {};
+  const url = preview.url || "";
+  rctx.lines.push(`[${preview.title || url || "链接"}](${url})`, "");
+}
+
+function renderJiraIssue(node: TreeNode, rctx: RenderContext): void {
+  const jira =
+    ((node as Record<string, unknown>)["jira_issue"] as {
+      key?: string;
+      url?: string;
+      summary?: string;
+    }) || {};
+  const key = jira.key || "";
+  const url = jira.url || "";
+  const label = key || jira.summary || "JIRA Issue";
+  rctx.lines.push(url ? `[JIRA: ${label}](${url})` : `[JIRA: ${label}]`);
+  rctx.lines.push("");
+}
+
+function renderChildrenOrPlaceholder(placeholder: string): BlockRenderer {
+  return (node: TreeNode, rctx: RenderContext) => {
+    if (node._children.length > 0)
+      renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth);
+    else rctx.lines.push(placeholder, "");
+  };
+}
+const renderWikiCatalog = renderChildrenOrPlaceholder("[知识库目录]");
+const renderSubPageList = renderChildrenOrPlaceholder("[子页面列表]");
+
+function renderDelegateChildren(node: TreeNode, rctx: RenderContext): void {
+  renderChildren(node._children, rctx.lines, rctx.ctx, rctx.depth);
+}
+
+function renderAgendaItemTitle(node: TreeNode, rctx: RenderContext): void {
+  const text = getElements(node, "agenda_item_title", rctx.ctx);
+  rctx.lines.push(`${"  ".repeat(rctx.depth)}**${text}**`, "");
+}
+
+function renderNoop(): void {
+  /* OKR, synced blocks, AI template -- no content */
+}
+
+const REF_TYPE_LABELS: Record<number, string> = {
+  [BlockType.MINDNOTE]: "思维笔记",
+  [BlockType.VIEW]: "视图",
+  [BlockType.CHAT_CARD]: "群消息卡片",
+  [BlockType.ISV]: "三方块",
+};
+
+function renderRefType(node: TreeNode, rctx: RenderContext): void {
+  const label = REF_TYPE_LABELS[node.block_type] || "未知引用";
+  const data =
+    ((node as Record<string, unknown>)[
+      Object.keys(node).find(
+        (k) =>
+          typeof (node as Record<string, unknown>)[k] === "object" &&
+          (node as Record<string, unknown>)[k] !== null &&
+          ((node as Record<string, unknown>)[k] as Record<string, unknown>)
+            ?.token,
+      ) || ""
+    ] as { token?: string }) || {};
+  rctx.lines.push(`[${label}: ${data.token || ""}]`, "");
+}
+
+/** Block type dispatch table. */
+const RENDERERS: ReadonlyMap<number, BlockRenderer> = new Map<
+  number,
+  BlockRenderer
+>([
+  [BlockType.PAGE, renderPage],
+  [BlockType.TEXT, renderText],
+  [BlockType.HEADING1, renderHeading],
+  [BlockType.HEADING2, renderHeading],
+  [BlockType.HEADING3, renderHeading],
+  [BlockType.HEADING4, renderHeading],
+  [BlockType.HEADING5, renderHeading],
+  [BlockType.HEADING6, renderHeading],
+  [BlockType.HEADING7, renderHeading],
+  [BlockType.HEADING8, renderHeading],
+  [BlockType.HEADING9, renderHeading],
+  [BlockType.BULLET, renderBullet],
+  [BlockType.ORDERED, renderOrdered],
+  [BlockType.CODE, renderCode],
+  [BlockType.QUOTE, renderQuote],
+  [BlockType.EQUATION, renderEquation],
+  [BlockType.TODO, renderTodo],
+  [BlockType.BITABLE, renderBitable],
+  [BlockType.CALLOUT, renderCallout],
+  [BlockType.CHAT_CARD, renderRefType],
+  [BlockType.DIAGRAM, renderDiagram],
+  [BlockType.DIVIDER, renderDivider],
+  [BlockType.FILE, renderFile],
+  [BlockType.GRID, renderGrid],
+  [BlockType.GRID_COLUMN, renderGridColumn],
+  [BlockType.IFRAME, renderIframe],
+  [BlockType.IMAGE, renderImage],
+  [BlockType.ISV, renderRefType],
+  [BlockType.MINDNOTE, renderRefType],
+  [BlockType.SHEET, renderSheet],
+  [BlockType.TABLE, renderTableBlock],
+  [BlockType.TABLE_CELL, renderTableCell],
+  [BlockType.VIEW, renderRefType],
+  [BlockType.QUOTE_CONTAINER, renderQuoteContainer],
+  [BlockType.TASK, renderTask],
+  [BlockType.OKR, renderNoop],
+  [BlockType.OKR_OBJECTIVE, renderNoop],
+  [BlockType.OKR_KEY_RESULT, renderNoop],
+  [BlockType.OKR_PROGRESS, renderNoop],
+  [BlockType.ADDONS, renderAddons],
+  [BlockType.JIRA_ISSUE, renderJiraIssue],
+  [BlockType.WIKI_CATALOG, renderWikiCatalog],
+  [BlockType.BOARD, renderBoard],
+  [BlockType.AGENDA, renderDelegateChildren],
+  [BlockType.AGENDA_ITEM, renderDelegateChildren],
+  [BlockType.AGENDA_ITEM_TITLE, renderAgendaItemTitle],
+  [BlockType.AGENDA_ITEM_CONTENT, renderDelegateChildren],
+  [BlockType.LINK_PREVIEW, renderLinkPreview],
+  [BlockType.SOURCE_SYNCED, renderNoop],
+  [BlockType.REFERENCE_SYNCED, renderNoop],
+  [BlockType.SUB_PAGE_LIST, renderSubPageList],
+  [BlockType.AI_TEMPLATE, renderNoop],
+]);
+
+/** Get inline text from a block's elements. */
 function getElements(
   node: TreeNode,
   key: string,
@@ -708,9 +643,7 @@ function getElements(
   return elementsToMarkdown(data.elements as TextElement[] | undefined, ctx);
 }
 
-/**
- * Render a table block as Markdown table.
- */
+/** Render a table block as Markdown table. */
 function renderTable(
   node: TreeNode,
   lines: string[],
@@ -722,46 +655,29 @@ function renderTable(
   const property = tableData.property || {};
   const rowSize = property.row_size || 0;
   const colSize = property.column_size || 0;
-
   if (rowSize === 0 || colSize === 0) return;
 
-  // Build 2D grid from table_cell children
   const cells = node._children;
   const grid: string[][] = [];
   for (let r = 0; r < rowSize; r++) {
     const row: string[] = [];
     for (let c = 0; c < colSize; c++) {
-      const cellIndex = r * colSize + c;
-      const cell = cells[cellIndex];
-      if (cell) {
-        const text = cellToText(cell, ctx);
-        row.push(text);
-      } else {
-        row.push("");
-      }
+      const cell = cells[r * colSize + c];
+      row.push(cell ? cellToText(cell, ctx) : "");
     }
     grid.push(row);
   }
-
   if (grid.length === 0) return;
 
-  // Header row
-  lines.push(
-    "| " + grid[0].map((c) => c.replace(/\|/g, "\\|")).join(" | ") + " |",
-  );
-  // Separator
+  const escape = (s: string) => s.replace(/\|/g, "\\|");
+  lines.push("| " + grid[0].map(escape).join(" | ") + " |");
   lines.push("| " + grid[0].map(() => "---").join(" | ") + " |");
-  // Data rows
   for (let r = 1; r < grid.length; r++) {
-    lines.push(
-      "| " + grid[r].map((c) => c.replace(/\|/g, "\\|")).join(" | ") + " |",
-    );
+    lines.push("| " + grid[r].map(escape).join(" | ") + " |");
   }
 }
 
-/**
- * Render a table_cell block content as inline text.
- */
+/** Render a table_cell block content as inline text. */
 function cellToText(cell: TreeNode, ctx: BlocksRenderCtx): string {
   const parts: string[] = [];
   for (const child of cell._children) {
@@ -781,41 +697,23 @@ function cellToText(cell: TreeNode, ctx: BlocksRenderCtx): string {
   return parts.join(" ").replace(/\n/g, " ");
 }
 
-/**
- * Sanitize Feishu mermaid content for standard mermaid compatibility.
- *
- * Feishu's mermaid renderer is more lenient than standard mermaid.
- * This function fixes common incompatibilities:
- * - Block labels (alt, else, loop, opt, rect, par, critical, break, note)
- *   don't support <br/> in standard mermaid — replace with comma-space
- * - Arrow messages missing space after ':' — add the space
- */
+/** Sanitize Feishu mermaid content for standard mermaid compatibility. */
 function sanitizeMermaid(content: string): string {
-  // Block-level keywords whose label text doesn't support <br/> in standard mermaid
-  const blockKeywords =
-    /^(\s*(?:alt|else|loop|opt|par|critical|break)\s+)(.+)$/;
-
+  const blockKw = /^(\s*(?:alt|else|loop|opt|par|critical|break)\s+)(.+)$/;
+  const arrowRe = /^(\s*\S+\s*-[-.)>x]+[+-]?\s*\S+\s*):(\S)/;
   return content
     .split("\n")
     .map((line) => {
-      // Fix block labels: replace <br/> and <br> with comma-space,
-      // and replace parentheses with full-width versions to avoid parser confusion
-      const blockMatch = line.match(blockKeywords);
-      if (blockMatch) {
-        const cleaned = blockMatch[2]
-          .replace(/<br\s*\/?>/gi, ", ")
-          .replace(/\(/g, "\uFF08")
-          .replace(/\)/g, "\uFF09");
-        return blockMatch[1] + cleaned;
-      }
-      // Fix missing space after ':' in arrow messages (e.g., A->>B:text → A->>B: text)
-      const arrowMatch = line.match(/^(\s*\S+\s*-[-.)>x]+[+-]?\s*\S+\s*):(\S)/);
-      if (arrowMatch) {
-        return line.replace(
-          /^(\s*\S+\s*-[-.)>x]+[+-]?\s*\S+\s*):(\S)/,
-          "$1: $2",
+      const bm = line.match(blockKw);
+      if (bm)
+        return (
+          bm[1] +
+          bm[2]
+            .replace(/<br\s*\/?>/gi, ", ")
+            .replace(/\(/g, "\uFF08")
+            .replace(/\)/g, "\uFF09")
         );
-      }
+      if (line.match(arrowRe)) return line.replace(arrowRe, "$1: $2");
       return line;
     })
     .join("\n");
