@@ -97,7 +97,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Retry logic: withRetry utility, FetchOptions.retry extension, fetchWithAuth/fetchBinaryWithAuth retry loops
+- [x] 05-01-PLAN.md -- Retry logic: withRetry utility, FetchOptions.retry extension, fetchWithAuth/fetchBinaryWithAuth retry loops
 - [x] 05-02-PLAN.md -- Cache eviction + QPS optimization + knip: cleanExpiredImages, QPS_DELAY 200ms, dead code detection
 
 ## Progress
