@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: 命令处理器集成测试** - 为全部命令处理器补充集成测试，达到 80% 覆盖率门槛
 - [x] **Phase 3: 安全加固与类型化 API 响应** - 修复安全问题，建立类型化 API 接口，为重构提供类型支撑
 - [x] **Phase 4: 代码重构** - 在测试保护下拆分大文件，提取服务模块，串行改并行
-- [ ] **Phase 5: 健壮性增强** - 添加重试逻辑、缓存淘汰、QPS 优化和死代码检测
+- [x] **Phase 5: 健壮性增强** - 添加重试逻辑、缓存淘汰、QPS 优化和死代码检测
 
 ## Phase Details
 
@@ -123,4 +123,4 @@ Phase 1 (测试基础设施)
 | 2. 命令处理器集成测试 | 5/5 | Complete | 2026-03-27 |
 | 3. 安全加固与类型化 API 响应 | 2/2 | Complete | 2026-03-27 |
 | 4. 代码重构 | 2/2 | Complete | 2026-03-27 |
-| 5. 健壮性增强 | 0/2 | In progress | - |
+| 5. 健壮性增强 | 2/2 | Complete | 2026-03-28 |
