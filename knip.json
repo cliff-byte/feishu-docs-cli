@@ -1,8 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/cli.ts", "bin/feishu-docs.js", "test/**/*.test.ts"],
+  "entry": ["test/**/*.test.ts"],
   "project": ["src/**/*.ts"],
-  "ignore": ["dist/**"],
-  "ignoreDependencies": ["@types/node"],
   "ignoreExportsUsedInFile": true
 }

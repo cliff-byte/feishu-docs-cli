@@ -88,17 +88,6 @@ export interface ParsedDoc {
   token: string;
 }
 
-export interface DocumentInfo {
-  documentId: string;
-  objToken: string;
-  objType: string;
-  title: string;
-  url?: string;
-  revisionId?: number;
-  nodeToken?: string;
-  spaceId?: string;
-}
-
 // ── API types ──
 
 export interface ApiResponse<T = unknown> {
@@ -275,13 +264,6 @@ export interface WikiNode {
   node_type?: string;
   origin_node_token?: string;
   origin_space_id?: string;
-}
-
-export interface WikiSpace {
-  space_id: string;
-  name: string;
-  description?: string;
-  visibility?: string;
 }
 
 // ── Convert API types ──

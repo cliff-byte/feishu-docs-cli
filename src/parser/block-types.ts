@@ -146,29 +146,3 @@ export const CODE_LANGUAGES = {
   71: "solidity",
   72: "toml",
 } as const;
-
-/**
- * Markdown language name → Feishu code language enum value.
- */
-const baseLangMap: Record<string, number> = Object.fromEntries(
-  Object.entries(CODE_LANGUAGES).map(([k, v]) => [v.toLowerCase(), Number(k)]),
-);
-
-export const LANGUAGE_TO_ENUM: Readonly<Record<string, number | undefined>> = Object.freeze({
-  ...baseLangMap,
-  // Common aliases
-  js: baseLangMap["javascript"],
-  ts: baseLangMap["typescript"],
-  py: baseLangMap["python"],
-  rb: baseLangMap["ruby"],
-  sh: baseLangMap["shell"],
-  yml: baseLangMap["yaml"],
-  md: baseLangMap["markdown"],
-  rs: baseLangMap["rust"],
-  cs: baseLangMap["c#"],
-  cpp: baseLangMap["c++"],
-  objc: baseLangMap["objective-c"],
-  ps1: baseLangMap["powershell"],
-  vb: baseLangMap["visual basic"],
-  mermaid: baseLangMap["plaintext"],
-});

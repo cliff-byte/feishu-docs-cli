@@ -40,38 +40,3 @@ export interface WikiGetNodeResponse {
     origin_space_id?: string;
   };
 }
-
-// -- Drive API --
-
-/** GET /open-apis/drive/v1/files */
-export interface DriveFileListResponse {
-  files?: Array<{
-    token: string;
-    name: string;
-    type: string;
-    parent_token?: string;
-    url?: string;
-    created_time?: string;
-    modified_time?: string;
-    owner_id?: string;
-  }>;
-  has_more?: boolean;
-  next_page_token?: string;
-}
-
-// -- Document Create/Delete API --
-
-/** POST /open-apis/docx/v1/documents */
-export interface DocCreateResponse {
-  document?: {
-    document_id: string;
-    revision_id: number;
-    title: string;
-  };
-}
-
-/** DELETE /open-apis/drive/v1/files/{file_token} */
-export interface DocDeleteResponse {
-  id?: string;
-  result?: boolean;
-}
