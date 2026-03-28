@@ -4,6 +4,13 @@
 
 import { resolveAuth, refreshUserToken, acquireRefreshLock } from "./auth.js";
 import { CliError, mapApiError } from "./utils/errors.js";
+import {
+  DEFAULT_RETRY,
+  calculateDelay,
+  parseRetryAfter,
+  isRetryable,
+  sleep,
+} from "./utils/retry.js";
 import type {
   AuthInfo,
   AuthMode,
@@ -214,49 +221,100 @@ export async function fetchWithAuth<T = unknown>(
     fetchOpts.body = JSON.stringify(options.body);
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      ...fetchOpts,
-      signal: controller.signal,
-    });
-  } catch (err) {
-    const error = err as Error;
-    if (error.name === "AbortError") {
-      throw new CliError("API_ERROR", "API 请求超时（30秒）", {
-        retryable: true,
-      });
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-  const body = (await res.json()) as ApiResponse<T>;
+  const retryEnabled = options.retry !== false;
+  const retryOpts = retryEnabled
+    ? {
+        ...DEFAULT_RETRY,
+        ...(typeof options.retry === "object" ? options.retry : {}),
+      }
+    : { maxRetries: 0, initialDelay: 0, maxDelay: 0 };
+  const maxAttempts = retryOpts.maxRetries + 1;
 
-  if (body.code !== undefined && body.code !== 0) {
-    // Scope errors: extract missing scopes from permission_violations
-    if (body.code === 99991672 || body.code === 99991679) {
-      const scopes = extractScopesFromError(body);
-      const scopeStr = scopes.length > 0 ? scopes.join(" ") : "";
-      const hint =
-        scopes.length > 0
-          ? `缺少以下权限: ${scopes.join(", ")}。运行: feishu-docs authorize --scope "${scopeStr}"`
-          : body.msg || "权限不足";
-      throw new CliError("SCOPE_MISSING", hint, {
-        apiCode: body.code,
-        missingScopes: scopes,
-        recovery:
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    let res: Response;
+    try {
+      res = await fetch(url.toString(), {
+        ...fetchOpts,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      const error = err as Error;
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        if (retryEnabled && attempt < retryOpts.maxRetries) {
+          process.stderr.write(
+            `feishu-docs: info: API 请求失败（超时），第 ${attempt + 1} 次重试...\n`,
+          );
+          const delay = calculateDelay(
+            attempt,
+            retryOpts.initialDelay,
+            retryOpts.maxDelay,
+          );
+          await sleep(delay);
+          continue;
+        }
+        throw new CliError("API_ERROR", "API 请求超时（30秒）", {
+          retryable: true,
+        });
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    // Check for retryable HTTP status (only when retry is enabled)
+    if (retryEnabled && isRetryable(res.status)) {
+      if (attempt < retryOpts.maxRetries) {
+        process.stderr.write(
+          `feishu-docs: info: API 请求失败（${res.status}），第 ${attempt + 1} 次重试...\n`,
+        );
+        const retryAfterDelay =
+          res.status === 429
+            ? parseRetryAfter(res.headers.get("Retry-After"))
+            : null;
+        const delay =
+          retryAfterDelay ??
+          calculateDelay(attempt, retryOpts.initialDelay, retryOpts.maxDelay);
+        await sleep(delay);
+        continue;
+      }
+      throw new CliError(
+        "API_ERROR",
+        `API 请求失败: HTTP ${res.status} ${res.statusText}`,
+        { retryable: true },
+      );
+    }
+
+    const body = (await res.json()) as ApiResponse<T>;
+
+    if (body.code !== undefined && body.code !== 0) {
+      // Scope errors: extract missing scopes from permission_violations
+      if (body.code === 99991672 || body.code === 99991679) {
+        const scopes = extractScopesFromError(body);
+        const scopeStr = scopes.length > 0 ? scopes.join(" ") : "";
+        const hint =
           scopes.length > 0
-            ? `feishu-docs authorize --scope "${scopeStr}"`
-            : "检查飞书开发者后台的应用权限配置",
-      });
+            ? `缺少以下权限: ${scopes.join(", ")}。运行: feishu-docs authorize --scope "${scopeStr}"`
+            : body.msg || "权限不足";
+        throw new CliError("SCOPE_MISSING", hint, {
+          apiCode: body.code,
+          missingScopes: scopes,
+          recovery:
+            scopes.length > 0
+              ? `feishu-docs authorize --scope "${scopeStr}"`
+              : "检查飞书开发者后台的应用权限配置",
+        });
+      }
+      throw mapApiError({ code: body.code, msg: body.msg });
     }
-    throw mapApiError({ code: body.code, msg: body.msg });
+
+    return body;
   }
 
-  return body;
+  // Unreachable — loop always returns or throws
+  throw new CliError("API_ERROR", "API 请求异常：重试逻辑未正常退出");
 }
 
 /**
@@ -282,67 +340,121 @@ function extractScopesFromError(body: ApiResponse<unknown>): string[] {
 export async function fetchBinaryWithAuth(
   authInfo: AuthInfo,
   path: string,
+  options: { retry?: FetchOptions["retry"] } = {},
 ): Promise<ArrayBuffer> {
   const base = getApiBase(authInfo);
   const bearer = await resolveBearer(authInfo);
   const url = new URL(path, base);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60_000);
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      method: "GET",
-      headers: { Authorization: bearer },
-      signal: controller.signal,
-    });
-  } catch (err) {
-    const error = err as Error;
-    if (error.name === "AbortError") {
-      throw new CliError("API_ERROR", "API 请求超时（60秒）", {
-        retryable: true,
-      });
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (!res.ok) {
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      let body: Record<string, unknown>;
-      try {
-        body = await res.json();
-      } catch {
-        throw new CliError(
-          "API_ERROR",
-          `下载失败: HTTP ${res.status} ${res.statusText}`,
-        );
+  const retryEnabled = options.retry !== false;
+  const retryOpts = retryEnabled
+    ? {
+        ...DEFAULT_RETRY,
+        ...(typeof options.retry === "object" ? options.retry : {}),
       }
-      if (body.code === 99991672 || body.code === 99991679) {
-        const scopes = extractScopesFromError(body as ApiResponse);
-        const scopeStr = scopes.length > 0 ? scopes.join(" ") : "";
-        const hint =
-          scopes.length > 0
-            ? `缺少以下权限: ${scopes.join(", ")}。运行: feishu-docs authorize --scope "${scopeStr}"`
-            : (body.msg as string) || "权限不足";
-        throw new CliError("SCOPE_MISSING", hint, {
-          apiCode: body.code as number,
-          missingScopes: scopes,
-          recovery:
-            scopes.length > 0
-              ? `feishu-docs authorize --scope "${scopeStr}"`
-              : "检查飞书开发者后台的应用权限配置",
+    : { maxRetries: 0, initialDelay: 0, maxDelay: 0 };
+  const maxAttempts = retryOpts.maxRetries + 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+    let res: Response;
+    try {
+      res = await fetch(url.toString(), {
+        method: "GET",
+        headers: { Authorization: bearer },
+        signal: controller.signal,
+      });
+    } catch (err) {
+      const error = err as Error;
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        if (retryEnabled && attempt < retryOpts.maxRetries) {
+          process.stderr.write(
+            `feishu-docs: info: API 请求失败（超时），第 ${attempt + 1} 次重试...\n`,
+          );
+          const delay = calculateDelay(
+            attempt,
+            retryOpts.initialDelay,
+            retryOpts.maxDelay,
+          );
+          await sleep(delay);
+          continue;
+        }
+        throw new CliError("API_ERROR", "API 请求超时（60秒）", {
+          retryable: true,
         });
       }
-      throw mapApiError({ code: body.code as number, msg: body.msg as string });
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    throw new CliError(
-      "API_ERROR",
-      `下载失败: HTTP ${res.status} ${res.statusText}`,
-    );
+
+    // Check for retryable HTTP status before processing body
+    if (isRetryable(res.status)) {
+      if (retryEnabled && attempt < retryOpts.maxRetries) {
+        process.stderr.write(
+          `feishu-docs: info: API 请求失败（${res.status}），第 ${attempt + 1} 次重试...\n`,
+        );
+        const retryAfterDelay =
+          res.status === 429
+            ? parseRetryAfter(res.headers.get("Retry-After"))
+            : null;
+        const delay =
+          retryAfterDelay ??
+          calculateDelay(attempt, retryOpts.initialDelay, retryOpts.maxDelay);
+        await sleep(delay);
+        continue;
+      }
+      throw new CliError(
+        "API_ERROR",
+        `下载失败: HTTP ${res.status} ${res.statusText}`,
+        { retryable: true },
+      );
+    }
+
+    if (!res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        let body: Record<string, unknown>;
+        try {
+          body = await res.json();
+        } catch {
+          throw new CliError(
+            "API_ERROR",
+            `下载失败: HTTP ${res.status} ${res.statusText}`,
+          );
+        }
+        if (body.code === 99991672 || body.code === 99991679) {
+          const scopes = extractScopesFromError(body as ApiResponse);
+          const scopeStr = scopes.length > 0 ? scopes.join(" ") : "";
+          const hint =
+            scopes.length > 0
+              ? `缺少以下权限: ${scopes.join(", ")}。运行: feishu-docs authorize --scope "${scopeStr}"`
+              : (body.msg as string) || "权限不足";
+          throw new CliError("SCOPE_MISSING", hint, {
+            apiCode: body.code as number,
+            missingScopes: scopes,
+            recovery:
+              scopes.length > 0
+                ? `feishu-docs authorize --scope "${scopeStr}"`
+                : "检查飞书开发者后台的应用权限配置",
+          });
+        }
+        throw mapApiError({
+          code: body.code as number,
+          msg: body.msg as string,
+        });
+      }
+      throw new CliError(
+        "API_ERROR",
+        `下载失败: HTTP ${res.status} ${res.statusText}`,
+      );
+    }
+
+    return res.arrayBuffer();
   }
 
-  return res.arrayBuffer();
+  // Unreachable — loop always returns or throws
+  throw new CliError("API_ERROR", "API 请求异常：重试逻辑未正常退出");
 }
