@@ -42,9 +42,9 @@ feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/La
 - [ ] 将嵌入内容串行获取改为 `Promise.allSettled()` 并行化
 
 **性能与健壮性（优先级：中）:**
-- [ ] 为 `fetchWithAuth` 添加可配置重试逻辑（429/502/503 + retryable 错误）
-- [ ] 图片缓存添加 TTL 淘汰策略（如 30 天）
-- [ ] 优化 `clearDocument` 的 QPS 延迟参数
+- [x] 为 `fetchWithAuth` 添加可配置重试逻辑（429/502/503 + retryable 错误） — Validated in Phase 5
+- [x] 图片缓存添加 TTL 淘汰策略（如 30 天） — Validated in Phase 5
+- [x] 优化 `clearDocument` 的 QPS 延迟参数 — Validated in Phase 5
 
 **安全加固（优先级：中）:**
 - [ ] `whoami` 不再输出令牌前缀
@@ -64,7 +64,7 @@ feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/La
 
 - **项目版本:** 0.1.0-beta.17，已发布到 npm 为 `feishu-docs-cli`
 - **技术栈:** TypeScript 5.9.3，零运行时依赖，ESM-only，Node.js >= 18.3.0
-- **测试现状:** Phase 1 complete — 256 tests across 20 files, core paths (auth, client, block-writer, document-resolver) covered
+- **测试现状:** Phase 5 complete — 456 tests, all core paths covered, retry + cache eviction + dead code detection integrated
 - **代码规模:** ~6000 行源代码（src/），最大文件 822 行
 - **已有分析:** `.planning/codebase/` 包含完整的代码库映射文档（7 个文件）
 
@@ -102,4 +102,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after initialization*
+*Last updated: 2026-03-28 after Phase 5 completion*
