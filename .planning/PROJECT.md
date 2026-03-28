@@ -1,8 +1,8 @@
-# feishu-docs-cli 质量加固迭代
+# feishu-docs-cli
 
 ## What This Is
 
-feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/Lark 云文档和知识库。本次迭代专注于解决代码库分析（CONCERNS.md）中识别出的技术债务、测试缺口、性能瓶颈和安全问题，使项目达到生产级质量标准。
+feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/Lark 云文档和知识库。v1.0 质量加固迭代完成后，项目具备生产级测试覆盖（456 tests, 80%+ coverage）、类型安全的 API 层、自动重试机制和代码质量工具链。
 
 ## Core Value
 
@@ -23,33 +23,22 @@ feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/La
 - ✓ 双域名支持（feishu.cn/larksuite.com） — existing
 - ✓ 图片下载与本地缓存 — existing
 - ✓ Claude Code 技能集成 — existing
+- ✓ 命令处理器集成测试（18 个 CLI 命令全覆盖） — v1.0
+- ✓ fetchWithAuth/createClient/resolveAuth 完整测试 — v1.0
+- ✓ 令牌加密/解密、clearDocument、document-resolver 测试 — v1.0
+- ✓ 测试覆盖率 80%+（Lines 80%, Branches 72%, Functions 88%） — v1.0
+- ✓ blocks-to-md.ts ReadonlyMap 分发表重构 — v1.0
+- ✓ doc-enrichment.ts 服务提取 + Promise.allSettled 并行化 — v1.0
+- ✓ fetchWithAuth 泛型 `<T>` + 类型化 API 响应接口 — v1.0
+- ✓ fetchWithAuth 可配置重试（指数退避+抖动） — v1.0
+- ✓ 图片缓存 30 天 TTL 淘汰 — v1.0
+- ✓ clearDocument QPS 延迟优化（400ms → 200ms） — v1.0
+- ✓ whoami 令牌前缀移除 + OAuth CSP 头 + CI 文档 — v1.0
+- ✓ knip 死代码检测集成 — v1.0
 
 ### Active
 
-**测试覆盖（优先级：最高）:**
-- [x] 命令处理器集成测试（read/create/update/delete/cat/tree/wiki/share/ls/mv/cp/mkdir/search） — Validated in Phase 2
-- [x] `fetchWithAuth` 和 `createClient` 的完整测试（认证解析、错误映射、超时处理） — Validated in Phase 1
-- [x] `resolveAuth` 多模式认证解析测试（auto 模式回退链） — Validated in Phase 1
-- [x] 令牌加密/解密、保存/加载/清除测试 — Validated in Phase 1
-- [x] `clearDocument` 批量删除和备份/恢复管道测试 — Validated in Phase 1
-- [x] `document-resolver` 的回退行为和 `allowFallback` 选项测试 — Validated in Phase 1
-- [x] 测试覆盖率达到 80% — Validated in Phase 2 (Lines 80%, Branches 72%, Functions 88%)
-
-**代码质量（优先级：高）:**
-- [ ] 拆分 `blocks-to-md.ts`（822 行）为分发表模式
-- [ ] 拆分 `read.ts`（592 行），提取丰富化逻辑到 `services/doc-enrichment.ts`
-- [ ] 为 API 端点定义类型化响应接口，消除 `as Record<string, unknown>` 断言
-- [ ] 将嵌入内容串行获取改为 `Promise.allSettled()` 并行化
-
-**性能与健壮性（优先级：中）:**
-- [x] 为 `fetchWithAuth` 添加可配置重试逻辑（429/502/503 + retryable 错误） — Validated in Phase 5
-- [x] 图片缓存添加 TTL 淘汰策略（如 30 天） — Validated in Phase 5
-- [x] 优化 `clearDocument` 的 QPS 延迟参数 — Validated in Phase 5
-
-**安全加固（优先级：中）:**
-- [ ] `whoami` 不再输出令牌前缀
-- [ ] OAuth 回调响应添加 Content-Security-Policy 头
-- [ ] 文档化 CI/容器环境应使用 `FEISHU_USER_TOKEN` 而非 `feishu-docs login`
+(Empty — next milestone requirements to be defined via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -64,9 +53,11 @@ feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/La
 
 - **项目版本:** 0.1.0-beta.17，已发布到 npm 为 `feishu-docs-cli`
 - **技术栈:** TypeScript 5.9.3，零运行时依赖，ESM-only，Node.js >= 18.3.0
-- **测试现状:** Phase 5 complete — 456 tests, all core paths covered, retry + cache eviction + dead code detection integrated
-- **代码规模:** ~6000 行源代码（src/），最大文件 822 行
+- **测试现状:** 456 tests across 29 files, 80%+ line coverage, c8 + tsx 管道
+- **代码规模:** ~7,800 行源代码（src/），~11,500 行测试代码（test/）
+- **质量工具:** knip 死代码检测（`npm run lint:dead-code`），c8 覆盖率门槛
 - **已有分析:** `.planning/codebase/` 包含完整的代码库映射文档（7 个文件）
+- **v1.0 shipped:** 2026-03-28, 5 phases, 15 plans, 116 files changed
 
 ## Constraints
 
@@ -79,10 +70,12 @@ feishu-docs-cli 是一个零依赖的 Node.js CLI 工具，用于读写飞书/La
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| 测试优先于重构 | 无测试保护的重构风险极高，先补测试再拆分代码 | — Pending |
-| 内部模块边界可调整 | 允许提取新的 service/util 模块，但 CLI 命令行为不变 | — Pending |
-| 继续使用 node:test | 与零依赖理念一致，避免引入 Jest/Vitest 的复杂配置 | — Pending |
-| 类型化 API 响应渐进式 | 不一次性改完 74 处断言，按模块逐步替换 | — Pending |
+| 测试优先于重构 | 无测试保护的重构风险极高，先补测试再拆分代码 | ✓ Good — 456 tests 保护下安全完成重构 |
+| 内部模块边界可调整 | 允许提取新的 service/util 模块，但 CLI 命令行为不变 | ✓ Good — doc-enrichment.ts, retry.ts, concurrency.ts 等模块提取成功 |
+| 继续使用 node:test | 与零依赖理念一致，避免引入 Jest/Vitest 的复杂配置 | ✓ Good — 456 tests 全部通过，无外部测试框架依赖 |
+| 类型化 API 响应渐进式 | 不一次性改完所有断言，按模块逐步替换 | ✓ Good — doc-blocks + wiki-nodes 已完成，其余可后续迭代 |
+| 重试逻辑内嵌 fetchWithAuth | 单一控制点，调用者无需感知重试行为 | ✓ Good — 透明重试，fetchBinaryWithAuth 同步支持 |
+| pLimit 零依赖并发限制器 | 避免引入 p-limit 包，保持零依赖 | ✓ Good — 简洁实现，并行化效果显著 |
 
 ## Evolution
 
@@ -102,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-28 after Phase 5 completion*
+*Last updated: 2026-03-28 after v1.0 milestone*
