@@ -1,6 +1,8 @@
 # feishu-docs-cli
 
-[中文文档](./README.zh.md)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](./LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D18.3.0-blue)](https://nodejs.org) [![npm](https://img.shields.io/npm/v/feishu-docs-cli)](https://www.npmjs.com/package/feishu-docs-cli) [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
+
+[中文文档](./README.zh.md) | English
 
 CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 

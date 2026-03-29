@@ -1,6 +1,8 @@
 # feishu-docs-cli
 
-[English](./README.md)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](./LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D18.3.0-blue)](https://nodejs.org) [![npm](https://img.shields.io/npm/v/feishu-docs-cli)](https://www.npmjs.com/package/feishu-docs-cli) [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
+
+中文文档 | [English](./README.md)
 
 让 AI Agent（Claude Code、Codex、Trae 等）通过 shell 命令读写飞书云文档和知识库。
 
