@@ -31,8 +31,7 @@ Based on real-world testing against the same knowledge base (2026-03-29):
 | **Dependencies** | Zero runtime deps (Node.js built-ins only) | Go binary |
 | **Cold start** | ~0.5s (Node.js) | ~0.1s (Go) |
 
-**In short**: feishu-docs-cli is purpose-built for **document workflows** — clean Markdown I/O, recursive wiki browsing, and write safety. lark-cli is a comprehensive platform CLI with broader API coverage. They are complementary rather than competing.
-
+**In short**: feishu-docs-cli is purpose-built for **document workflows** — clean Markdown I/O, recursive wiki browsing, and write safety. lark-cli is a comprehensive platform CLI with broader API coverage. 
 ## Features
 
 - **Read** documents as Markdown (images downloaded to local files), raw text, or original Block JSON
