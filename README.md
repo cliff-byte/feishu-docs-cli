@@ -4,24 +4,32 @@
 
 CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 
-## Why feishu-docs-cli?
+## Project Status
 
-Feishu/Lark already offers the official [lark-mcp](https://github.com/larksuite/lark-openapi-mcp) MCP server. Here's what this project does differently:
+> **Note**: The official [lark-cli](https://github.com/larksuite/cli) has been released by the Lark/Feishu team (2025). It covers a much broader range of Feishu APIs (IM, calendar, tasks, contacts, bitable, etc.). We believe the official tool will continue to improve, so **this project will slow down on new feature development**. Existing functionality will be maintained but no major additions are planned.
+>
+> If you need full Feishu API coverage, use [lark-cli](https://github.com/larksuite/cli). If you primarily work with **documents and knowledge bases** and need clean Markdown I/O, feishu-docs-cli still offers a better experience in that specific area.
 
-| Capability | feishu-docs-cli | lark-mcp |
-|------------|:-:|:-:|
-| Read docs as Markdown | **Yes** — 30+ block types rendered | No — returns raw Block JSON |
-| Write docs from Markdown | **Yes** — auto-convert, auto-batch (>1000 blocks) | No |
-| Knowledge base tree browsing | **Yes** — `spaces` → `tree` → `cat` workflow | Search/get single node only |
-| Batch read entire wiki subtree | **Yes** — `cat` recursively exports Markdown | No |
-| Write safety (backup/restore) | **Yes** — auto-backup before overwrite, auto-recover on failure | No |
-| OAuth user login | **Yes** — full OAuth v2 with auto-refresh, tiered scope management, interactive recovery | Yes — basic OAuth login |
-| Works with any AI agent | **Yes** — standard CLI, pipes, scripts | MCP protocol only |
-| IM / messaging | No | Yes |
-| Bitable CRUD | Read-only (rendered as table) | Yes |
-| Contact lookup | Via `share add` only | Yes |
+## Comparison with lark-cli
 
-**In short**: lark-mcp is a thin wrapper over Feishu APIs with broad coverage. feishu-docs-cli is purpose-built for **document workflows** — it lets AI agents truly read, understand, and write Feishu documents as Markdown, with safety guardrails that the raw API doesn't provide.
+Based on real-world testing against the same knowledge base (2026-03-29):
+
+| Capability | feishu-docs-cli | lark-cli (official) |
+|------------|-----------------|---------------------|
+| **Read as Markdown** | Standard Markdown — tables, lists, code blocks render correctly | Returns JSON with `<lark-table>` custom HTML tags, not standard Markdown |
+| **Knowledge base tree** | `tree` command — one call, full recursive tree | No equivalent — must call `get_node` per node |
+| **Batch read wiki** | `cat` — recursively reads all child docs | No equivalent |
+| **Create in wiki** | `--wiki <space> --parent <node>` — supports parent node placement | `--wiki-space` and `--wiki-node` are mutually exclusive |
+| **Update docs** | Accepts file path (`--body file.md`), auto-backup before overwrite | Inline `--markdown` only, `--mode` required |
+| **Search** | `search "keyword"` — one step | Requires separate scope authorization |
+| **Share / permissions** | `share list/add/remove/update/set` — fully wrapped | No wrapper — requires raw API calls |
+| **JSON output** | Clean, pipe-friendly `--json` | Mixes progress text (`[page 1] fetching...`) into stdout |
+| **Error messages** | Chinese messages with recovery hints, missing scope auto-detection | English errors, manual scope lookup |
+| **API coverage** | Documents, wiki, drive, search, permissions | **Full platform** — IM, calendar, tasks, contacts, bitable, mail, video conference, etc. |
+| **Dependencies** | Zero runtime deps (Node.js built-ins only) | Go binary |
+| **Cold start** | ~0.5s (Node.js) | ~0.1s (Go) |
+
+**In short**: feishu-docs-cli is purpose-built for **document workflows** — clean Markdown I/O, recursive wiki browsing, and write safety. lark-cli is a comprehensive platform CLI with broader API coverage. They are complementary rather than competing.
 
 ## Features
 
@@ -405,8 +413,9 @@ dist/             # Compiled output (git-ignored)
 
 - [x] Feishu cloud document operations (read, create, update, delete, info)
 - [x] Knowledge base operations (spaces, tree, cat, wiki management, share, search)
-- [ ] Feishu Bitable (multi-dimensional table) operations
-- [ ] Feishu Sheets (spreadsheet) operations
+- [x] Quality hardening — 456 tests, retry logic, error recovery, dead code cleanup
+
+> Bitable and Sheets operations are not planned. For those, use the official [lark-cli](https://github.com/larksuite/cli).
 
 ## Limitations
 

@@ -4,24 +4,32 @@
 
 让 AI Agent（Claude Code、Codex、Trae 等）通过 shell 命令读写飞书云文档和知识库。
 
-## 为什么选 feishu-docs-cli？
+## 项目状态
 
-飞书官方已有 [lark-mcp](https://github.com/larksuite/lark-openapi-mcp) MCP 服务。以下是本项目的差异化能力：
+> **说明**：飞书官方已发布 [lark-cli](https://github.com/larksuite/cli)（2025），覆盖 IM、日历、任务、通讯录、多维表格等全平台 API。相信官方工具会不断完善，**本项目将放缓新功能开发**，现有功能会继续维护，但不再计划大的功能新增。
+>
+> 如需完整的飞书 API 能力，请使用 [lark-cli](https://github.com/larksuite/cli)。如果主要场景是**文档和知识库**且需要标准 Markdown 输入输出，feishu-docs-cli 在这个细分领域仍有更好的体验。
 
-| 能力 | feishu-docs-cli | lark-mcp |
-|------|:-:|:-:|
-| 读取文档输出 Markdown | **支持** — 30+ 种 block 类型渲染 | 不支持 — 返回原始 Block JSON |
-| 从 Markdown 写入文档 | **支持** — 自动转换、大文档自动分批（>1000 blocks） | 不支持 |
-| 知识库目录树浏览 | **支持** — `spaces` → `tree` → `cat` 完整工作流 | 仅搜索/获取单个节点 |
-| 批量读取知识库子树 | **支持** — `cat` 递归导出为 Markdown | 不支持 |
-| 写入安全（备份/恢复） | **支持** — 覆盖前自动备份，失败自动恢复 | 不支持 |
-| OAuth 用户登录 | **支持** — 完整 OAuth v2 + token 自动刷新 + 分级权限管理 + 交互式权限恢复 | 支持 — 基础 OAuth 登录 |
-| 兼容任意 AI Agent | **支持** — 标准 CLI，支持管道和脚本 | 仅 MCP 协议 |
-| 即时消息 | 不支持 | 支持 |
-| 多维表格 CRUD | 只读（渲染为表格） | 支持 |
-| 通讯录查询 | 仅 `share add` 时使用 | 支持 |
+## 与 lark-cli 的对比
 
-**一句话总结**：lark-mcp 是飞书 API 的薄封装，覆盖面广但每个功能都是原始 API 级别。feishu-docs-cli 专注于**文档工作流**，让 AI Agent 能以 Markdown 为媒介真正读懂和编写飞书文档，并提供原始 API 没有的安全保障。
+基于同一知识库的真实操作对比（2026-03-29 实测）：
+
+| 能力 | feishu-docs-cli | lark-cli（官方） |
+|------|-----------------|------------------|
+| **读取为 Markdown** | 标准 Markdown — 表格、列表、代码块正确渲染 | 返回 JSON + `<lark-table>` 自定义标签，非标准 Markdown |
+| **知识库目录树** | `tree` 命令 — 一次调用，递归展示完整树 | 无此功能 — 需逐节点调用 `get_node` |
+| **批量读取知识库** | `cat` — 递归读取所有子文档 | 无此功能 |
+| **在知识库创建文档** | `--wiki <space> --parent <node>` — 支持指定父节点 | `--wiki-space` 和 `--wiki-node` 互斥，不能指定父节点 |
+| **更新文档** | 接受文件路径（`--body file.md`），覆盖前自动备份 | 仅支持内联 `--markdown`，必须显式指定 `--mode` |
+| **搜索** | `search "关键词"` — 一步到位 | 需要单独授权不同的 scope |
+| **权限管理** | `share list/add/remove/update/set` — 完整封装 | 无封装 — 需手写原始 API 路径 |
+| **JSON 输出** | 纯净可管道的 `--json` | stdout 混入进度文本（`[page 1] fetching...`），破坏 JSON 管道 |
+| **错误提示** | 中文提示 + 恢复建议 + 缺失 scope 自动检测 | 英文错误提示，需手动查找 scope |
+| **API 覆盖面** | 文档、知识库、云空间、搜索、权限 | **全平台** — IM、日历、任务、通讯录、多维表格、邮件、视频会议等 |
+| **依赖** | 零运行时依赖（仅 Node.js 内置模块） | Go 二进制 |
+| **冷启动** | ~0.5 秒（Node.js） | ~0.1 秒（Go） |
+
+**一句话总结**：feishu-docs-cli 专注于**文档工作流** — 标准 Markdown 输入输出、知识库递归浏览、写入安全保障。lark-cli 是覆盖全平台的综合性 CLI。两者互补而非竞争。
 
 ## 功能
 
@@ -387,8 +395,9 @@ dist/             # 编译输出（不提交到 git）
 
 - [x] 飞书云文档操作（读取、创建、更新、删除、详情）
 - [x] 知识库操作（空间列表、目录树、批量读取、Wiki 管理、分享、搜索）
-- [ ] 飞书多维表格操作
-- [ ] 飞书电子表格操作
+- [x] 质量加固 — 456 个测试、重试逻辑、错误恢复、死代码清理
+
+> 多维表格和电子表格操作不再计划。如有需要，请使用官方 [lark-cli](https://github.com/larksuite/cli)。
 
 ## 限制
 
