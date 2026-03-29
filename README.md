@@ -33,7 +33,7 @@ Based on real-world testing against the same knowledge base (2026-03-29):
 
 ## Features
 
-- **Read** documents as Markdown, raw text, or original Block JSON
+- **Read** documents as Markdown (images downloaded to local files), raw text, or original Block JSON
 - **Create** documents in knowledge bases or cloud folders
 - **Update** documents with overwrite or append mode (auto-batch for large content)
 - **Delete** documents (move to recycle bin)
@@ -153,7 +153,7 @@ With these three variables set, all commands work without `feishu-docs login`. T
 ### Read
 
 ```bash
-# Read document as Markdown
+# Read document as Markdown (images auto-downloaded to ~/.feishu-docs/images/)
 feishu-docs read https://xxx.feishu.cn/wiki/wikcnXXX
 
 # Read by token
@@ -168,6 +168,8 @@ feishu-docs read <url> --raw
 # With metadata header
 feishu-docs read <url> --with-meta
 ```
+
+Images in documents are automatically downloaded to `~/.feishu-docs/images/` and referenced as local file paths in the Markdown output. Cached images are reused for 30 days.
 
 ### Knowledge Base
 
@@ -424,7 +426,7 @@ dist/             # Compiled output (git-ignored)
 - **Link only**: mindnote
 - **Not supported**: doc (legacy format)
 - Markdown conversion is lossy (colors, merged cells, layouts are dropped). Use `--blocks` for lossless JSON.
-- Image write is not supported (read returns temporary URLs valid ~24h)
+- Image read downloads to local files (`~/.feishu-docs/images/`) with 30-day cache. Image write is not supported.
 
 ## License
 

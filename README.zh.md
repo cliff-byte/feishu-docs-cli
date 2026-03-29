@@ -33,7 +33,7 @@
 
 ## 功能
 
-- **读取** 文档，输出 Markdown、纯文本或原始 Block JSON
+- **读取** 文档，输出 Markdown（图片自动下载到本地）、纯文本或原始 Block JSON
 - **创建** 文档到知识库或云空间文件夹
 - **更新** 文档，支持覆盖写入或追加模式（大文档自动分批）
 - **删除** 文档（移至回收站）
@@ -135,7 +135,7 @@ feishu-docs login --port 4567
 ### 读取
 
 ```bash
-# 读取文档，输出 Markdown
+# 读取文档，输出 Markdown（图片自动下载到 ~/.feishu-docs/images/）
 feishu-docs read https://xxx.feishu.cn/wiki/wikcnXXX
 
 # 通过 token 读取
@@ -150,6 +150,8 @@ feishu-docs read <url> --raw
 # 带元信息头
 feishu-docs read <url> --with-meta
 ```
+
+文档中的图片会自动下载到 `~/.feishu-docs/images/`，在 Markdown 输出中引用本地文件路径。缓存有效期 30 天。
 
 ### 知识库
 
@@ -406,7 +408,7 @@ dist/             # 编译输出（不提交到 git）
 - **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
 - Markdown 转换有损（颜色、合并单元格、布局会丢失）。使用 `--blocks` 获取无损 JSON。
-- 不支持图片写入（读取返回约 24 小时有效的临时 URL）
+- 图片读取时自动下载到本地（`~/.feishu-docs/images/`，30 天缓存）。不支持图片写入。
 
 ## 许可证
 
