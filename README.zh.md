@@ -401,6 +401,19 @@ dist/             # 编译输出（不提交到 git）
 
 > 多维表格和电子表格操作不再计划。如有需要，请使用官方 [lark-cli](https://github.com/larksuite/cli)。
 
+## Mermaid 图表
+
+feishu-docs-cli 和 lark-cli 对 Mermaid 的处理方式不同，根据你的主要受众选择：
+
+| | feishu-docs-cli | lark-cli（官方） |
+|---|---|---|
+| **写入** | 保存为 `` ```mermaid `` 代码块 | 通过 Lark MCP 转换为可视化画板（board） |
+| **读取** | 返回原始 Mermaid 代码 — AI Agent 可直接解析和修改 | 返回画板节点图（形状、坐标、连接线）— 无法还原为 Mermaid |
+| **人类可读性** | 文档中显示为代码块 — 需手动转为"文本绘图"块才能可视化 | 立即渲染为可交互的流程图 |
+| **适合场景** | AI Agent 工作流 — Mermaid 无损读写往返 | 人工阅读 — 文档中直接展示可视化图表 |
+
+**为什么这样取舍？** 飞书 Open API 的 Convert 接口将 `` ```mermaid `` 视为普通代码块（block_type 14）。渲染为可视化的"文本绘图"块需要 Lark MCP 协议，该协议是内部服务，不通过公开 API 提供。我们选择保留 Mermaid 源码，确保 AI 无损读写。
+
 ## 限制
 
 - **支持**：docx（新版文档）

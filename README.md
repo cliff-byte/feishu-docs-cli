@@ -419,6 +419,19 @@ dist/             # Compiled output (git-ignored)
 
 > Bitable and Sheets operations are not planned. For those, use the official [lark-cli](https://github.com/larksuite/cli).
 
+## Mermaid Diagrams
+
+feishu-docs-cli and lark-cli handle Mermaid differently. Choose based on your primary audience:
+
+| | feishu-docs-cli | lark-cli (official) |
+|---|---|---|
+| **Write** | Stored as `` ```mermaid `` code block | Converted to visual whiteboard (board) via Lark MCP |
+| **Read** | Returns original Mermaid code — AI agents can parse and modify it directly | Returns whiteboard node graph (shapes, coordinates, connectors) — not reversible to Mermaid |
+| **Human readability** | Code block in document — needs manual conversion to "text diagram" block for visual rendering | Renders as interactive flowchart immediately |
+| **Best for** | AI agent workflows — round-trip Mermaid read/write | Human consumption — visual diagrams in documents |
+
+**Why this trade-off?** The Feishu Open API's Convert endpoint treats `` ```mermaid `` as a plain code block (block_type 14). Rendering it as a visual "text diagram" block requires the Lark MCP protocol, which is an internal service not available through the public API. We chose to preserve Mermaid source code for lossless AI round-tripping.
+
 ## Limitations
 
 - **Supported**: docx (new documents)
