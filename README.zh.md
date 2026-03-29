@@ -8,7 +8,7 @@
 
 ## 项目状态
 
-> **说明**：飞书官方已发布 [lark-cli](https://github.com/larksuite/cli)（2025），覆盖 IM、日历、任务、通讯录、多维表格等全平台 API。相信官方工具会不断完善，**本项目将放缓新功能开发**，现有功能会继续维护，但不再计划大的功能新增。
+> **说明**：飞书官方已发布 [lark-cli](https://github.com/larksuite/cli)（2026），覆盖 IM、日历、任务、通讯录、多维表格等全平台 API。相信官方工具会不断完善，**本项目将放缓新功能开发**，现有功能会继续维护，但不再计划大的功能新增。
 >
 > 如需完整的飞书 API 能力，请使用 [lark-cli](https://github.com/larksuite/cli)。如果主要场景是**文档和知识库**且需要标准 Markdown 输入输出，feishu-docs-cli 在这个细分领域仍有更好的体验。
 

@@ -8,7 +8,7 @@ CLI tool for AI Agents to read/write Feishu (Lark) docs via shell commands.
 
 ## Project Status
 
-> **Note**: The official [lark-cli](https://github.com/larksuite/cli) has been released by the Lark/Feishu team (2025). It covers a much broader range of Feishu APIs (IM, calendar, tasks, contacts, bitable, etc.). We believe the official tool will continue to improve, so **this project will slow down on new feature development**. Existing functionality will be maintained but no major additions are planned.
+> **Note**: The official [lark-cli](https://github.com/larksuite/cli) has been released by the Lark/Feishu team (2026). It covers a much broader range of Feishu APIs (IM, calendar, tasks, contacts, bitable, etc.). We believe the official tool will continue to improve, so **this project will slow down on new feature development**. Existing functionality will be maintained but no major additions are planned.
 >
 > If you need full Feishu API coverage, use [lark-cli](https://github.com/larksuite/cli). If you primarily work with **documents and knowledge bases** and need clean Markdown I/O, feishu-docs-cli still offers a better experience in that specific area.
 
