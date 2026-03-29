@@ -35,6 +35,8 @@ node bin/feishu-docs.js --help   # Run CLI
 | `src/services/wiki-nodes.ts` | Wiki node tree traversal and token resolution |
 | `src/services/doc-blocks.ts` | Document block fetching with pagination |
 | `src/services/markdown-convert.ts` | Convert API + Descendant API pipeline |
+| `src/services/doc-enrichment.ts` | Sheet/bitable/whiteboard/image enrichment with parallel execution |
+| `src/services/image-download.ts` | Image download and local cache with TTL eviction |
 | `src/parser/blocks-to-md.ts` | Feishu block JSON → Markdown renderer |
 | `src/parser/block-types.ts` | Block type constants |
 | `src/parser/text-elements.ts` | Inline text element rendering |
@@ -46,6 +48,8 @@ node bin/feishu-docs.js --help   # Run CLI
 | `src/utils/drive-types.ts` | Document type → Drive API type mapping |
 | `src/utils/validate.ts` | Token/ID format validation for path safety |
 | `src/utils/version.ts` | Local version read, npm update check (24h cache, non-blocking) |
+| `src/utils/retry.ts` | Exponential backoff with jitter for API retries |
+| `src/utils/concurrency.ts` | Zero-dependency `pLimit()` concurrency limiter |
 
 ### Command Registration Pattern
 

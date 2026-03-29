@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.0.0] - 2026-03-29
+
+First stable release. Quality hardening milestone complete — 456 tests, all core paths verified against live Feishu API.
+
+### Added
+
+- **Automatic retry on API errors.** Rate-limited (429) and server errors (5xx) are now retried automatically with exponential backoff and jitter — no more manual retries needed.
+- **Image cache auto-cleanup.** Downloaded images in `~/.feishu-docs/images/` are automatically evicted when expired, keeping disk usage in check.
+- **Typed API responses.** Internal API calls now use typed responses, reducing runtime surprises from unexpected API shapes.
+- **Parallel enrichment.** Sheet, bitable, whiteboard, and image content is now fetched in parallel during `read`, making large documents with embedded content noticeably faster.
+- **456 unit tests** covering auth, client, commands, services, parser, and utilities — up from ~30 in beta.
+
+### Changed
+
+- **Faster batch operations.** Internal QPS delay reduced from 400ms to 200ms.
+- **Cleaner block rendering internals.** Block renderer refactored to dispatch table for maintainability.
+- **Security hardening.** Token prefix removed from `whoami` output; CSP headers added to OAuth callback page.
+- **CI/container auth guide** added to README for headless environments.
+
+### Removed
+
+- Dead code detected by knip: unused exports, unreachable branches, stale type aliases.
+
+### Fixed
+
+- All fixes from beta.14 through beta.17 are included in this release.
+
+## [0.1.0-beta.17] - 2026-03-24
+
+### Added
+
+- **Local image download.** `read` command now downloads document images to `~/.feishu-docs/images/` for persistent access. Added `docs:document.media:download` to BASE_SCOPES.
+
 ## [0.1.0-beta.16] - 2026-03-23
 
 ### Fixed
