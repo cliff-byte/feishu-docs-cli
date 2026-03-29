@@ -207,8 +207,9 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 - Only `docx` (new document format) is fully supported for read/write
 - Legacy `doc` format is not supported
 - Embedded `sheet` and `bitable` are rendered as tables (lossy)
-- Embedded `board`/`whiteboard` are exported as local PNG images (temporary file paths)
+- Embedded `board`/`whiteboard` are exported as local PNG images
 - `mindnote` renders as a link only
-- Images cannot be written; read returns temporary URLs valid ~24 hours
+- Images are downloaded to `~/.feishu-docs/images/` with 30-day cache. Image write is not supported.
+- Mermaid code blocks are preserved as-is (code block, not visual diagram) — the Open API does not support creating visual "text diagram" blocks
 - Markdown conversion is lossy — use `--blocks` for lossless JSON when precision matters
 - Search requires user-level auth (run `feishu-docs login` first)
