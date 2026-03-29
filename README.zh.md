@@ -403,16 +403,17 @@ dist/             # 编译输出（不提交到 git）
 
 ## Mermaid 图表
 
-feishu-docs-cli 和 lark-cli 对 Mermaid 的处理方式不同，根据你的主要受众选择：
+feishu-docs-cli 和 lark-cli 在写入 Mermaid 时的处理方式不同：
 
 | | feishu-docs-cli | lark-cli（官方） |
 |---|---|---|
-| **写入** | 保存为 `` ```mermaid `` 代码块 | 通过 Lark MCP 转换为可视化画板（board） |
-| **读取** | 返回原始 Mermaid 代码 — AI Agent 可直接解析和修改 | 返回画板节点图（形状、坐标、连接线）— 无法还原为 Mermaid |
-| **人类可读性** | 文档中显示为代码块 — 需手动转为"文本绘图"块才能可视化 | 立即渲染为可交互的流程图 |
-| **适合场景** | AI Agent 工作流 — Mermaid 无损读写往返 | 人工阅读 — 文档中直接展示可视化图表 |
+| **写入** | 保存为 `` ```mermaid `` 代码块（block_type 14） | 通过 Lark MCP 转换为画板（block_type 43） |
+| **读取自己写入的内容** | 返回原始 Mermaid 代码 — 无损读写往返 | 返回画板节点图（形状、坐标、连接线）— 无法还原 Mermaid 源码 |
+| **读取云文档原生 Mermaid** | 两个工具都能正常读取飞书文档中原生的 Mermaid 代码块，没有问题 |
+| **人类可读性** | 文档中显示为代码块，不会可视化渲染（飞书支持"文本绘图"块，但 Open API 无法创建） | 立即渲染为可交互的图表 |
+| **适合场景** | AI Agent 工作流 — Mermaid 读写往返无损 | 人工阅读 — 可视化图表，但单向（写入后无法读回源码） |
 
-**为什么这样取舍？** 飞书 Open API 的 Convert 接口将 `` ```mermaid `` 视为普通代码块（block_type 14）。渲染为可视化的"文本绘图"块需要 Lark MCP 协议，该协议是内部服务，不通过公开 API 提供。我们选择保留 Mermaid 源码，确保 AI 无损读写。
+**为什么这样取舍？** 飞书有原生的"文本绘图"块可以渲染 Mermaid，但 Open API 的 Convert 接口不支持创建它 — Mermaid 被当作普通代码块处理。lark-cli 通过 Lark MCP 协议将 Mermaid 转为画板来绕过此限制，视觉效果好但丢失了 Mermaid 源码。我们选择保留代码块，确保 AI Agent 能可靠地读取和修改图表。
 
 ## 限制
 

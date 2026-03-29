@@ -421,16 +421,17 @@ dist/             # Compiled output (git-ignored)
 
 ## Mermaid Diagrams
 
-feishu-docs-cli and lark-cli handle Mermaid differently. Choose based on your primary audience:
+feishu-docs-cli and lark-cli handle Mermaid differently when writing:
 
 | | feishu-docs-cli | lark-cli (official) |
 |---|---|---|
-| **Write** | Stored as `` ```mermaid `` code block | Converted to visual whiteboard (board) via Lark MCP |
-| **Read** | Returns original Mermaid code — AI agents can parse and modify it directly | Returns whiteboard node graph (shapes, coordinates, connectors) — not reversible to Mermaid |
-| **Human readability** | Code block in document — needs manual conversion to "text diagram" block for visual rendering | Renders as interactive flowchart immediately |
-| **Best for** | AI agent workflows — round-trip Mermaid read/write | Human consumption — visual diagrams in documents |
+| **Write** | Stored as `` ```mermaid `` code block (block_type 14) | Converted to whiteboard/board (block_type 43) via Lark MCP |
+| **Read back own output** | Returns original Mermaid code — lossless round-trip | Returns whiteboard node graph (shapes, coordinates, connectors) — cannot recover Mermaid source |
+| **Read native Mermaid** | Both tools can read Mermaid code blocks written natively in Feishu — no issue here |
+| **Human readability** | Code block in document — not visually rendered (Feishu supports "text diagram" blocks but the Open API cannot create them) | Renders as interactive diagram immediately |
+| **Best for** | AI agent workflows — Mermaid survives read/write round-trips | Human consumption — visual diagrams, but one-way (write-only) |
 
-**Why this trade-off?** The Feishu Open API's Convert endpoint treats `` ```mermaid `` as a plain code block (block_type 14). Rendering it as a visual "text diagram" block requires the Lark MCP protocol, which is an internal service not available through the public API. We chose to preserve Mermaid source code for lossless AI round-tripping.
+**Why this trade-off?** Feishu has a native "text diagram" block that renders Mermaid visually, but the Open API's Convert endpoint does not support creating it — Mermaid is treated as a plain code block. lark-cli works around this by converting Mermaid to a whiteboard (board) via the Lark MCP protocol, which produces a visual result but loses the Mermaid source code. We chose to preserve the code block so AI agents can reliably read and modify diagrams.
 
 ## Limitations
 
