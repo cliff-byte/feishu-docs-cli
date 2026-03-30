@@ -5,6 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { enableTimerMock } from "./helpers/timer-mock.js";
 import {
   calculateDelay,
   parseRetryAfter,
@@ -131,7 +132,7 @@ describe("DEFAULT_RETRY", () => {
 
 describe("sleep", () => {
   it("should resolve after specified delay", async (t) => {
-    t.mock.timers.enable(["setTimeout"]);
+    enableTimerMock(t);
     const start = Date.now();
     const p = sleep(100);
     t.mock.timers.tick(100);

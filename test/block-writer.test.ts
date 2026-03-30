@@ -4,6 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { enableTimerMock } from "./helpers/timer-mock.js";
 import {
   mkdtemp,
   writeFile,
@@ -117,7 +118,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
   it("returns current revision immediately when document has no children", async (t) => {
     const auth = makeUserAuthInfo();
 
-    t.mock.timers.enable(["setTimeout"]);
+    enableTimerMock(t);
 
     const { calls, restore } = setupMockFetch({
       responses: [
@@ -147,7 +148,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
     const auth = makeUserAuthInfo();
     const children = Array.from({ length: 75 }, (_, i) => `blk-${i}`);
 
-    t.mock.timers.enable(["setTimeout"]);
+    enableTimerMock(t);
 
     const { calls, restore } = setupMockFetch({
       responses: [
@@ -196,7 +197,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
     const auth = makeUserAuthInfo();
     const children = Array.from({ length: 10 }, (_, i) => `blk-${i}`);
 
-    t.mock.timers.enable(["setTimeout"]);
+    enableTimerMock(t);
 
     const { calls, restore } = setupMockFetch({
       responses: [
@@ -246,7 +247,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
     const auth = makeUserAuthInfo();
     const children = Array.from({ length: 10 }, (_, i) => `blk-${i}`);
 
-    t.mock.timers.enable(["setTimeout"]);
+    enableTimerMock(t);
 
     // Build response sequence: initial getRootChildrenCount + 6 conflict cycles
     const responses: Response[] = [
