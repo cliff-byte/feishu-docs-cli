@@ -131,7 +131,7 @@ describe("DEFAULT_RETRY", () => {
 
 describe("sleep", () => {
   it("should resolve after specified delay", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const start = Date.now();
     const p = sleep(100);
     t.mock.timers.tick(100);

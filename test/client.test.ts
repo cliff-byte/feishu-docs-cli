@@ -487,7 +487,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("retries on 429 and succeeds on second attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { calls, restore: r } = setupMockFetch({
       responses: [
@@ -506,7 +506,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("retries on 502 and succeeds on second attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { calls, restore: r } = setupMockFetch({
       responses: [jsonResponse({}, 502), jsonResponse({ code: 0, data: {} })],
@@ -522,7 +522,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("retries on 503 and succeeds on second attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { calls, restore: r } = setupMockFetch({
       responses: [jsonResponse({}, 503), jsonResponse({ code: 0, data: {} })],
@@ -538,7 +538,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("retries on AbortError and succeeds on second attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     let callCount = 0;
     const originalFetch = globalThis.fetch;
@@ -567,7 +567,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("throws after maxRetries exhausted (3 failures with maxRetries=2)", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { calls, restore: r } = setupMockFetch({
       responses: [
@@ -612,7 +612,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("uses Retry-After header value for 429 delay", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { calls, restore: r } = setupMockFetch({
       responses: [
@@ -656,7 +656,7 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("logs retry info to stderr on each retry attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { restore: r } = setupMockFetch({
       responses: [jsonResponse({}, 502), jsonResponse({ code: 0, data: {} })],
@@ -692,7 +692,7 @@ describe("fetchBinaryWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("retries on 502 and succeeds on second attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     const { calls, restore: r } = setupMockFetch({
       responses: [
@@ -714,7 +714,7 @@ describe("fetchBinaryWithAuth retry", { concurrency: 1 }, () => {
   });
 
   it("retries on AbortError and succeeds on second attempt", async (t) => {
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
     const auth = makeUserAuthInfo();
     let callCount = 0;
     const originalFetch = globalThis.fetch;

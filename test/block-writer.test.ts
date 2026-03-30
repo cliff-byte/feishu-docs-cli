@@ -117,7 +117,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
   it("returns current revision immediately when document has no children", async (t) => {
     const auth = makeUserAuthInfo();
 
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
 
     const { calls, restore } = setupMockFetch({
       responses: [
@@ -147,7 +147,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
     const auth = makeUserAuthInfo();
     const children = Array.from({ length: 75 }, (_, i) => `blk-${i}`);
 
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
 
     const { calls, restore } = setupMockFetch({
       responses: [
@@ -196,7 +196,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
     const auth = makeUserAuthInfo();
     const children = Array.from({ length: 10 }, (_, i) => `blk-${i}`);
 
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
 
     const { calls, restore } = setupMockFetch({
       responses: [
@@ -246,7 +246,7 @@ describe("clearDocument", { concurrency: 1 }, () => {
     const auth = makeUserAuthInfo();
     const children = Array.from({ length: 10 }, (_, i) => `blk-${i}`);
 
-    t.mock.timers.enable({ apis: ["setTimeout"] });
+    t.mock.timers.enable(["setTimeout"]);
 
     // Build response sequence: initial getRootChildrenCount + 6 conflict cycles
     const responses: Response[] = [
