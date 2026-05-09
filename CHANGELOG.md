@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0] - 2026-05-09
+
+### Added
+
+- **Write local markdown images to Feishu docs.** `create` and `update` commands now upload local images referenced in markdown (relative paths and `file://` URIs) to Feishu's media service and embed them in the document. Previously only remote URLs worked.
+- **`whoami` auto-refreshes expired tokens.** Agents that probe auth state via `feishu-docs whoami` no longer mistake "已过期" for "needs re-login" when `refresh_token` is still valid. The command silently refreshes when possible and reports `(已自动刷新)`, `(已过期，自动刷新失败)`, or the legacy `(已过期)` based on outcome. JSON mode adds `expires_at`, `refreshed`, and `refresh_error` fields for programmatic consumers.
+
+### Changed
+
+- **Token refresh logic extracted into a shared `tryRefreshIfExpired` helper.** Both `createClient` (for API calls) and `whoami` (for diagnostics) now go through the same code path, so reported state is consistent with what the next call would actually do.
+
+### Fixed
+
+- **Test suite no longer corrupts the developer's real `~/.feishu-docs/auth.json`.** The `logout` test and three pre-existing `whoami` tests previously read or deleted the live auth file because they did not isolate `HOME`. They now use `mkdtemp()` per test.
+
 ## [1.0.0] - 2026-03-29
 
 First stable release. Quality hardening milestone complete — 456 tests, all core paths verified against live Feishu API.
