@@ -712,3 +712,132 @@ export async function refreshUserToken(
   await saveTokens(appId, { ...tokenData, scope: body.scope });
   return tokenData;
 }
+
+/**
+ * Result of a token-refresh attempt.
+ *
+ * - `refreshed` is true only when a fresh token was obtained.
+ * - `refreshError` is set when refresh was attempted and failed (network, API
+ *   error, lock contention timeout). Caller decides whether to throw or fall
+ *   back. When refresh wasn't attempted (token still valid, no refresh_token,
+ *   or non-user mode), both flags are false/undefined.
+ */
+export interface RefreshResult {
+  authInfo: AuthInfo;
+  refreshed: boolean;
+  refreshError?: string;
+}
+
+/**
+ * Attempt to refresh a user_access_token if it has expired and a refresh_token
+ * is available. Designed to be safe to call from any code path that has an
+ * AuthInfo — including read-only diagnostics like `whoami`.
+ *
+ * Behavior:
+ *   - Non-user mode / no expiresAt / not yet expired → no-op, refreshed=false.
+ *   - Expired but no refresh_token → no-op, refreshed=false (caller decides).
+ *   - Expired with refresh_token → acquires the on-disk lock, calls
+ *     refreshUserToken, persists new tokens, returns updated AuthInfo.
+ *   - Lock contention → reloads the saved token (another process may have
+ *     refreshed); if still expired after `maxLockRetries`, returns refreshError.
+ *   - Refresh API error → returns refreshError; never throws.
+ *
+ * @param authInfo current auth context
+ * @param options.silent suppress stderr "info" messages (default false)
+ * @param options.maxLockRetries lock-contention retries with 2s wait (default 0)
+ */
+export async function tryRefreshIfExpired(
+  authInfo: AuthInfo,
+  options: { silent?: boolean; maxLockRetries?: number } = {},
+): Promise<RefreshResult> {
+  const { silent = false, maxLockRetries = 0 } = options;
+  if (authInfo.mode !== "user" || !authInfo.expiresAt) {
+    return { authInfo, refreshed: false };
+  }
+  if (Date.now() < authInfo.expiresAt) {
+    return { authInfo, refreshed: false };
+  }
+  if (!authInfo.refreshToken) {
+    return { authInfo, refreshed: false };
+  }
+  const { appId, appSecret, useLark, refreshToken } = authInfo;
+  if (!appId || !appSecret) {
+    return {
+      authInfo,
+      refreshed: false,
+      refreshError: "缺少 app_id 或 app_secret，无法刷新 token",
+    };
+  }
+
+  for (let attempt = 0; attempt <= maxLockRetries; attempt++) {
+    const releaseLock = await acquireRefreshLock();
+    if (!releaseLock) {
+      // Another process is refreshing — wait and reload to see if it succeeded.
+      if (attempt < maxLockRetries) {
+        if (!silent) {
+          process.stderr.write(
+            "feishu-docs: info: 另一个进程正在刷新 token，等待中...\n",
+          );
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+        const fresh = await loadTokens();
+        if (
+          fresh?.tokens?.user_access_token &&
+          fresh.tokens.expires_at &&
+          Date.now() < fresh.tokens.expires_at
+        ) {
+          return {
+            authInfo: {
+              ...authInfo,
+              userToken: fresh.tokens.user_access_token,
+              expiresAt: fresh.tokens.expires_at,
+              refreshToken: fresh.tokens.refresh_token,
+            },
+            refreshed: true,
+          };
+        }
+        continue;
+      }
+      return {
+        authInfo,
+        refreshed: false,
+        refreshError:
+          "等待 token 刷新超时。如果问题持续，请手动删除 ~/.feishu-docs/.refresh.lock 后重试",
+      };
+    }
+
+    if (!silent) {
+      process.stderr.write(
+        "feishu-docs: info: token 已过期，正在自动刷新...\n",
+      );
+    }
+    try {
+      const newTokens = await refreshUserToken(appId, appSecret, refreshToken, {
+        useLark: !!useLark,
+      });
+      return {
+        authInfo: {
+          ...authInfo,
+          userToken: newTokens.user_access_token,
+          expiresAt: newTokens.expires_at,
+          refreshToken: newTokens.refresh_token,
+        },
+        refreshed: true,
+      };
+    } catch (err) {
+      return {
+        authInfo,
+        refreshed: false,
+        refreshError: (err as Error).message,
+      };
+    } finally {
+      await releaseLock();
+    }
+  }
+
+  return {
+    authInfo,
+    refreshed: false,
+    refreshError: "等待 token 刷新超时",
+  };
+}

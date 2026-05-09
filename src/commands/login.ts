@@ -2,7 +2,13 @@
  * login / logout / whoami commands.
  */
 
-import { oauthLogin, clearTokens, resolveAuth, loadTokens } from "../auth.js";
+import {
+  oauthLogin,
+  clearTokens,
+  resolveAuth,
+  loadTokens,
+  tryRefreshIfExpired,
+} from "../auth.js";
 import { CliError } from "../utils/errors.js";
 import { BASE_SCOPES } from "../scopes.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
@@ -85,7 +91,12 @@ export async function whoami(
   globalOpts: GlobalOpts,
 ): Promise<void> {
   try {
-    const authInfo = await resolveAuth(globalOpts.auth || "auto");
+    const initial = await resolveAuth(globalOpts.auth || "auto");
+    // Silently attempt refresh so callers (including agents) see the real
+    // usable state. Lock contention is treated as "could not refresh now"
+    // rather than a hard error — the next API call will retry.
+    const refresh = await tryRefreshIfExpired(initial, { silent: true });
+    const authInfo = refresh.authInfo;
 
     if (globalOpts.json) {
       process.stdout.write(
@@ -94,6 +105,9 @@ export async function whoami(
           mode: authInfo.mode,
           app_id: authInfo.appId,
           has_user_token: !!authInfo.userToken,
+          expires_at: authInfo.expiresAt,
+          refreshed: refresh.refreshed,
+          refresh_error: refresh.refreshError,
         }) + "\n",
       );
     } else {
@@ -106,9 +120,15 @@ export async function whoami(
         if (authInfo.expiresAt) {
           const expires = new Date(authInfo.expiresAt).toLocaleString();
           const expired = Date.now() >= authInfo.expiresAt;
-          process.stdout.write(
-            `过期时间: ${expires}${expired ? " (已过期)" : ""}\n`,
-          );
+          let suffix = "";
+          if (refresh.refreshed) {
+            suffix = " (已自动刷新)";
+          } else if (expired && refresh.refreshError) {
+            suffix = " (已过期，自动刷新失败 — 请运行 feishu-docs login)";
+          } else if (expired) {
+            suffix = " (已过期)";
+          }
+          process.stdout.write(`过期时间: ${expires}${suffix}\n`);
         }
       }
     }
