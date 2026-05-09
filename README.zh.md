@@ -423,7 +423,8 @@ feishu-docs-cli 和 lark-cli 在写入 Mermaid 时的处理方式不同：
 - **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
 - Markdown 转换有损（颜色、合并单元格、布局会丢失）。使用 `--blocks` 获取无损 JSON。
-- 图片读取时自动下载到本地（`~/.feishu-docs/images/`，30 天缓存）。不支持图片写入。
+- 图片读取时自动下载到本地（`~/.feishu-docs/images/`，30 天缓存）。
+- 支持写入独立成段的本地 Markdown 图片，例如 `![截图](./images/demo.png)`。当前不支持行内图片、列表/表格中的本地图片，且图片路径必须位于 Markdown 文件所在目录及其子目录内。
 
 ## 许可证
 

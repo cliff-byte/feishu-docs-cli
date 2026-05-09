@@ -8,7 +8,7 @@
 
 import { readFile, mkdir, writeFile, readdir, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join, resolve, normalize } from "node:path";
+import { dirname, join, resolve, normalize } from "node:path";
 import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { fetchWithAuth } from "../client.js";
@@ -27,13 +27,27 @@ export const QPS_DELAY: number = 200;
 /**
  * Read body content from file path or stdin ("-").
  */
-export async function readBody(bodyArg: string): Promise<string> {
+export interface BodyInput {
+  content: string;
+  fromStdin: boolean;
+  sourcePath?: string;
+  sourceDir?: string;
+}
+
+/**
+ * Read body content from file path or stdin ("-"), preserving source context
+ * so relative local asset paths can be resolved later.
+ */
+export async function readBodyInput(bodyArg: string): Promise<BodyInput> {
   if (bodyArg === "-") {
     const chunks: Buffer[] = [];
     for await (const chunk of process.stdin) {
       chunks.push(chunk);
     }
-    return Buffer.concat(chunks).toString("utf8");
+    return {
+      content: Buffer.concat(chunks).toString("utf8"),
+      fromStdin: true,
+    };
   }
 
   const resolvedPath = resolve(normalize(bodyArg));
@@ -41,7 +55,20 @@ export async function readBody(bodyArg: string): Promise<string> {
     throw new CliError("FILE_NOT_FOUND", `文件不存在: ${resolvedPath}`);
   }
 
-  return readFile(resolvedPath, "utf8");
+  return {
+    content: await readFile(resolvedPath, "utf8"),
+    fromStdin: false,
+    sourcePath: resolvedPath,
+    sourceDir: dirname(resolvedPath),
+  };
+}
+
+/**
+ * Read body content from file path or stdin ("-").
+ */
+export async function readBody(bodyArg: string): Promise<string> {
+  const input = await readBodyInput(bodyArg);
+  return input.content;
 }
 
 // --- Document info helpers ---

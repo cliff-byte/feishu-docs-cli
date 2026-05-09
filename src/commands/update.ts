@@ -11,14 +11,14 @@ import { resolve, normalize, sep } from "node:path";
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import {
-  convertAndWrite,
+  convertAndWriteWithLocalImages,
   extractMarkdownTitle,
   sanitizeBlocks,
   writeDescendant,
 } from "../services/markdown-convert.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import {
-  readBody,
+  readBodyInput,
   getDocumentInfo,
   clearDocument,
   backupDocument,
@@ -81,19 +81,20 @@ export async function update(
     );
   }
 
-  const bodyContent = await readBody(args.body as string);
+  const bodyInput = await readBodyInput(args.body as string);
+  const bodyContent = bodyInput.content;
   if (!bodyContent.trim()) {
     throw new CliError("INVALID_ARGS", "文档内容为空，至少需要一行内容");
   }
 
   if (args.append) {
-    return appendToDocument(authInfo, documentId, bodyContent, globalOpts);
+    return appendToDocument(authInfo, documentId, bodyInput, globalOpts);
   }
 
   return overwriteDocument(
     authInfo,
     documentId,
-    bodyContent,
+    bodyInput,
     globalOpts,
     doc.spaceId,
     doc.nodeToken,
@@ -103,16 +104,20 @@ export async function update(
 async function appendToDocument(
   authInfo: AuthInfo,
   documentId: string,
-  bodyContent: string,
+  bodyInput: { content: string; sourcePath?: string; sourceDir?: string },
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const docInfo = await getDocumentInfo(authInfo, documentId);
 
-  await convertAndWrite(
+  await convertAndWriteWithLocalImages(
     authInfo,
     documentId,
-    bodyContent,
+    bodyInput.content,
     docInfo.revisionId,
+    {
+      sourcePath: bodyInput.sourcePath,
+      sourceDir: bodyInput.sourceDir,
+    },
     -1,
   );
 
@@ -132,14 +137,14 @@ async function appendToDocument(
 async function overwriteDocument(
   authInfo: AuthInfo,
   documentId: string,
-  bodyContent: string,
+  bodyInput: { content: string; sourcePath?: string; sourceDir?: string },
   globalOpts: GlobalOpts,
   spaceId?: string,
   nodeToken?: string,
 ): Promise<void> {
   // Extract first H1 heading as document title, strip from body
   const { title: extractedTitle, body: strippedBody } =
-    extractMarkdownTitle(bodyContent);
+    extractMarkdownTitle(bodyInput.content);
   const contentToWrite = strippedBody.trim() || undefined;
 
   let backupPath: string;
@@ -168,7 +173,16 @@ async function overwriteDocument(
   try {
     // Write body content first (if any), then update title
     if (contentToWrite) {
-      rev = await convertAndWrite(authInfo, documentId, contentToWrite, rev);
+      rev = await convertAndWriteWithLocalImages(
+        authInfo,
+        documentId,
+        contentToWrite,
+        rev,
+        {
+          sourcePath: bodyInput.sourcePath,
+          sourceDir: bodyInput.sourceDir,
+        },
+      );
     }
   } catch (err) {
     process.stderr.write(

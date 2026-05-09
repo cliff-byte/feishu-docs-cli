@@ -11,7 +11,7 @@
 
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -226,6 +226,196 @@ describe("create command", { concurrency: 1 }, () => {
         const result = cap.stdoutJson() as Record<string, unknown>;
         assert.equal(result.success, true);
         assert.equal(result.document_id, "newdoc2");
+      },
+    );
+  });
+
+  it("create doc uploads local markdown images before write", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-create-"));
+    const imagesDir = join(testDir, "images");
+    const bodyFile = join(testDir, "content-with-image.md");
+    const imageFile = join(imagesDir, "demo.png");
+    await mkdir(imagesDir, { recursive: true });
+    await writeFile(imageFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    await writeFile(
+      bodyFile,
+      "Intro paragraph\n\n![Demo](./images/demo.png)\n",
+    );
+
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        let callsRef: ReadonlyArray<{
+          url: string;
+          init?: RequestInit;
+        }> = [];
+        const mock = setupMockFetch({
+          responses: [
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document: {
+                  document_id: "newdoc-img",
+                  title: "Body Doc",
+                },
+              },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document: {
+                  document_id: "newdoc-img",
+                  revision_id: 1,
+                  title: "Body Doc",
+                },
+              },
+            }),
+            tenantTokenResponse(),
+            () => {
+              const convertCall = callsRef[callsRef.length - 1];
+              const body = JSON.parse(convertCall.init?.body as string) as {
+                content: string;
+              };
+              const placeholder = body.content
+                .split("\n")
+                .find((line) => line.startsWith("FEISHU_DOCS_IMAGE_"));
+              assert.ok(placeholder);
+              return jsonResponse({
+                code: 0,
+                data: {
+                  blocks: [
+                    {
+                      block_id: "cvt1",
+                      block_type: 2,
+                      children: [],
+                      text: {
+                        elements: [
+                          { text_run: { content: "Intro paragraph" } },
+                        ],
+                      },
+                    },
+                    {
+                      block_id: "cvt2",
+                      block_type: 2,
+                      children: [],
+                      text: {
+                        elements: [{ text_run: { content: placeholder } }],
+                      },
+                    },
+                  ],
+                  first_level_block_ids: ["cvt1", "cvt2"],
+                  block_id_to_image_urls: {},
+                },
+              });
+            },
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document_revision_id: 2,
+                block_id_relations: [
+                  {
+                    temporary_block_id: "cvt1",
+                    block_id: "real-text-1",
+                  },
+                  {
+                    temporary_block_id: "cvt2",
+                    block_id: "real-image-1",
+                  },
+                ],
+              },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                file_token: "file-token-1",
+              },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document_revision_id: 3,
+              },
+            }),
+          ],
+        });
+        mockRestore = mock.restore;
+        callsRef = mock.calls;
+
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await create(
+          { positionals: ["Body Doc"], body: bodyFile },
+          makeGlobalOpts({ json: true }),
+        );
+
+        const uploadCall = callsRef.find((call) =>
+          call.url.includes("/open-apis/drive/v1/medias/upload_all"),
+        );
+        assert.ok(uploadCall);
+        assert.ok(uploadCall.init?.body instanceof FormData);
+        const uploadForm = uploadCall.init?.body as FormData;
+        assert.equal(uploadForm.get("parent_type"), "docx_image");
+        assert.equal(uploadForm.get("parent_node"), "real-image-1");
+        assert.equal(uploadForm.get("file_name"), "demo.png");
+
+        const descendantCall = callsRef.find((call) =>
+          call.url.includes("/descendant"),
+        );
+        assert.ok(descendantCall);
+        const descendantBody = JSON.parse(
+          descendantCall.init?.body as string,
+        ) as {
+          descendants: Array<{
+            block_type: number;
+            image?: { token: string };
+          }>;
+        };
+        assert.equal(
+          descendantBody.descendants.some(
+            (block) => block.block_type === 27,
+          ),
+          true,
+        );
+        assert.equal(
+          descendantBody.descendants.some(
+            (block) => block.block_type === 27 && block.image?.token,
+          ),
+          false,
+        );
+
+        const batchUpdateCall = callsRef.find((call) =>
+          call.url.includes("/blocks/batch_update"),
+        );
+        assert.ok(batchUpdateCall);
+        const batchUpdateBody = JSON.parse(
+          batchUpdateCall.init?.body as string,
+        ) as {
+          requests: Array<{
+            block_id: string;
+            replace_image: { token: string };
+          }>;
+        };
+        assert.deepEqual(batchUpdateBody.requests, [
+          {
+            block_id: "real-image-1",
+            replace_image: { token: "file-token-1" },
+          },
+        ]);
+
+        const result = cap.stdoutJson() as Record<string, unknown>;
+        assert.equal(result.success, true);
+        assert.equal(result.document_id, "newdoc-img");
       },
     );
   });

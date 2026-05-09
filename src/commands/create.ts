@@ -5,10 +5,10 @@
 import { createClient, fetchWithAuth } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import {
-  convertAndWrite,
+  convertAndWriteWithLocalImages,
   extractMarkdownTitle,
 } from "../services/markdown-convert.js";
-import { readBody, getDocumentInfo } from "../services/block-writer.js";
+import { readBodyInput, getDocumentInfo } from "../services/block-writer.js";
 import { validateToken } from "../utils/validate.js";
 import {
   CommandMeta,
@@ -37,11 +37,16 @@ export async function create(
   const { authInfo } = await createClient(globalOpts);
 
   let bodyContent: string | undefined;
+  let bodySourcePath: string | undefined;
+  let bodySourceDir: string | undefined;
   if (args.body) {
-    const rawBody = await readBody(args.body as string);
+    const bodyInput = await readBodyInput(args.body as string);
+    const rawBody = bodyInput.content;
     if (!rawBody.trim()) {
       throw new CliError("INVALID_ARGS", "文档内容为空，至少需要一行内容");
     }
+    bodySourcePath = bodyInput.sourcePath;
+    bodySourceDir = bodyInput.sourceDir;
     // Only extract H1 when no title argument — avoid stripping content headings
     if (!title) {
       const { title: extractedTitle, body: strippedBody } =
@@ -73,6 +78,8 @@ export async function create(
       args.wiki as string,
       args.parent as string | undefined,
       bodyContent,
+      bodySourcePath,
+      bodySourceDir,
       globalOpts,
     );
   }
@@ -86,6 +93,8 @@ export async function create(
     title,
     args.folder as string | undefined,
     bodyContent,
+    bodySourcePath,
+    bodySourceDir,
     globalOpts,
   );
 }
@@ -96,6 +105,8 @@ async function createInWiki(
   spaceId: string,
   parentNodeToken: string | undefined,
   bodyContent: string | undefined,
+  bodySourcePath: string | undefined,
+  bodySourceDir: string | undefined,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const nodeRes = await fetchWithAuth(
@@ -123,7 +134,16 @@ async function createInWiki(
 
   if (bodyContent) {
     const docInfo = await getDocumentInfo(authInfo, objToken);
-    await convertAndWrite(authInfo, objToken, bodyContent, docInfo.revisionId);
+    await convertAndWriteWithLocalImages(
+      authInfo,
+      objToken,
+      bodyContent,
+      docInfo.revisionId,
+      {
+        sourcePath: bodySourcePath,
+        sourceDir: bodySourceDir,
+      },
+    );
   }
 
   const domain = globalOpts.lark ? "larksuite.com" : "feishu.cn";
@@ -159,6 +179,8 @@ async function createDoc(
   title: string,
   folderToken: string | undefined,
   bodyContent: string | undefined,
+  bodySourcePath: string | undefined,
+  bodySourceDir: string | undefined,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const body = {
@@ -181,11 +203,15 @@ async function createDoc(
 
   if (bodyContent) {
     const docInfo = await getDocumentInfo(authInfo, documentId);
-    await convertAndWrite(
+    await convertAndWriteWithLocalImages(
       authInfo,
       documentId,
       bodyContent,
       docInfo.revisionId,
+      {
+        sourcePath: bodySourcePath,
+        sourceDir: bodySourceDir,
+      },
     );
   }
 

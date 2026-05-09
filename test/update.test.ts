@@ -236,6 +236,154 @@ describe("update command", { concurrency: 1 }, () => {
     );
   });
 
+  it("update --append uploads local markdown images", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-update-"));
+    const imagesDir = join(testDir, "images");
+    const bodyFile = join(testDir, "append-image.md");
+    const imageFile = join(imagesDir, "demo.png");
+    await mkdir(imagesDir, { recursive: true });
+    await writeFile(imageFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    await writeFile(bodyFile, "![Demo](./images/demo.png)\n");
+
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        let callsRef: ReadonlyArray<{
+          url: string;
+          init?: RequestInit;
+        }> = [];
+        const mock = setupMockFetch({
+          responses: [
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document: {
+                  document_id: "abc123def456789012",
+                  revision_id: 3,
+                  title: "Existing",
+                },
+              },
+            }),
+            tenantTokenResponse(),
+            () => {
+              const convertCall = callsRef[callsRef.length - 1];
+              const body = JSON.parse(convertCall.init?.body as string) as {
+                content: string;
+              };
+              const placeholder = body.content
+                .split("\n")
+                .find((line) => line.startsWith("FEISHU_DOCS_IMAGE_"));
+              assert.ok(placeholder);
+              return jsonResponse({
+                code: 0,
+                data: {
+                  blocks: [
+                    {
+                      block_id: "cvt1",
+                      block_type: 2,
+                      children: [],
+                      text: {
+                        elements: [{ text_run: { content: placeholder } }],
+                      },
+                    },
+                  ],
+                  first_level_block_ids: ["cvt1"],
+                  block_id_to_image_urls: {},
+                },
+              });
+            },
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document_revision_id: 4,
+                block_id_relations: [
+                  {
+                    temporary_block_id: "cvt1",
+                    block_id: "real-image-append",
+                  },
+                ],
+              },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                file_token: "file-token-append",
+              },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: { document_revision_id: 5 },
+            }),
+          ],
+        });
+        mockRestore = mock.restore;
+        callsRef = mock.calls;
+
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await update(
+          {
+            positionals: ["https://example.feishu.cn/docx/abc123def456789012"],
+            body: bodyFile,
+            append: true,
+          },
+          makeGlobalOpts({ json: true }),
+        );
+
+        const descendantCall = callsRef.find((call) =>
+          call.url.includes("/descendant"),
+        );
+        assert.ok(descendantCall);
+        const descendantBody = JSON.parse(
+          descendantCall.init?.body as string,
+        ) as {
+          descendants: Array<{
+            block_type: number;
+            image?: { token: string };
+          }>;
+        };
+        assert.equal(descendantBody.descendants[0].block_type, 27);
+        assert.equal(descendantBody.descendants[0].image?.token, undefined);
+
+        const uploadCall = callsRef.find((call) =>
+          call.url.includes("/open-apis/drive/v1/medias/upload_all"),
+        );
+        assert.ok(uploadCall);
+        const uploadForm = uploadCall.init?.body as FormData;
+        assert.equal(uploadForm.get("parent_node"), "real-image-append");
+
+        const batchUpdateCall = callsRef.find((call) =>
+          call.url.includes("/blocks/batch_update"),
+        );
+        assert.ok(batchUpdateCall);
+        const batchUpdateBody = JSON.parse(
+          batchUpdateCall.init?.body as string,
+        ) as {
+          requests: Array<{
+            block_id: string;
+            replace_image: { token: string };
+          }>;
+        };
+        assert.deepEqual(batchUpdateBody.requests, [
+          {
+            block_id: "real-image-append",
+            replace_image: { token: "file-token-append" },
+          },
+        ]);
+      },
+    );
+  });
+
   it("update --overwrite mode --json succeeds with backup+clear+write", async () => {
     testDir = await mkdtemp(join(tmpdir(), "feishu-update-"));
     const bodyFile = join(testDir, "overwrite.md");

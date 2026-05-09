@@ -15,11 +15,27 @@
  */
 
 import { fetchWithAuth } from "../client.js";
+import { BlockType } from "../parser/block-types.js";
+import {
+  replaceDocumentImages,
+  uploadDocumentImage,
+} from "./doc-media-upload.js";
+import {
+  LocalMarkdownImage,
+  prepareMarkdownLocalImages,
+} from "./markdown-local-images.js";
 import { CliError } from "../utils/errors.js";
-import { AuthInfo, ConvertedBlocks, Block } from "../types/index.js";
+import { sleep } from "../utils/retry.js";
+import {
+  AuthInfo,
+  ConvertedBlocks,
+  Block,
+  BlockIdRelation,
+} from "../types/index.js";
 
 /** Maximum blocks the Descendant API accepts per call. */
 const MAX_BLOCKS_PER_CALL = 1000;
+const MEDIA_UPLOAD_DELAY_MS = 250;
 
 /**
  * Language aliases that Feishu Convert API does not recognize.
@@ -179,6 +195,87 @@ export function sanitizeBlocks(blocks: Block[]): Block[] {
   });
 }
 
+function readBlockPlainText(block: Block): string | null {
+  const elements = block.text?.elements;
+  if (!elements || elements.length === 0) return null;
+
+  let text = "";
+  for (const element of elements) {
+    if (!element.text_run?.content) return null;
+    text += element.text_run.content;
+  }
+  return text;
+}
+
+interface LocalImageBlock {
+  blockId: string;
+  alt: string;
+  originalPath: string;
+  resolvedPath: string;
+  lineNumber: number;
+}
+
+function replacePlaceholderBlocksWithImageShells(
+  converted: ConvertedBlocks,
+  images: LocalMarkdownImage[],
+): {
+  converted: ConvertedBlocks;
+  imageBlocks: LocalImageBlock[];
+} {
+  if (images.length === 0) {
+    return { converted, imageBlocks: [] };
+  }
+
+  const placeholders = new Map(images.map((image) => [image.placeholder, image]));
+  let replacedCount = 0;
+  const matchedPlaceholders = new Set<string>();
+  const imageBlocks: LocalImageBlock[] = [];
+
+  const blocks = converted.blocks.map((block) => {
+    const placeholder = readBlockPlainText(block);
+    const image = placeholder ? placeholders.get(placeholder) : undefined;
+    if (!image) return block;
+
+    replacedCount++;
+    matchedPlaceholders.add(image.placeholder);
+    imageBlocks.push({
+      blockId: block.block_id,
+      alt: image.alt,
+      originalPath: image.originalPath,
+      resolvedPath: image.resolvedPath,
+      lineNumber: image.lineNumber,
+    });
+    return {
+      block_id: block.block_id,
+      block_type: BlockType.IMAGE,
+      ...(block.parent_id && { parent_id: block.parent_id }),
+      children: [],
+      image: {},
+    };
+  });
+
+  if (replacedCount !== images.length) {
+    const missing = images
+      .filter((image) => !matchedPlaceholders.has(image.placeholder))
+      .map((image) => `${image.originalPath} (line ${image.lineNumber})`);
+    throw new CliError(
+      "API_ERROR",
+      `本地图片占位替换失败: ${missing.join(", ")}`,
+      {
+        recovery: "请确保本地图片单独占一行，格式为 ![alt](./path/image.png)",
+      },
+    );
+  }
+
+  return {
+    converted: {
+      ...converted,
+      blocks,
+    },
+    imageBlocks,
+  };
+}
+
 /**
  * Collect all descendant block IDs reachable from a set of top-level IDs.
  * Traverses the children tree in the block array.
@@ -291,14 +388,17 @@ export function splitIntoBatches(
  * @param {number} index - Insert position (0 = beginning, -1 = append to end)
  * @returns {number} Updated revision ID
  */
-export async function writeDescendant(
+async function writeDescendantDetailed(
   authInfo: AuthInfo,
   documentId: string,
   parentBlockId: string,
   converted: ConvertedBlocks,
   revisionId: number,
   index: number = 0,
-): Promise<number> {
+): Promise<{
+  revisionId: number;
+  blockIdRelations: BlockIdRelation[];
+}> {
   const batches = splitIntoBatches(converted);
 
   if (batches.length > 1) {
@@ -308,6 +408,7 @@ export async function writeDescendant(
   }
 
   let rev = revisionId;
+  const allRelations: BlockIdRelation[] = [];
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
     // First batch uses caller-specified index; subsequent batches append
@@ -329,12 +430,37 @@ export async function writeDescendant(
       },
     );
 
-    rev =
-      ((res?.data as Record<string, unknown>)
-        ?.document_revision_id as number) ?? rev;
+    const data = (res?.data as Record<string, unknown>) || {};
+    rev = (data.document_revision_id as number) ?? rev;
+    const relations = data.block_id_relations as BlockIdRelation[] | undefined;
+    if (Array.isArray(relations)) {
+      allRelations.push(...relations);
+    }
   }
 
-  return rev;
+  return {
+    revisionId: rev,
+    blockIdRelations: allRelations,
+  };
+}
+
+export async function writeDescendant(
+  authInfo: AuthInfo,
+  documentId: string,
+  parentBlockId: string,
+  converted: ConvertedBlocks,
+  revisionId: number,
+  index: number = 0,
+): Promise<number> {
+  const result = await writeDescendantDetailed(
+    authInfo,
+    documentId,
+    parentBlockId,
+    converted,
+    revisionId,
+    index,
+  );
+  return result.revisionId;
 }
 
 /**
@@ -362,5 +488,72 @@ export async function convertAndWrite(
     converted,
     revisionId,
     index,
+  );
+}
+
+export async function convertAndWriteWithLocalImages(
+  authInfo: AuthInfo,
+  documentId: string,
+  markdown: string,
+  revisionId: number,
+  options: {
+    sourceDir?: string;
+    sourcePath?: string;
+  } = {},
+  index: number = 0,
+): Promise<number> {
+  const prepared = await prepareMarkdownLocalImages(markdown, options);
+  const converted = await convertMarkdown(authInfo, prepared.markdown);
+  const withImages = replacePlaceholderBlocksWithImageShells(
+    converted,
+    prepared.images,
+  );
+  const writeResult = await writeDescendantDetailed(
+    authInfo,
+    documentId,
+    documentId,
+    withImages.converted,
+    revisionId,
+    index,
+  );
+
+  if (withImages.imageBlocks.length === 0) {
+    return writeResult.revisionId;
+  }
+
+  const relationMap = new Map(
+    writeResult.blockIdRelations.map((relation) => [
+      relation.temporary_block_id,
+      relation.block_id,
+    ]),
+  );
+  const uploads: Array<{ blockId: string; fileToken: string }> = [];
+  for (const image of withImages.imageBlocks) {
+    const actualBlockId = relationMap.get(image.blockId);
+    if (!actualBlockId) {
+      throw new CliError(
+        "API_ERROR",
+        `未找到图片块 ID 映射: ${image.originalPath}`,
+      );
+    }
+    const fileToken = await uploadDocumentImage(
+      authInfo,
+      actualBlockId,
+      image.resolvedPath,
+    );
+    uploads.push({
+      blockId: actualBlockId,
+      fileToken,
+    });
+    if (uploads.length < withImages.imageBlocks.length) {
+      await sleep(MEDIA_UPLOAD_DELAY_MS);
+    }
+  }
+
+  return replaceDocumentImages(
+    authInfo,
+    documentId,
+    uploads,
+    writeResult.revisionId,
   );
 }

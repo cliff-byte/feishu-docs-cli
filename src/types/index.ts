@@ -194,7 +194,7 @@ export interface Block {
   };
   divider?: Record<string, never>;
   image?: {
-    token: string;
+    token?: string;
     width?: number;
     height?: number;
     align?: number;
@@ -272,4 +272,9 @@ export interface ConvertedBlocks {
   blocks: Block[];
   firstLevelBlockIds: string[];
   blockIdToImageUrls: Record<string, string>;
+}
+
+export interface BlockIdRelation {
+  temporary_block_id: string;
+  block_id: string;
 }
