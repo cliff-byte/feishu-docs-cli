@@ -441,7 +441,8 @@ feishu-docs-cli and lark-cli handle Mermaid differently when writing:
 - **Link only**: mindnote
 - **Not supported**: doc (legacy format)
 - Markdown conversion is lossy (colors, merged cells, layouts are dropped). Use `--blocks` for lossless JSON.
-- Image read downloads to local files (`~/.feishu-docs/images/`) with 30-day cache. Image write is not supported.
+- Image read downloads to local files (`~/.feishu-docs/images/`) with 30-day cache.
+- Local markdown images are uploaded on write when they appear as standalone block-level images, e.g. `![screenshot](./images/demo.png)`. Inline images, images inside lists/tables, and image paths outside the markdown file's directory tree are not supported.
 
 ## License
 
