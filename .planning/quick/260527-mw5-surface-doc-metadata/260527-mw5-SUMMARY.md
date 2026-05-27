@@ -66,6 +66,27 @@ Implemented after Phase 1 was verified live and the user opted in.
   degrades gracefully — `info` warns with the exact `authorize --scope` command and still returns
   base fields. Happy path will populate owner/times once the scope is authorized.
 
+## PHASE 3 — shipped (creator/owner → display names, augment)
+Implemented after the user chose "augment (keep id + add name)".
+
+- `info` / `read --with-meta`: resolve creator+owner open-ids via existing
+  `resolveUserNames` (`contact/v3/users/batch`, scope `contact:user.base:readonly`),
+  best-effort. **Augment, never replace:** JSON adds `creator_name`/`owner_name` and keeps
+  `creator`/`owner` ids; `info` human shows `名字 (ou_…)`; read front-matter adds `*_name` lines.
+- `tree --names` (opt-in): one batched contact lookup over all distinct ids, attached via an
+  immutable second pass; off by default so plain `tree` stays fast and scope-free.
+- Commit **a0dc7d9**. Tests assert names appear (mocked contact) and that keys are absent
+  without resolution / `--names`.
+
+### Live finding (important)
+Against the real account the contact API returns **code 0 with an empty `user_list` for every
+open_id, including the current user** (`杨明福`) — while the `authen` endpoint *does* return that
+name. So resolution is correctly wired but the **app has no contact visibility**: the Feishu
+console needs 通讯录 permission + a 可用范围 (visibility range) covering the relevant users.
+Until then names degrade to bare ids (graceful). Optional follow-up: add a self-only fallback
+via `authen/v1/user_info` so at least the current user resolves even without contact visibility.
+
 ## Still open (not in this task)
-- Resolve `creator`/`owner` open-ids (`ou_…`) to display names (contact API + scope).
+- App-side: grant contact permission + visibility range so P3 names actually resolve.
+- Optional: self-only name fallback via authen endpoint (would touch shared `resolveUserNames`).
 - `cp`/`ls`/`mkdir`/`share` test HOME-isolation (logged in STATE.md).

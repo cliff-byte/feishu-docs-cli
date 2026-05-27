@@ -102,13 +102,14 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1]: c8 + tsx 覆盖率管道需实测验证，若不可靠需回退到 tsc 编译方案
+- [Quick 260527-mw5 / P3]: creator/owner name resolution is wired (contact/v3/users/batch) but live the contact API returns code 0 + EMPTY user_list for every open_id incl. the current user — the app lacks contact permission/visibility range (可用范围) in the Feishu console. Names degrade to bare ids until an admin configures 通讯录权限 + 可用范围. The authen endpoint does return the current user's name, so a self-only fallback is possible if desired.
 - [Quick 260527-mw5]: cp/ls/mkdir/share tests are not HOME-isolated — they fail locally when a real ~/.feishu-docs/auth.json exists (auth flips to user mode, desyncing tenant-mode fetch mocks). They pass in CI. Pre-existing; fixed only info.test.ts here. Candidate follow-up: apply the same temp-HOME sandbox to those files.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260527-mw5 | Surface document metadata in info/tree/read --with-meta — wiki nodes (P1) + standalone docx via Drive meta (P2) | 2026-05-27 | ee5dff3 | [260527-mw5-surface-doc-metadata](./quick/260527-mw5-surface-doc-metadata/) |
+| 260527-mw5 | Surface document metadata in info/tree/read --with-meta — wiki (P1) + standalone docx Drive meta (P2) + creator/owner name resolution (P3) | 2026-05-27 | a0dc7d9 | [260527-mw5-surface-doc-metadata](./quick/260527-mw5-surface-doc-metadata/) |
 
 ## Session Continuity
 
