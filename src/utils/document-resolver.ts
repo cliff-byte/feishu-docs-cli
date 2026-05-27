@@ -15,6 +15,13 @@ export interface ResolvedDocument {
   spaceId: string | undefined;
   hasChild: boolean;
   parsed: ParsedDoc;
+  /** Wiki-only metadata (present when resolved via a wiki node). */
+  objCreateTime?: string;
+  objEditTime?: string;
+  nodeCreateTime?: string;
+  creator?: string;
+  owner?: string;
+  nodeCreator?: string;
 }
 
 /**
@@ -39,6 +46,15 @@ export async function resolveDocument(
   let nodeToken: string | undefined;
   let spaceId: string | undefined;
   let hasChild = false;
+  let meta: Pick<
+    ResolvedDocument,
+    | "objCreateTime"
+    | "objEditTime"
+    | "nodeCreateTime"
+    | "creator"
+    | "owner"
+    | "nodeCreator"
+  > = {};
 
   if (parsed.type === "wiki" || parsed.type === "unknown") {
     try {
@@ -49,6 +65,14 @@ export async function resolveDocument(
       nodeToken = wiki.nodeToken;
       spaceId = wiki.spaceId;
       hasChild = wiki.hasChild;
+      meta = {
+        objCreateTime: wiki.objCreateTime,
+        objEditTime: wiki.objEditTime,
+        nodeCreateTime: wiki.nodeCreateTime,
+        creator: wiki.creator,
+        owner: wiki.owner,
+        nodeCreator: wiki.nodeCreator,
+      };
     } catch (err) {
       if (parsed.type === "unknown" && allowFallback) {
         objType = "docx";
@@ -58,5 +82,14 @@ export async function resolveDocument(
     }
   }
 
-  return { objToken, objType, title, nodeToken, spaceId, hasChild, parsed };
+  return {
+    objToken,
+    objType,
+    title,
+    nodeToken,
+    spaceId,
+    hasChild,
+    parsed,
+    ...meta,
+  };
 }

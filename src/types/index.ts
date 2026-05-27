@@ -264,6 +264,18 @@ export interface WikiNode {
   node_type?: string;
   origin_node_token?: string;
   origin_space_id?: string;
+  /** Document creation time (seconds since epoch, as string). */
+  obj_create_time?: string;
+  /** Document last-edit time (seconds since epoch, as string). */
+  obj_edit_time?: string;
+  /** Wiki node creation time (seconds since epoch, as string). */
+  node_create_time?: string;
+  /** Document creator user id. */
+  creator?: string;
+  /** Wiki node owner user id. */
+  owner?: string;
+  /** Wiki node creator user id. */
+  node_creator?: string;
 }
 
 // ── Convert API types ──

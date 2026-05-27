@@ -38,5 +38,11 @@ export interface WikiGetNodeResponse {
     node_type?: string;
     origin_node_token?: string;
     origin_space_id?: string;
+    obj_create_time?: string;
+    obj_edit_time?: string;
+    node_create_time?: string;
+    creator?: string;
+    owner?: string;
+    node_creator?: string;
   };
 }
