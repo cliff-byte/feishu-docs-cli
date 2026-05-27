@@ -120,7 +120,8 @@ describe("info command", { concurrency: 1 }, () => {
       testEnv(),
       async () => {
         // resolveDocument for docx type: no API call (parseDocUrl returns type "docx")
-        // getDocumentInfo: fetchWithAuth (2 responses)
+        // getDocumentInfo: fetchWithAuth (2 responses). The standalone-docx Drive
+        // meta lookup is an extra call; strictCount:false lets it resolve empty.
         const { restore } = setupMockFetch({
           responses: [
             // getDocumentInfo: getTenantToken + GET document info
@@ -136,6 +137,7 @@ describe("info command", { concurrency: 1 }, () => {
               },
             }),
           ],
+          strictCount: false,
         });
         mockRestore = restore;
 
@@ -310,10 +312,57 @@ describe("info command", { concurrency: 1 }, () => {
     );
   });
 
+  it("info --json for standalone docx surfaces Drive metadata", async () => {
+    await withCleanEnv(testEnv(), async () => {
+      // resolveDocument(docx): no fetch. getDocumentInfo: tenant + document.
+      // getDriveMeta: tenant + drive batch_query.
+      const { restore } = setupMockFetch({
+        responses: [
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              document: { document_id: "abc123", revision_id: 5, title: "Plain" },
+            },
+          }),
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              metas: [
+                {
+                  doc_token: "abc123",
+                  doc_type: "docx",
+                  owner_id: "ou_owner",
+                  create_time: "1700000000",
+                  latest_modify_time: "1700009999",
+                },
+              ],
+            },
+          }),
+        ],
+      });
+      mockRestore = restore;
+
+      output = captureOutput();
+      await info(
+        { positionals: ["https://example.feishu.cn/docx/abc123"] },
+        makeGlobalOpts({ json: true }),
+      );
+
+      const json = output.stdoutJson() as Record<string, unknown>;
+      assert.equal(json.owner, "ou_owner");
+      assert.equal(json.obj_create_time, "1700000000");
+      assert.equal(json.obj_edit_time, "1700009999");
+    });
+  });
+
   it("info --json for docx URL omits wiki metadata keys", async () => {
     await withCleanEnv(
       testEnv(),
       async () => {
+        // Drive meta call returns no metas → no metadata keys. strictCount:false
+        // lets the extra batch_query fetch resolve to the default empty response.
         const { restore } = setupMockFetch({
           responses: [
             tenantTokenResponse(),
@@ -324,6 +373,7 @@ describe("info command", { concurrency: 1 }, () => {
               },
             }),
           ],
+          strictCount: false,
         });
         mockRestore = restore;
 
@@ -396,6 +446,7 @@ describe("info command", { concurrency: 1 }, () => {
               },
             }),
           ],
+          strictCount: false,
         });
         mockRestore = restore;
 

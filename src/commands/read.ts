@@ -9,6 +9,8 @@ import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { enrichBlocks } from "../services/doc-enrichment.js";
+import { getDriveMeta, DRIVE_META_SCOPE } from "../services/drive-meta.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { formatEpochSeconds } from "../utils/format-time.js";
 import type {
   CommandMeta,
@@ -131,16 +133,36 @@ export async function read(
     } catch {
       // ignore metadata fetch errors
     }
+
+    // Wiki docs carry node metadata; standalone docx needs a Drive meta lookup.
+    let creator = doc.creator;
+    let owner = doc.owner;
+    let createTime = doc.objCreateTime;
+    let editTime = doc.objEditTime;
+    if (!doc.spaceId) {
+      try {
+        const dm = await withScopeRecovery(
+          () => getDriveMeta(authInfo, documentId, "docx"),
+          globalOpts,
+          [DRIVE_META_SCOPE],
+        );
+        owner = owner ?? dm.owner;
+        createTime = createTime ?? dm.createTime;
+        editTime = editTime ?? dm.modifyTime;
+      } catch {
+        // best-effort: missing Drive scope must not fail the read
+      }
+    }
+
     output += "---\n";
     if (docTitle || meta.title) output += `title: ${docTitle || meta.title}\n`;
     if (meta.revisionId) output += `revision: ${meta.revisionId}\n`;
     output += `token: ${documentId}\n`;
-    // Wiki-resolved docs carry node metadata; standalone docx does not (PHASE 2).
-    if (doc.creator) output += `creator: ${doc.creator}\n`;
-    if (doc.owner) output += `owner: ${doc.owner}\n`;
-    const createdAt = formatEpochSeconds(doc.objCreateTime);
+    if (creator) output += `creator: ${creator}\n`;
+    if (owner) output += `owner: ${owner}\n`;
+    const createdAt = formatEpochSeconds(createTime);
     if (createdAt) output += `created: ${createdAt}\n`;
-    const editedAt = formatEpochSeconds(doc.objEditTime);
+    const editedAt = formatEpochSeconds(editTime);
     if (editedAt) output += `modified: ${editedAt}\n`;
     output += "---\n\n";
   }

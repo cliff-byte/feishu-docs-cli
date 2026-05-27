@@ -312,6 +312,8 @@ describe("read command", { concurrency: 1 }, () => {
               },
             }),
           ],
+          // Standalone docx now also does a Drive meta lookup; let it resolve empty.
+          strictCount: false,
         });
         mockRestore = r;
 
@@ -419,6 +421,99 @@ describe("read command", { concurrency: 1 }, () => {
 
         const output = cap.stdout();
         assert.ok(output.includes("creator: ou_creator"), `expected creator in: ${output}`);
+        assert.ok(output.includes("owner: ou_owner"), `expected owner in: ${output}`);
+        assert.ok(
+          output.includes("created: 2023-11-14T22:13:20.000Z"),
+          `expected created in: ${output}`,
+        );
+        assert.ok(
+          output.includes("modified: 2023-11-15T00:59:59.000Z"),
+          `expected modified in: ${output}`,
+        );
+      },
+    );
+  });
+
+  it("read --with-meta surfaces Drive metadata for standalone docx", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        // docx URL: fetchAllBlocks + getDocumentInfo + getDriveMeta.
+        const { restore: r } = setupMockFetch({
+          responses: [
+            // fetchAllBlocks
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                items: [
+                  {
+                    block_id: "abc123def456789012",
+                    block_type: 1,
+                    children: ["blk1"],
+                  },
+                  {
+                    block_id: "blk1",
+                    block_type: 2,
+                    parent_id: "abc123def456789012",
+                    children: [],
+                    text: { elements: [{ text_run: { content: "Content" } }] },
+                  },
+                ],
+                has_more: false,
+              },
+            }),
+            // getDocumentInfo
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document: {
+                  document_id: "abc123def456789012",
+                  revision_id: 5,
+                  title: "Standalone Doc",
+                },
+              },
+            }),
+            // getDriveMeta
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                metas: [
+                  {
+                    doc_token: "abc123def456789012",
+                    doc_type: "docx",
+                    owner_id: "ou_owner",
+                    create_time: "1700000000",
+                    latest_modify_time: "1700009999",
+                  },
+                ],
+              },
+            }),
+          ],
+          strictCount: false,
+        });
+        mockRestore = r;
+
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await read(
+          {
+            positionals: ["https://example.feishu.cn/docx/abc123def456789012"],
+            withMeta: true,
+          },
+          makeGlobalOpts(),
+        );
+
+        const output = cap.stdout();
         assert.ok(output.includes("owner: ou_owner"), `expected owner in: ${output}`);
         assert.ok(
           output.includes("created: 2023-11-14T22:13:20.000Z"),
