@@ -403,6 +403,17 @@ describe("read command", { concurrency: 1 }, () => {
                 },
               },
             }),
+            // resolveUserNames: getTenantToken + contact batch
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                user_list: [
+                  { open_id: "ou_creator", name: "张三" },
+                  { open_id: "ou_owner", name: "李四" },
+                ],
+              },
+            }),
           ],
           strictCount: false,
         });
@@ -421,7 +432,9 @@ describe("read command", { concurrency: 1 }, () => {
 
         const output = cap.stdout();
         assert.ok(output.includes("creator: ou_creator"), `expected creator in: ${output}`);
+        assert.ok(output.includes("creator_name: 张三"), `expected creator_name in: ${output}`);
         assert.ok(output.includes("owner: ou_owner"), `expected owner in: ${output}`);
+        assert.ok(output.includes("owner_name: 李四"), `expected owner_name in: ${output}`);
         assert.ok(
           output.includes("created: 2023-11-14T22:13:20.000Z"),
           `expected created in: ${output}`,

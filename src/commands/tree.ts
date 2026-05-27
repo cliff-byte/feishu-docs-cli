@@ -4,6 +4,7 @@
 
 import { createClient, fetchWithAuth } from "../client.js";
 import { fetchChildren } from "../services/wiki-nodes.js";
+import { resolveUserNames } from "../services/doc-enrichment.js";
 import { CliError } from "../utils/errors.js";
 import { validateToken } from "../utils/validate.js";
 import {
@@ -25,6 +26,31 @@ interface TreeNode {
   creator?: string;
   owner?: string;
   nodeCreator?: string;
+  creatorName?: string;
+  ownerName?: string;
+}
+
+/** Collect every distinct creator/owner open-id across the tree. */
+function collectUserIds(nodes: TreeNode[], acc: Set<string>): void {
+  for (const node of nodes) {
+    if (node.creator) acc.add(node.creator);
+    if (node.owner) acc.add(node.owner);
+    if (node.children.length > 0) collectUserIds(node.children, acc);
+  }
+}
+
+/** Return a new tree with resolved creator/owner names attached (immutable). */
+function withNames(nodes: TreeNode[], names: Map<string, string>): TreeNode[] {
+  return nodes.map((node) => {
+    const creatorName = node.creator ? names.get(node.creator) : undefined;
+    const ownerName = node.owner ? names.get(node.owner) : undefined;
+    return {
+      ...node,
+      ...(creatorName && { creatorName }),
+      ...(ownerName && { ownerName }),
+      children: withNames(node.children, names),
+    };
+  });
 }
 
 /**
@@ -84,8 +110,9 @@ function renderTree(nodes: TreeNode[], prefix: string = ""): string[] {
     const connector = last ? "└── " : "├── ";
     const childPrefix = last ? "    " : "│   ";
 
+    const suffix = node.creatorName ? ` — ${node.creatorName}` : "";
     lines.push(
-      `${prefix}${connector}${node.title} (${node.objType}, ${node.nodeToken})`,
+      `${prefix}${connector}${node.title} (${node.objType}, ${node.nodeToken})${suffix}`,
     );
 
     if (node.children.length > 0) {
@@ -100,6 +127,7 @@ export const meta: CommandMeta = {
   options: {
     node: { type: "string" },
     depth: { type: "string" },
+    names: { type: "boolean", default: false },
   },
   positionals: true,
   handler: tree,
@@ -139,7 +167,20 @@ export async function tree(
     }
   }
 
-  const nodes = await buildNodeTree(authInfo, spaceId, parentNode, 0, maxDepth);
+  const built = await buildNodeTree(authInfo, spaceId, parentNode, 0, maxDepth);
+
+  // --names: resolve creator/owner open-ids to display names (best-effort,
+  // one batched contact lookup over all distinct ids). Off by default to keep
+  // tree fast and free of the contact scope dependency.
+  let nodes = built;
+  if (args.names) {
+    const ids = new Set<string>();
+    collectUserIds(built, ids);
+    if (ids.size > 0) {
+      const names = await resolveUserNames(authInfo, [...ids]);
+      nodes = withNames(built, names);
+    }
+  }
 
   if (globalOpts.json) {
     process.stdout.write(

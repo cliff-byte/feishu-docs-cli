@@ -337,6 +337,113 @@ describe("tree command", { concurrency: 1 }, () => {
     });
   });
 
+  it("tree --names resolves creator/owner to display names", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "tree-names-"));
+    await withCleanEnv(testEnv(homeDir), async () => {
+      const { restore: rFetch } = setupMockFetch({
+        responses: [
+          // space info
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: { space: { name: "Names Space", space_id: "sp_n" } },
+          }),
+          // fetchChildren
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              items: [
+                {
+                  title: "Doc",
+                  node_token: "nd1",
+                  obj_type: "docx",
+                  has_child: false,
+                  obj_token: "doc1",
+                  creator: "ou_creator",
+                  owner: "ou_owner",
+                },
+              ],
+              has_more: false,
+            },
+          }),
+          // resolveUserNames: getTenantToken + contact batch
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              user_list: [
+                { open_id: "ou_creator", name: "张三" },
+                { open_id: "ou_owner", name: "李四" },
+              ],
+            },
+          }),
+        ],
+      });
+      restoreFetch = rFetch;
+
+      const output = captureOutput();
+      restoreOutput = output.restore;
+
+      await meta.handler(
+        { positionals: ["sp_n"], names: true },
+        makeGlobalOpts({ json: true }),
+      );
+
+      const json = output.stdoutJson() as Record<string, unknown>;
+      const nodes = json.nodes as Array<Record<string, unknown>>;
+      assert.equal(nodes[0].creator, "ou_creator");
+      assert.equal(nodes[0].creatorName, "张三");
+      assert.equal(nodes[0].owner, "ou_owner");
+      assert.equal(nodes[0].ownerName, "李四");
+    });
+  });
+
+  it("tree without --names omits name keys", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "tree-noname-"));
+    await withCleanEnv(testEnv(homeDir), async () => {
+      const { restore: rFetch } = setupMockFetch({
+        responses: [
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: { space: { name: "S", space_id: "sp_x" } },
+          }),
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              items: [
+                {
+                  title: "Doc",
+                  node_token: "nd1",
+                  obj_type: "docx",
+                  has_child: false,
+                  obj_token: "doc1",
+                  creator: "ou_creator",
+                },
+              ],
+              has_more: false,
+            },
+          }),
+        ],
+      });
+      restoreFetch = rFetch;
+
+      const output = captureOutput();
+      restoreOutput = output.restore;
+
+      await meta.handler(
+        { positionals: ["sp_x"] },
+        makeGlobalOpts({ json: true }),
+      );
+
+      const json = output.stdoutJson() as Record<string, unknown>;
+      const nodes = json.nodes as Array<Record<string, unknown>>;
+      assert.ok(!("creatorName" in nodes[0]), "creatorName should be absent without --names");
+    });
+  });
+
   it("tree with nested children", async () => {
     const homeDir = await mkdtemp(join(tmpdir(), "tree-nested-"));
     await withCleanEnv(testEnv(homeDir), async () => {

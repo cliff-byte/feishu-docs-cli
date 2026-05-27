@@ -7,6 +7,7 @@ import { CliError } from "../utils/errors.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { getDriveMeta, DRIVE_META_SCOPE } from "../services/drive-meta.js";
+import { resolveUserNames } from "../services/doc-enrichment.js";
 import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { formatEpochSeconds } from "../utils/format-time.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
@@ -77,6 +78,17 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     }
   }
 
+  // Resolve creator/owner open-ids to display names (best-effort — needs
+  // contact:user.base:readonly; falls back to bare ids when unavailable).
+  let creatorName: string | undefined;
+  let ownerName: string | undefined;
+  const userIds = [...new Set([creator, owner].filter((x): x is string => !!x))];
+  if (userIds.length > 0) {
+    const names = await resolveUserNames(authInfo, userIds);
+    creatorName = creator ? names.get(creator) : undefined;
+    ownerName = owner ? names.get(owner) : undefined;
+  }
+
   const domain = globalOpts.lark ? "larksuite.com" : "feishu.cn";
   const url = doc.spaceId
     ? `https://${domain}/wiki/${doc.parsed.token}`
@@ -91,7 +103,9 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     ...(doc.spaceId && { space_id: doc.spaceId }),
     ...(revisionId !== undefined && { revision: revisionId }),
     ...(creator && { creator }),
+    ...(creatorName && { creator_name: creatorName }),
     ...(owner && { owner }),
+    ...(ownerName && { owner_name: ownerName }),
     ...(createTime && { obj_create_time: createTime }),
     ...(editTime && { obj_edit_time: editTime }),
   };
@@ -115,7 +129,8 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
       process.stdout.write(`版本: ${revisionId}\n`);
     }
     if (creator) {
-      process.stdout.write(`创建者: ${creator}\n`);
+      const c = creatorName ? `${creatorName} (${creator})` : creator;
+      process.stdout.write(`创建者: ${c}\n`);
     }
     const createdAt = formatEpochSeconds(createTime);
     if (createdAt) {
@@ -126,7 +141,8 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
       process.stdout.write(`修改时间: ${editedAt}\n`);
     }
     if (owner) {
-      process.stdout.write(`所有者: ${owner}\n`);
+      const o = ownerName ? `${ownerName} (${owner})` : owner;
+      process.stdout.write(`所有者: ${o}\n`);
     }
   }
 }

@@ -244,6 +244,17 @@ describe("info command", { concurrency: 1 }, () => {
                 document: { document_id: "doc1", revision_id: 3, title: "Wiki Doc" },
               },
             }),
+            // resolveUserNames: getTenantToken + contact batch
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                user_list: [
+                  { open_id: "ou_creator", name: "张三" },
+                  { open_id: "ou_owner", name: "李四" },
+                ],
+              },
+            }),
           ],
         });
         mockRestore = restore;
@@ -256,7 +267,9 @@ describe("info command", { concurrency: 1 }, () => {
 
         const json = output.stdoutJson() as Record<string, unknown>;
         assert.equal(json.creator, "ou_creator");
+        assert.equal(json.creator_name, "张三");
         assert.equal(json.owner, "ou_owner");
+        assert.equal(json.owner_name, "李四");
         assert.equal(json.obj_create_time, "1700000000");
         assert.equal(json.obj_edit_time, "1700009999");
       },
@@ -292,6 +305,12 @@ describe("info command", { concurrency: 1 }, () => {
                 document: { document_id: "doc1", revision_id: 3, title: "Wiki Doc" },
               },
             }),
+            // resolveUserNames: getTenantToken + contact batch
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: { user_list: [{ open_id: "ou_creator", name: "张三" }] },
+            }),
           ],
         });
         mockRestore = restore;
@@ -303,7 +322,10 @@ describe("info command", { concurrency: 1 }, () => {
         );
 
         const out = output.stdout();
-        assert.ok(out.includes("创建者: ou_creator"), `expected creator line in: ${out}`);
+        assert.ok(
+          out.includes("创建者: 张三 (ou_creator)"),
+          `expected name+id creator line in: ${out}`,
+        );
         assert.ok(
           out.includes("创建时间: 2023-11-14T22:13:20.000Z"),
           `expected formatted create time in: ${out}`,
@@ -340,6 +362,12 @@ describe("info command", { concurrency: 1 }, () => {
               ],
             },
           }),
+          // resolveUserNames: getTenantToken + contact batch
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: { user_list: [{ open_id: "ou_owner", name: "李四" }] },
+          }),
         ],
       });
       mockRestore = restore;
@@ -352,6 +380,7 @@ describe("info command", { concurrency: 1 }, () => {
 
       const json = output.stdoutJson() as Record<string, unknown>;
       assert.equal(json.owner, "ou_owner");
+      assert.equal(json.owner_name, "李四");
       assert.equal(json.obj_create_time, "1700000000");
       assert.equal(json.obj_edit_time, "1700009999");
     });
