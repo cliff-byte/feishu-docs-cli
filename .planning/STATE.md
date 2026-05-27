@@ -108,7 +108,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260527-mw5 | Surface wiki document metadata (creator/create-edit time/owner) in info, tree, read --with-meta (PHASE 1) | 2026-05-27 | 7f069c5 | [260527-mw5-surface-doc-metadata](./quick/260527-mw5-surface-doc-metadata/) |
+| 260527-mw5 | Surface document metadata in info/tree/read --with-meta — wiki nodes (P1) + standalone docx via Drive meta (P2) | 2026-05-27 | ee5dff3 | [260527-mw5-surface-doc-metadata](./quick/260527-mw5-surface-doc-metadata/) |
 
 ## Session Continuity
 
