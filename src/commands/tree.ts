@@ -19,6 +19,12 @@ interface TreeNode {
   objType: string;
   hasChild: boolean;
   children: TreeNode[];
+  objCreateTime?: string;
+  objEditTime?: string;
+  nodeCreateTime?: string;
+  creator?: string;
+  owner?: string;
+  nodeCreator?: string;
 }
 
 /**
@@ -43,6 +49,12 @@ async function buildNodeTree(
       objType: node.obj_type || "unknown",
       hasChild: node.has_child,
       children: [],
+      ...(node.obj_create_time && { objCreateTime: node.obj_create_time }),
+      ...(node.obj_edit_time && { objEditTime: node.obj_edit_time }),
+      ...(node.node_create_time && { nodeCreateTime: node.node_create_time }),
+      ...(node.creator && { creator: node.creator }),
+      ...(node.owner && { owner: node.owner }),
+      ...(node.node_creator && { nodeCreator: node.node_creator }),
     };
 
     if (node.has_child) {

@@ -6,6 +6,7 @@ import { createClient } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { getDocumentInfo } from "../services/block-writer.js";
+import { formatEpochSeconds } from "../utils/format-time.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 export const meta: CommandMeta = {
@@ -61,6 +62,10 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     ...(doc.nodeToken && { node_token: doc.nodeToken }),
     ...(doc.spaceId && { space_id: doc.spaceId }),
     ...(revisionId !== undefined && { revision: revisionId }),
+    ...(doc.creator && { creator: doc.creator }),
+    ...(doc.owner && { owner: doc.owner }),
+    ...(doc.objCreateTime && { obj_create_time: doc.objCreateTime }),
+    ...(doc.objEditTime && { obj_edit_time: doc.objEditTime }),
   };
 
   if (globalOpts.json) {
@@ -80,6 +85,20 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     }
     if (revisionId !== undefined) {
       process.stdout.write(`版本: ${revisionId}\n`);
+    }
+    if (doc.creator) {
+      process.stdout.write(`创建者: ${doc.creator}\n`);
+    }
+    const createdAt = formatEpochSeconds(doc.objCreateTime);
+    if (createdAt) {
+      process.stdout.write(`创建时间: ${createdAt}\n`);
+    }
+    const editedAt = formatEpochSeconds(doc.objEditTime);
+    if (editedAt) {
+      process.stdout.write(`修改时间: ${editedAt}\n`);
+    }
+    if (doc.owner) {
+      process.stdout.write(`所有者: ${doc.owner}\n`);
     }
   }
 }

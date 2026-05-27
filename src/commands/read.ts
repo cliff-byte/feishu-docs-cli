@@ -9,6 +9,7 @@ import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { enrichBlocks } from "../services/doc-enrichment.js";
+import { formatEpochSeconds } from "../utils/format-time.js";
 import type {
   CommandMeta,
   CommandArgs,
@@ -134,6 +135,13 @@ export async function read(
     if (docTitle || meta.title) output += `title: ${docTitle || meta.title}\n`;
     if (meta.revisionId) output += `revision: ${meta.revisionId}\n`;
     output += `token: ${documentId}\n`;
+    // Wiki-resolved docs carry node metadata; standalone docx does not (PHASE 2).
+    if (doc.creator) output += `creator: ${doc.creator}\n`;
+    if (doc.owner) output += `owner: ${doc.owner}\n`;
+    const createdAt = formatEpochSeconds(doc.objCreateTime);
+    if (createdAt) output += `created: ${createdAt}\n`;
+    const editedAt = formatEpochSeconds(doc.objEditTime);
+    if (editedAt) output += `modified: ${editedAt}\n`;
     output += "---\n\n";
   }
 

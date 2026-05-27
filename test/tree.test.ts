@@ -234,6 +234,109 @@ describe("tree command", { concurrency: 1 }, () => {
     });
   });
 
+  it("tree --json surfaces node metadata when present", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "tree-meta-"));
+    await withCleanEnv(testEnv(homeDir), async () => {
+      const { restore: rFetch } = setupMockFetch({
+        responses: [
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: { space: { name: "Meta Space", space_id: "sp_meta" } },
+          }),
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              items: [
+                {
+                  title: "Doc With Meta",
+                  node_token: "nd_meta",
+                  obj_type: "docx",
+                  has_child: false,
+                  obj_token: "doc_meta",
+                  obj_create_time: "1700000000",
+                  obj_edit_time: "1700009999",
+                  node_create_time: "1699990000",
+                  creator: "ou_creator",
+                  owner: "ou_owner",
+                  node_creator: "ou_node_creator",
+                },
+              ],
+              has_more: false,
+            },
+          }),
+        ],
+      });
+      restoreFetch = rFetch;
+
+      const output = captureOutput();
+      restoreOutput = output.restore;
+
+      await meta.handler(
+        { positionals: ["sp_meta"] },
+        makeGlobalOpts({ json: true }),
+      );
+
+      const json = output.stdoutJson() as Record<string, unknown>;
+      const nodes = json.nodes as Array<Record<string, unknown>>;
+      assert.equal(nodes[0].objCreateTime, "1700000000");
+      assert.equal(nodes[0].objEditTime, "1700009999");
+      assert.equal(nodes[0].nodeCreateTime, "1699990000");
+      assert.equal(nodes[0].creator, "ou_creator");
+      assert.equal(nodes[0].owner, "ou_owner");
+      assert.equal(nodes[0].nodeCreator, "ou_node_creator");
+    });
+  });
+
+  it("tree --json omits metadata keys when API does not return them", async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), "tree-nometa-"));
+    await withCleanEnv(testEnv(homeDir), async () => {
+      const { restore: rFetch } = setupMockFetch({
+        responses: [
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: { space: { name: "Plain", space_id: "sp_plain" } },
+          }),
+          tenantTokenResponse(),
+          jsonResponse({
+            code: 0,
+            data: {
+              items: [
+                {
+                  title: "Plain Doc",
+                  node_token: "nd_plain",
+                  obj_type: "docx",
+                  has_child: false,
+                  obj_token: "doc_plain",
+                },
+              ],
+              has_more: false,
+            },
+          }),
+        ],
+      });
+      restoreFetch = rFetch;
+
+      const output = captureOutput();
+      restoreOutput = output.restore;
+
+      await meta.handler(
+        { positionals: ["sp_plain"] },
+        makeGlobalOpts({ json: true }),
+      );
+
+      const json = output.stdoutJson() as Record<string, unknown>;
+      const nodes = json.nodes as Array<Record<string, unknown>>;
+      assert.ok(!("creator" in nodes[0]), "creator key should be absent");
+      assert.ok(
+        !("objCreateTime" in nodes[0]),
+        "objCreateTime key should be absent",
+      );
+    });
+  });
+
   it("tree with nested children", async () => {
     const homeDir = await mkdtemp(join(tmpdir(), "tree-nested-"));
     await withCleanEnv(testEnv(homeDir), async () => {
