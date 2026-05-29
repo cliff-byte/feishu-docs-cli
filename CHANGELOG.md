@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-05-29
+
+### Added
+
+- **Document metadata in `info`, `tree`, and `read --with-meta`.** The CLI now surfaces creator, creation time, modify time, and owner — data the Feishu APIs already return but the CLI previously discarded. `info` shows them in both human and `--json` output; `tree --json` carries them per node; `read --with-meta` adds them to the front-matter.
+- **Standalone (non-wiki) document metadata via the Drive API.** For documents outside a wiki, `info` and `read --with-meta` query `drive/v1/metas/batch_query` for owner and create/modify time (the docx endpoint does not expose them). Best-effort: when the Drive scope is not granted, the command still succeeds and prints an actionable `authorize` hint.
+- **Creator/owner name resolution.** Creator and owner open-ids are resolved to display names where the contact directory permits it. Output is additive — the stable open-id is kept and a `*_name` field is added alongside (`info` human output shows `名字 (ou_…)`). `tree --names` opts into name resolution for the whole tree in a single batched lookup; it is off by default to keep `tree` fast.
+
+### Notes
+
+- Wiki documents carry full metadata with no extra permissions. Standalone-doc metadata needs a Drive scope (`drive:drive.metadata:readonly`), and name resolution needs the app's contact permission and visibility range — without them the CLI degrades gracefully to bare ids.
+
 ## [1.1.0] - 2026-05-09
 
 ### Added
