@@ -17,6 +17,18 @@ export interface ResolvedWikiNode {
   nodeToken: string;
   spaceId: string;
   hasChild: boolean;
+  /** Document creation time (seconds since epoch, as string). */
+  objCreateTime?: string;
+  /** Document last-edit time (seconds since epoch, as string). */
+  objEditTime?: string;
+  /** Wiki node creation time (seconds since epoch, as string). */
+  nodeCreateTime?: string;
+  /** Document creator user id. */
+  creator?: string;
+  /** Wiki node owner user id. */
+  owner?: string;
+  /** Wiki node creator user id. */
+  nodeCreator?: string;
 }
 
 /**
@@ -78,5 +90,11 @@ export async function resolveWikiToken(
     nodeToken: node.node_token ?? "",
     spaceId: node.space_id ?? "",
     hasChild: node.has_child || false,
+    objCreateTime: node.obj_create_time,
+    objEditTime: node.obj_edit_time,
+    nodeCreateTime: node.node_create_time,
+    creator: node.creator,
+    owner: node.owner,
+    nodeCreator: node.node_creator,
   };
 }

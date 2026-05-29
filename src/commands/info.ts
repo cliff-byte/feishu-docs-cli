@@ -6,6 +6,10 @@ import { createClient } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { getDocumentInfo } from "../services/block-writer.js";
+import { getDriveMeta, DRIVE_META_SCOPE } from "../services/drive-meta.js";
+import { resolveUserNames } from "../services/doc-enrichment.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
+import { formatEpochSeconds } from "../utils/format-time.js";
 import { CommandMeta, CommandArgs, GlobalOpts } from "../types/index.js";
 
 export const meta: CommandMeta = {
@@ -33,6 +37,13 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     );
   }
 
+  // Metadata. Wiki docs carry it from node resolution (resolveDocument);
+  // standalone docs need a separate Drive meta lookup (below).
+  let creator = doc.creator;
+  let owner = doc.owner;
+  let createTime = doc.objCreateTime;
+  let editTime = doc.objEditTime;
+
   // Fetch additional document info for docx type
   let revisionId: number | undefined;
   let docTitle = doc.title;
@@ -48,6 +59,36 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     }
   }
 
+  // Standalone (non-wiki) docx: the docx endpoint has no creator/time, so query
+  // the Drive meta API. Best-effort — a missing Drive scope must not fail `info`.
+  if (doc.objType === "docx" && !doc.spaceId) {
+    try {
+      const dm = await withScopeRecovery(
+        () => getDriveMeta(authInfo, doc.objToken, "docx"),
+        globalOpts,
+        [DRIVE_META_SCOPE],
+      );
+      owner = owner ?? dm.owner;
+      createTime = createTime ?? dm.createTime;
+      editTime = editTime ?? dm.modifyTime;
+    } catch (err) {
+      process.stderr.write(
+        `feishu-docs: warning: 获取文档元数据失败: ${(err as Error).message}\n`,
+      );
+    }
+  }
+
+  // Resolve creator/owner open-ids to display names (best-effort — needs
+  // contact:user.base:readonly; falls back to bare ids when unavailable).
+  let creatorName: string | undefined;
+  let ownerName: string | undefined;
+  const userIds = [...new Set([creator, owner].filter((x): x is string => !!x))];
+  if (userIds.length > 0) {
+    const names = await resolveUserNames(authInfo, userIds);
+    creatorName = creator ? names.get(creator) : undefined;
+    ownerName = owner ? names.get(owner) : undefined;
+  }
+
   const domain = globalOpts.lark ? "larksuite.com" : "feishu.cn";
   const url = doc.spaceId
     ? `https://${domain}/wiki/${doc.parsed.token}`
@@ -61,6 +102,12 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     ...(doc.nodeToken && { node_token: doc.nodeToken }),
     ...(doc.spaceId && { space_id: doc.spaceId }),
     ...(revisionId !== undefined && { revision: revisionId }),
+    ...(creator && { creator }),
+    ...(creatorName && { creator_name: creatorName }),
+    ...(owner && { owner }),
+    ...(ownerName && { owner_name: ownerName }),
+    ...(createTime && { obj_create_time: createTime }),
+    ...(editTime && { obj_edit_time: editTime }),
   };
 
   if (globalOpts.json) {
@@ -80,6 +127,22 @@ export async function info(args: CommandArgs, globalOpts: GlobalOpts): Promise<v
     }
     if (revisionId !== undefined) {
       process.stdout.write(`版本: ${revisionId}\n`);
+    }
+    if (creator) {
+      const c = creatorName ? `${creatorName} (${creator})` : creator;
+      process.stdout.write(`创建者: ${c}\n`);
+    }
+    const createdAt = formatEpochSeconds(createTime);
+    if (createdAt) {
+      process.stdout.write(`创建时间: ${createdAt}\n`);
+    }
+    const editedAt = formatEpochSeconds(editTime);
+    if (editedAt) {
+      process.stdout.write(`修改时间: ${editedAt}\n`);
+    }
+    if (owner) {
+      const o = ownerName ? `${ownerName} (${owner})` : owner;
+      process.stdout.write(`所有者: ${o}\n`);
     }
   }
 }

@@ -209,6 +209,68 @@ describe("resolveDocument", { concurrency: 1 }, () => {
     }
   });
 
+  it("wiki node metadata propagates onto the resolved document", async () => {
+    const auth = makeUserAuthInfo();
+    const { restore } = setupMockFetch({
+      responses: [
+        jsonResponse({
+          code: 0,
+          data: {
+            node: {
+              obj_token: "real-docx-token",
+              obj_type: "docx",
+              title: "Wiki Page",
+              node_token: "wiki-node-token",
+              space_id: "space-123",
+              has_child: false,
+              obj_create_time: "1700000000",
+              obj_edit_time: "1700001111",
+              node_create_time: "1699999999",
+              creator: "ou_creator",
+              owner: "ou_owner",
+              node_creator: "ou_node_creator",
+            },
+          },
+        }),
+      ],
+    });
+
+    try {
+      const result = await resolveDocument(
+        auth,
+        "https://test.feishu.cn/wiki/abc12345678901234567",
+      );
+
+      assert.equal(result.objCreateTime, "1700000000");
+      assert.equal(result.objEditTime, "1700001111");
+      assert.equal(result.nodeCreateTime, "1699999999");
+      assert.equal(result.creator, "ou_creator");
+      assert.equal(result.owner, "ou_owner");
+      assert.equal(result.nodeCreator, "ou_node_creator");
+    } finally {
+      restore();
+    }
+  });
+
+  it("docx URL carries no wiki metadata fields", async () => {
+    const auth = makeUserAuthInfo();
+    const { restore } = setupMockFetch({ responses: [], strictCount: true });
+
+    try {
+      const result = await resolveDocument(
+        auth,
+        "https://test.feishu.cn/docx/abc12345678901234567",
+      );
+
+      assert.equal(result.creator, undefined);
+      assert.equal(result.objCreateTime, undefined);
+      assert.equal(result.objEditTime, undefined);
+      assert.equal(result.owner, undefined);
+    } finally {
+      restore();
+    }
+  });
+
   it("wiki URL with wiki failure always throws (no fallback)", async () => {
     const auth = makeUserAuthInfo();
     const { restore } = setupMockFetch({

@@ -9,6 +9,10 @@ import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { enrichBlocks } from "../services/doc-enrichment.js";
+import { getDriveMeta, DRIVE_META_SCOPE } from "../services/drive-meta.js";
+import { resolveUserNames } from "../services/doc-enrichment.js";
+import { withScopeRecovery } from "../utils/scope-prompt.js";
+import { formatEpochSeconds } from "../utils/format-time.js";
 import type {
   CommandMeta,
   CommandArgs,
@@ -130,10 +134,49 @@ export async function read(
     } catch {
       // ignore metadata fetch errors
     }
+
+    // Wiki docs carry node metadata; standalone docx needs a Drive meta lookup.
+    let creator = doc.creator;
+    let owner = doc.owner;
+    let createTime = doc.objCreateTime;
+    let editTime = doc.objEditTime;
+    if (!doc.spaceId) {
+      try {
+        const dm = await withScopeRecovery(
+          () => getDriveMeta(authInfo, documentId, "docx"),
+          globalOpts,
+          [DRIVE_META_SCOPE],
+        );
+        owner = owner ?? dm.owner;
+        createTime = createTime ?? dm.createTime;
+        editTime = editTime ?? dm.modifyTime;
+      } catch {
+        // best-effort: missing Drive scope must not fail the read
+      }
+    }
+
+    // Resolve creator/owner open-ids to names (best-effort; keeps ids too).
+    let creatorName: string | undefined;
+    let ownerName: string | undefined;
+    const userIds = [...new Set([creator, owner].filter((x): x is string => !!x))];
+    if (userIds.length > 0) {
+      const names = await resolveUserNames(authInfo, userIds);
+      creatorName = creator ? names.get(creator) : undefined;
+      ownerName = owner ? names.get(owner) : undefined;
+    }
+
     output += "---\n";
     if (docTitle || meta.title) output += `title: ${docTitle || meta.title}\n`;
     if (meta.revisionId) output += `revision: ${meta.revisionId}\n`;
     output += `token: ${documentId}\n`;
+    if (creator) output += `creator: ${creator}\n`;
+    if (creatorName) output += `creator_name: ${creatorName}\n`;
+    if (owner) output += `owner: ${owner}\n`;
+    if (ownerName) output += `owner_name: ${ownerName}\n`;
+    const createdAt = formatEpochSeconds(createTime);
+    if (createdAt) output += `created: ${createdAt}\n`;
+    const editedAt = formatEpochSeconds(editTime);
+    if (editedAt) output += `modified: ${editedAt}\n`;
     output += "---\n\n";
   }
 
