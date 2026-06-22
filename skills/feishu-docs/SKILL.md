@@ -44,7 +44,7 @@ Read a document by URL or token. Output is Markdown by default.
 feishu-docs read <url|token>
 feishu-docs read <url> --blocks        # Lossless Block JSON
 feishu-docs read <url> --raw           # Plain text
-feishu-docs read <url> --with-meta     # Prepend title/URL/revision metadata
+feishu-docs read <url> --with-meta     # Prepend front-matter: title/URL/revision + creator, create/edit time, owner
 ```
 
 Accepts full Feishu/Lark URLs or raw tokens (e.g., `wikcnXXX`, `doxcnXXX`). The URL format is automatically detected — wiki pages, docx, sheets, and bitable links all work.
@@ -58,6 +58,8 @@ Discover what's available before reading:
 ```bash
 feishu-docs spaces                         # List all accessible wiki spaces
 feishu-docs tree <space_id> --depth 3      # Show document tree structure
+feishu-docs tree <space_id> --names        # Resolve creator/owner open-ids to display names
+feishu-docs tree <space_id> --json         # Per-node metadata (creator, create/edit time, owner)
 feishu-docs cat <space_id> --max-docs 20   # Read all docs recursively
 feishu-docs cat <space_id> --title-only    # Just list titles
 feishu-docs cat <space_id> --node <token>  # Start from a specific node
@@ -91,6 +93,8 @@ echo "# Hello" | feishu-docs create "Title" --wiki <space_id> --body -
 
 The `--body` flag accepts a file path or `-` for stdin. Content is Markdown — the API converts it to Feishu blocks server-side.
 
+Local images referenced in the markdown are uploaded to Feishu and embedded automatically — both relative paths (`![alt](./images/demo.png)`) and `file://` URIs work, alongside remote `http(s)` image URLs. Only standalone block-level images whose path lives inside the markdown file's directory tree are uploaded (see Limitations). When piping via stdin (`--body -`), relative image paths resolve against the current working directory.
+
 When creating under a wiki node, use `--wiki <space_id> --parent <node_token>` to place it under a specific parent.
 
 ## Updating Documents
@@ -105,6 +109,8 @@ feishu-docs update <url> --body ./extra.md --append
 # Pipe from stdin
 echo "## New Section" | feishu-docs update <url> --body - --append
 ```
+
+Both overwrite and `--append` modes upload local markdown images the same way `create` does (see the Creating Documents note and Limitations).
 
 Overwrite mode automatically backs up the current document to `~/.feishu-docs/backups/` before writing. If the write fails, it auto-recovers from the backup. Backups are kept for undo; old backups are rotated automatically (max 10 per document).
 
@@ -128,7 +134,7 @@ feishu-docs info <url|token>          # Human-readable metadata
 feishu-docs info <url> --json         # Structured JSON output
 ```
 
-Returns title, document type, URL, owner, creation time, and revision number.
+Returns title, document type, URL, creator, owner, creation time, last-edit time, and revision number. Creator/owner open-ids are resolved to display names where the app's contact permission allows (the open-id is always kept too). For standalone (non-wiki) docs, owner and timestamps come from the Drive API — if that scope is not granted the command still succeeds and prints an `authorize` hint instead of failing.
 
 ## Listing Cloud Files
 
@@ -209,7 +215,7 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 - Embedded `sheet` and `bitable` are rendered as tables (lossy)
 - Embedded `board`/`whiteboard` are exported as local PNG images
 - `mindnote` renders as a link only
-- Images are downloaded to `~/.feishu-docs/images/` with 30-day cache. Image write is not supported.
+- On read, images are downloaded to `~/.feishu-docs/images/` with 30-day cache. On write, local markdown images are uploaded to Feishu and embedded — but only standalone block-level images (e.g. `![alt](./images/demo.png)`) with relative paths or `file://` URIs, where the path is inside the markdown file's directory tree, and each file is under 20MB. Inline images, images inside lists/tables, and paths outside that directory tree are skipped (remote `http(s)` image URLs always work).
 - Mermaid code blocks are preserved as-is (code block, not visual diagram) — the Open API does not support creating visual "text diagram" blocks
 - Markdown conversion is lossy — use `--blocks` for lossless JSON when precision matters
 - Search requires user-level auth (run `feishu-docs login` first)
