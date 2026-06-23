@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 Phase: 05
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-03-28
+Last activity: 2026-06-23 - Completed quick task 260623-jv6: SKILL.md 自动同步机制
 
 Progress: [========..] 82%
 
@@ -110,6 +110,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260527-mw5 | Surface document metadata in info/tree/read --with-meta — wiki (P1) + standalone docx Drive meta (P2) + creator/owner name resolution (P3) | 2026-05-27 | a0dc7d9 | [260527-mw5-surface-doc-metadata](./quick/260527-mw5-surface-doc-metadata/) |
+| 260623-jv6 | SKILL.md 自动同步机制 — postinstall 钩子 + 运行时兜底同步到 ~/.claude/skills 与 ~/.agents/skills（跟随本地包，不联网） | 2026-06-23 | bbb324d | [260623-jv6-skill-md-postinstall](./quick/260623-jv6-skill-md-postinstall/) |
 
 ## Session Continuity
 
