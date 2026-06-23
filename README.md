@@ -209,7 +209,12 @@ feishu-docs create "API Docs"
 
 # From stdin
 cat design.md | feishu-docs create "Design" --wiki <space_id> --body -
+
+# Plain tables (no header row); default sets each table's first row as header
+feishu-docs create "API Docs" --folder <folder_token> --body ./api.md --no-table-header
 ```
+
+Markdown tables are written with their first row set as a header row by default (matching "设置为标题行" in the Feishu UI). Use `--no-table-header` on `create`/`update` to keep plain tables.
 
 ### Update
 

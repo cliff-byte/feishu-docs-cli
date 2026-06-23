@@ -37,6 +37,7 @@ export const meta: CommandMeta = {
     body: { type: "string" },
     append: { type: "boolean", default: false },
     restore: { type: "string" },
+    "no-table-header": { type: "boolean", default: false },
   },
   positionals: true,
   handler: update,
@@ -57,6 +58,7 @@ export async function update(
   const { authInfo } = await createClient(globalOpts);
   const doc = await resolveDocument(authInfo, input);
   const documentId = doc.objToken;
+  const tableHeaderRow = !args.noTableHeader;
 
   if (doc.objType !== "docx") {
     throw new CliError(
@@ -88,13 +90,20 @@ export async function update(
   }
 
   if (args.append) {
-    return appendToDocument(authInfo, documentId, bodyInput, globalOpts);
+    return appendToDocument(
+      authInfo,
+      documentId,
+      bodyInput,
+      tableHeaderRow,
+      globalOpts,
+    );
   }
 
   return overwriteDocument(
     authInfo,
     documentId,
     bodyInput,
+    tableHeaderRow,
     globalOpts,
     doc.spaceId,
     doc.nodeToken,
@@ -105,6 +114,7 @@ async function appendToDocument(
   authInfo: AuthInfo,
   documentId: string,
   bodyInput: { content: string; sourcePath?: string; sourceDir?: string },
+  tableHeaderRow: boolean,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const docInfo = await getDocumentInfo(authInfo, documentId);
@@ -117,6 +127,7 @@ async function appendToDocument(
     {
       sourcePath: bodyInput.sourcePath,
       sourceDir: bodyInput.sourceDir,
+      tableHeaderRow,
     },
     -1,
   );
@@ -138,6 +149,7 @@ async function overwriteDocument(
   authInfo: AuthInfo,
   documentId: string,
   bodyInput: { content: string; sourcePath?: string; sourceDir?: string },
+  tableHeaderRow: boolean,
   globalOpts: GlobalOpts,
   spaceId?: string,
   nodeToken?: string,
@@ -181,6 +193,7 @@ async function overwriteDocument(
         {
           sourcePath: bodyInput.sourcePath,
           sourceDir: bodyInput.sourceDir,
+          tableHeaderRow,
         },
       );
     }

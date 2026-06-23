@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Table header rows on write.** `create` and `update` now set each Markdown table's first row as a header row (the "设置为标题行" style in the Feishu UI) by default — previously tables were written with no header row, losing the visual distinction. Pass `--no-table-header` to write plain tables instead. Implemented via the table block's `header_row` property at create time (no extra API calls).
+
 ## [1.3.0] - 2026-06-23
 
 ### Added

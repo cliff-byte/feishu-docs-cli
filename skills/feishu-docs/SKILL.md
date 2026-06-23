@@ -111,6 +111,8 @@ echo "# Hello" | feishu-docs create "Title" --wiki <space_id> --body -
 
 The `--body` flag accepts a file path or `-` for stdin. Content is Markdown — the API converts it to Feishu blocks server-side.
 
+Markdown tables are written with their first row set as a header row (the "设置为标题行" style in the Feishu UI) by default, since a Markdown table's first row is its header. Pass `--no-table-header` to write plain tables with no header row instead. This applies to `create` and `update` (overwrite and `--append`).
+
 Local images referenced in the markdown are uploaded to Feishu and embedded automatically — both relative paths (`![alt](./images/demo.png)`) and `file://` URIs work, alongside remote `http(s)` image URLs. Only standalone block-level images whose path lives inside the markdown file's directory tree are uploaded (see Limitations). When piping via stdin (`--body -`), relative image paths resolve against the current working directory.
 
 When creating under a wiki node, use `--wiki <space_id> --parent <node_token>` to place it under a specific parent.

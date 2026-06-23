@@ -195,6 +195,34 @@ export function sanitizeBlocks(blocks: Block[]): Block[] {
   });
 }
 
+/**
+ * Set every table block's first row as a header row (`header_row = true`),
+ * mirroring the "设置为标题行" action in the Feishu UI. The Convert API leaves
+ * `header_row` undefined for tables parsed from Markdown, so the first row
+ * renders as a plain data row; this opts every table into a header row.
+ *
+ * Returns a new array; inputs are not mutated. Non-table blocks, and tables
+ * with no `property` or already-headered tables, pass through unchanged.
+ */
+export function applyTableHeaderRow(blocks: Block[]): Block[] {
+  return blocks.map((block) => {
+    if ((block as { block_type?: number }).block_type !== BlockType.TABLE) {
+      return block;
+    }
+    const table = block.table;
+    if (!table?.property || table.property.header_row === true) {
+      return block;
+    }
+    return {
+      ...block,
+      table: {
+        ...table,
+        property: { ...table.property, header_row: true },
+      },
+    };
+  });
+}
+
 function readBlockPlainText(block: Block): string | null {
   const elements = block.text?.elements;
   if (!elements || elements.length === 0) return null;
@@ -499,13 +527,19 @@ export async function convertAndWriteWithLocalImages(
   options: {
     sourceDir?: string;
     sourcePath?: string;
+    /** Set each table's first row as a header row. Defaults to true. */
+    tableHeaderRow?: boolean;
   } = {},
   index: number = 0,
 ): Promise<number> {
   const prepared = await prepareMarkdownLocalImages(markdown, options);
   const converted = await convertMarkdown(authInfo, prepared.markdown);
+  const headered =
+    options.tableHeaderRow === false
+      ? converted
+      : { ...converted, blocks: applyTableHeaderRow(converted.blocks) };
   const withImages = replacePlaceholderBlocksWithImageShells(
-    converted,
+    headered,
     prepared.images,
   );
   const writeResult = await writeDescendantDetailed(

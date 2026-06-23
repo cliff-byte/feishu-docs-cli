@@ -23,6 +23,7 @@ export const meta: CommandMeta = {
     folder: { type: "string" },
     parent: { type: "string" },
     body: { type: "string" },
+    "no-table-header": { type: "boolean", default: false },
   },
   positionals: true,
   handler: create,
@@ -33,6 +34,7 @@ export async function create(
   globalOpts: GlobalOpts,
 ): Promise<void> {
   let title = args.positionals![0] as string | undefined;
+  const tableHeaderRow = !args.noTableHeader;
 
   const { authInfo } = await createClient(globalOpts);
 
@@ -80,6 +82,7 @@ export async function create(
       bodyContent,
       bodySourcePath,
       bodySourceDir,
+      tableHeaderRow,
       globalOpts,
     );
   }
@@ -95,6 +98,7 @@ export async function create(
     bodyContent,
     bodySourcePath,
     bodySourceDir,
+    tableHeaderRow,
     globalOpts,
   );
 }
@@ -107,6 +111,7 @@ async function createInWiki(
   bodyContent: string | undefined,
   bodySourcePath: string | undefined,
   bodySourceDir: string | undefined,
+  tableHeaderRow: boolean,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const nodeRes = await fetchWithAuth(
@@ -142,6 +147,7 @@ async function createInWiki(
       {
         sourcePath: bodySourcePath,
         sourceDir: bodySourceDir,
+        tableHeaderRow,
       },
     );
   }
@@ -181,6 +187,7 @@ async function createDoc(
   bodyContent: string | undefined,
   bodySourcePath: string | undefined,
   bodySourceDir: string | undefined,
+  tableHeaderRow: boolean,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const body = {
@@ -211,6 +218,7 @@ async function createDoc(
       {
         sourcePath: bodySourcePath,
         sourceDir: bodySourceDir,
+        tableHeaderRow,
       },
     );
   }
