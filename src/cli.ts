@@ -24,6 +24,7 @@ import { meta as wikiMeta } from "./commands/wiki.js";
 import { meta as installSkillMeta } from "./commands/install-skill.js";
 import { handleError, CliError } from "./utils/errors.js";
 import { getLocalVersion, checkForUpdates } from "./utils/version.js";
+import { syncSkill } from "./utils/skill-sync.js";
 import {
   CommandMeta,
   SubcommandMeta,
@@ -180,16 +181,24 @@ function parseAndRun(
 export async function run(argv: string[]): Promise<void> {
   // Non-blocking update check (runs in background, never throws)
   const updateCheck = checkForUpdates();
+  // Non-blocking skill sync — keeps the installed SKILL.md copies in step with
+  // this package version (runs in background, never throws).
+  const skillSync = syncSkill().then(
+    () => undefined,
+    () => undefined,
+  );
 
   if (argv.includes("--version") || argv.includes("-v")) {
     process.stdout.write(`feishu-docs ${getLocalVersion()}\n`);
     await updateCheck;
+    await skillSync;
     return;
   }
 
   if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(HELP_TEXT);
     await updateCheck;
+    await skillSync;
     return;
   }
 
@@ -235,7 +244,8 @@ export async function run(argv: string[]): Promise<void> {
   } catch (err) {
     handleError(err, globalOpts.json);
   } finally {
-    // Wait for background update check to complete (never throws)
+    // Wait for background tasks to complete (never throw)
     await updateCheck;
+    await skillSync;
   }
 }

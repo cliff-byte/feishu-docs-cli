@@ -11,6 +11,7 @@
   "files": [
     "bin/",
     "dist/",
+    "scripts/",
     "skills/",
     "README.md",
     "README.zh.md",
@@ -22,6 +23,7 @@
     "pretest": "npm run build:check",
     "test": "tsx --test test/*.test.ts",
     "lint:dead-code": "knip",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build"
   },
   "repository": {

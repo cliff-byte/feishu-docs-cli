@@ -1,8 +1,8 @@
 /**
  * Integration tests for the install-skill command.
  *
- * Tests cover: copying SKILL.md to ~/.claude/commands/, auto-creating
- * target directory, and output messages.
+ * Tests cover: syncing SKILL.md to the canonical Claude skill dir
+ * (~/.claude/skills/feishu-docs/), auto-creating it when missing, and output.
  */
 
 import { describe, it, afterEach } from "node:test";
@@ -14,6 +14,9 @@ import { join } from "node:path";
 import { withCleanEnv } from "./helpers/env-guard.js";
 import { captureOutput } from "./helpers/capture-output.js";
 import { meta } from "../src/commands/install-skill.js";
+
+const claudeSkill = (home: string): string =>
+  join(home, ".claude", "skills", "feishu-docs", "SKILL.md");
 
 describe("install-skill command", { concurrency: 1 }, () => {
   let outputRestore: (() => void) | undefined;
@@ -28,7 +31,7 @@ describe("install-skill command", { concurrency: 1 }, () => {
     }
   });
 
-  it("copies SKILL.md to ~/.claude/commands/", async () => {
+  it("syncs SKILL.md to ~/.claude/skills/feishu-docs/", async () => {
     testDir = await mkdtemp(join(tmpdir(), "feishu-skill-"));
 
     await withCleanEnv({ HOME: testDir }, async () => {
@@ -41,17 +44,17 @@ describe("install-skill command", { concurrency: 1 }, () => {
         lark: false,
       });
 
-      const targetPath = join(testDir, ".claude", "commands", "feishu-docs.md");
-      assert.ok(existsSync(targetPath), "feishu-docs.md should be created");
+      const targetPath = claudeSkill(testDir);
+      assert.ok(existsSync(targetPath), "SKILL.md should be created");
 
       const content = await readFile(targetPath, "utf-8");
-      assert.ok(content.length > 0, "feishu-docs.md should have content");
+      assert.ok(content.length > 0, "SKILL.md should have content");
 
-      assert.ok(cap.stdout().includes("Skill installed"));
+      assert.ok(cap.stdout().includes("Skill installed/updated"));
     });
   });
 
-  it("creates target directory if missing", async () => {
+  it("force-creates the canonical skill directory if missing", async () => {
     testDir = await mkdtemp(join(tmpdir(), "feishu-skill-"));
 
     await withCleanEnv({ HOME: testDir }, async () => {
@@ -59,8 +62,8 @@ describe("install-skill command", { concurrency: 1 }, () => {
       outputRestore = cap.restore;
 
       // No .claude dir exists in testDir yet
-      const claudeDir = join(testDir, ".claude", "commands");
-      assert.ok(!existsSync(claudeDir), ".claude/commands/ should not exist yet");
+      const skillDir = join(testDir, ".claude", "skills", "feishu-docs");
+      assert.ok(!existsSync(skillDir), "skill dir should not exist yet");
 
       await meta.handler({ positionals: [] }, {
         auth: "auto",
@@ -68,9 +71,8 @@ describe("install-skill command", { concurrency: 1 }, () => {
         lark: false,
       });
 
-      assert.ok(existsSync(claudeDir), ".claude/commands/ should be created");
-      const targetPath = join(claudeDir, "feishu-docs.md");
-      assert.ok(existsSync(targetPath), "feishu-docs.md should be created");
+      assert.ok(existsSync(skillDir), "skill dir should be created");
+      assert.ok(existsSync(claudeSkill(testDir)), "SKILL.md should be created");
     });
   });
 });

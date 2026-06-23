@@ -1,33 +1,36 @@
 /**
- * install-skill command: Install the feishu-docs skill to Claude Code's commands directory.
+ * install-skill command: Install/update the feishu-docs skill in Claude's
+ * skill directories (`~/.claude/skills/` and, if present, `~/.agents/skills/`).
  */
 
-import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { homedir } from "node:os";
+import { syncSkill } from "../utils/skill-sync.js";
 import { CommandMeta } from "../types/index.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 async function handler(): Promise<void> {
-  // Resolve SKILL.md from the package's skills/feishu-docs/ directory
-  const skillSrc = resolve(__dirname, "../../skills/feishu-docs/SKILL.md");
-  if (!existsSync(skillSrc)) {
+  // force: ensure the canonical Claude skill dir even if it does not exist yet.
+  const result = await syncSkill({ force: true });
+
+  const touched =
+    result.synced.length + result.unchanged.length + result.failed.length;
+  if (touched === 0) {
+    // Nothing was written and nothing already existed — the packaged SKILL.md
+    // could not be read.
     process.stderr.write("feishu-docs: error: SKILL.md not found in package\n");
     process.exit(1);
   }
 
-  const targetDir = resolve(homedir(), ".claude", "commands");
-  mkdirSync(targetDir, { recursive: true });
+  for (const path of result.synced) {
+    process.stdout.write(`Skill installed/updated: ${path}\n`);
+  }
+  for (const path of result.unchanged) {
+    process.stdout.write(`Skill already up to date: ${path}\n`);
+  }
+  for (const path of result.failed) {
+    process.stderr.write(`feishu-docs: warning: 无法写入 ${path}\n`);
+  }
 
-  const targetPath = resolve(targetDir, "feishu-docs.md");
-  const content = readFileSync(skillSrc, "utf-8");
-  writeFileSync(targetPath, content, "utf-8");
-
-  process.stdout.write(`Skill installed to ${targetPath}\n`);
   process.stdout.write(
-    "You can now use /feishu-docs in Claude Code to access Feishu document operations.\n",
+    "You can now use the feishu-docs skill in Claude Code to access Feishu document operations.\n",
   );
 }
 
