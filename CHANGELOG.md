@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0] - 2026-06-23
+
+### Added
+
+- **Automatic skill sync.** The packaged `SKILL.md` is now mirrored to Claude's skill directories automatically, so upgrading the CLI no longer leaves a stale skill behind. It runs at two moments: an npm `postinstall` hook on install/upgrade, and a non-blocking fallback on every CLI invocation that re-syncs when the installed copy drifts from the packaged one. Targets `~/.claude/skills/feishu-docs/` and, when that framework is present, `~/.agents/skills/feishu-docs/`. Sync is local-only (no network), never blocks an install or a command, and can be disabled with `FEISHU_DOCS_NO_SKILL_SYNC=1`.
+
+### Changed
+
+- **`install-skill` now targets Claude's skill directories** (`~/.claude/skills/feishu-docs/` and, when present, `~/.agents/skills/`) instead of the legacy `~/.claude/commands/feishu-docs.md` path, matching where Claude Code actually loads skills. The command name and arguments are unchanged.
+
+### Docs
+
+- **SKILL.md corrections and hardening.** Fixed the stale "image write is not supported" limitation (writing local markdown images has worked since 1.1.0) and documented the upload constraints; added the metadata usage surfaced in 1.2.0 (`tree --names`/`--json`, `read --with-meta`, `info` creator/owner/timestamps); and promoted the CLI install check to a blocking first action so standalone skill installs (e.g. from skills.sh) guide the agent to install the CLI before use.
+
 ## [1.2.0] - 2026-05-29
 
 ### Added
