@@ -7,25 +7,43 @@ description: Read, write, search, and manage Feishu (Lark) cloud documents and k
 
 `feishu-docs` is a CLI tool that lets you read and write Feishu (Lark) cloud documents directly from the terminal. All output goes to stdout as plain text or JSON — designed for agent consumption.
 
+> **This skill is just instructions — every operation it describes runs through the separate `feishu-docs` CLI binary.** If you installed this skill on its own (e.g. from skills.sh), the CLI is almost certainly NOT on this machine yet. Nothing below will work until it is installed.
+
 ## Prerequisites
 
-Before using any command, check that the CLI is installed and authenticated. Run these two checks in order:
+### Step 0: Ensure the CLI is installed (DO THIS FIRST — BLOCKING)
 
-### Step 1: Check installation
+**Before running any `feishu-docs` command — the very first action when this skill is invoked — verify the CLI exists.** Do not skip this and do not assume it is present.
 
 ```bash
 command -v feishu-docs >/dev/null 2>&1 && feishu-docs --version || echo "NOT_INSTALLED"
 ```
 
-If the output is `NOT_INSTALLED`, install the CLI first:
+- If it prints a version number → installed, continue to Step 1.
+- If it prints `NOT_INSTALLED` → install it now, before doing anything else.
+
+**To install:** the CLI is an npm package and needs Node.js ≥ 18. Check the toolchain first:
+
+```bash
+command -v npm >/dev/null 2>&1 && node --version || echo "NODE_MISSING"
+```
+
+- If this prints `NODE_MISSING` (or a Node version below 18): Node.js is not available. You cannot install the CLI without it — ask the user to install Node.js ≥ 18 (e.g. via [nvm](https://github.com/nvm-sh/nvm), Homebrew, or nodejs.org), then re-run the check above. Do not attempt a system-level Node install on the user's behalf.
+- Otherwise, install the CLI globally:
 
 ```bash
 npm install -g feishu-docs-cli
 ```
 
-This installs the `feishu-docs` command globally. Requires Node.js 18+. After installation, verify with `feishu-docs --version`.
+If this fails with a permissions/`EACCES` error, the global npm prefix is not user-writable. Do **not** silently run `sudo`. Tell the user to either use a Node version manager (nvm/fnm, which makes `-g` user-writable) or run the install themselves with elevated permissions. After a successful install, confirm with:
 
-### Step 2: Check authentication
+```bash
+feishu-docs --version
+```
+
+Only proceed to Step 1 once `feishu-docs --version` prints a version.
+
+### Step 1: Check authentication
 
 ```bash
 feishu-docs whoami
