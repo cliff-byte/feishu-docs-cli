@@ -5,6 +5,7 @@
 ### Added
 
 - **Table header rows on write.** `create` and `update` now set each Markdown table's first row as a header row (the "设置为标题行" style in the Feishu UI) by default — previously tables were written with no header row, losing the visual distinction. Pass `--no-table-header` to write plain tables instead. Implemented via the table block's `header_row` property at create time (no extra API calls).
+- **Auto-fit table column widths on write.** `create` and `update` now size each table's columns to their content (like the "列宽自适应" UI action) by default, instead of the Convert API's even split: short columns stay narrow, text-heavy columns get more room, a single very-long column is capped at 60% so it can't dominate, content-heavy tables are scaled to fill the page width, and small tables stay compact rather than being stretched. CJK characters are weighted double in the estimate. Targets the docx default page width (~815px); pass `--table-width <px>` (200–2000) for the "较宽/全宽" page-width modes, or `--no-table-column-width` to keep even columns. One-time pixel estimate at write time; no extra API calls.
 
 ## [1.3.0] - 2026-06-23
 

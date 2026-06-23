@@ -210,11 +210,17 @@ feishu-docs create "API Docs"
 # From stdin
 cat design.md | feishu-docs create "Design" --wiki <space_id> --body -
 
-# Plain tables (no header row); default sets each table's first row as header
-feishu-docs create "API Docs" --folder <folder_token> --body ./api.md --no-table-header
+# Plain tables: no header row, evenly-split columns
+feishu-docs create "API Docs" --folder <folder_token> --body ./api.md --no-table-header --no-table-column-width
+
+# Fit table widths for a wider page-width mode
+feishu-docs create "API Docs" --folder <folder_token> --body ./api.md --table-width 1100
 ```
 
-Markdown tables are written with their first row set as a header row by default (matching "设置为标题行" in the Feishu UI). Use `--no-table-header` on `create`/`update` to keep plain tables.
+Markdown tables get two readability tweaks by default (both on `create`/`update`):
+
+- **Header row** — the first row is set as a header row (matching "设置为标题行" in the Feishu UI). Opt out with `--no-table-header`.
+- **Auto-fit column widths** — short columns stay narrow, text-heavy columns get more room, a long/outlier column is capped, content-heavy tables fill the page width, and small tables stay compact (matching "列宽自适应"). Opt out with `--no-table-column-width`. The fit targets the docx **default page width** (~815px); for "较宽/全宽" pass `--table-width <px>` (200–2000). It's a one-time pixel estimate at write time (not exact; absolute pixels don't track window resizes).
 
 ### Update
 

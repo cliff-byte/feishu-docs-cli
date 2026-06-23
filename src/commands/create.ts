@@ -9,12 +9,13 @@ import {
   extractMarkdownTitle,
 } from "../services/markdown-convert.js";
 import { readBodyInput, getDocumentInfo } from "../services/block-writer.js";
-import { validateToken } from "../utils/validate.js";
+import { validateToken, parseTableWidth } from "../utils/validate.js";
 import {
   CommandMeta,
   CommandArgs,
   GlobalOpts,
   AuthInfo,
+  TableWriteOptions,
 } from "../types/index.js";
 
 export const meta: CommandMeta = {
@@ -24,6 +25,8 @@ export const meta: CommandMeta = {
     parent: { type: "string" },
     body: { type: "string" },
     "no-table-header": { type: "boolean", default: false },
+    "no-table-column-width": { type: "boolean", default: false },
+    "table-width": { type: "string" },
   },
   positionals: true,
   handler: create,
@@ -34,7 +37,11 @@ export async function create(
   globalOpts: GlobalOpts,
 ): Promise<void> {
   let title = args.positionals![0] as string | undefined;
-  const tableHeaderRow = !args.noTableHeader;
+  const tableOpts: TableWriteOptions = {
+    tableHeaderRow: !args.noTableHeader,
+    tableColumnWidth: !args.noTableColumnWidth,
+    tableWidth: parseTableWidth(args.tableWidth),
+  };
 
   const { authInfo } = await createClient(globalOpts);
 
@@ -82,7 +89,7 @@ export async function create(
       bodyContent,
       bodySourcePath,
       bodySourceDir,
-      tableHeaderRow,
+      tableOpts,
       globalOpts,
     );
   }
@@ -98,7 +105,7 @@ export async function create(
     bodyContent,
     bodySourcePath,
     bodySourceDir,
-    tableHeaderRow,
+    tableOpts,
     globalOpts,
   );
 }
@@ -111,7 +118,7 @@ async function createInWiki(
   bodyContent: string | undefined,
   bodySourcePath: string | undefined,
   bodySourceDir: string | undefined,
-  tableHeaderRow: boolean,
+  tableOpts: TableWriteOptions,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const nodeRes = await fetchWithAuth(
@@ -147,7 +154,7 @@ async function createInWiki(
       {
         sourcePath: bodySourcePath,
         sourceDir: bodySourceDir,
-        tableHeaderRow,
+        ...tableOpts,
       },
     );
   }
@@ -187,7 +194,7 @@ async function createDoc(
   bodyContent: string | undefined,
   bodySourcePath: string | undefined,
   bodySourceDir: string | undefined,
-  tableHeaderRow: boolean,
+  tableOpts: TableWriteOptions,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const body = {
@@ -218,7 +225,7 @@ async function createDoc(
       {
         sourcePath: bodySourcePath,
         sourceDir: bodySourceDir,
-        tableHeaderRow,
+        ...tableOpts,
       },
     );
   }

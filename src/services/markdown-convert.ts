@@ -223,6 +223,158 @@ export function applyTableHeaderRow(blocks: Block[]): Block[] {
   });
 }
 
+/** Minimum column width the Feishu API accepts (pixels). */
+const MIN_COLUMN_WIDTH = 50;
+
+/**
+ * Default target total table width (pixels). The Convert API emits a 732px
+ * total regardless of content, which is narrower than the docx default page
+ * width's content area (~815px measured); 815 fills it. Column widths are
+ * absolute pixels, so this targets a typical default-page-width window and does
+ * not track window resizes or the "较宽/全宽" page-width modes — override per
+ * call via the tableWidth option (`--table-width`) for those.
+ */
+export const DEFAULT_TABLE_WIDTH = 815;
+
+/**
+ * Pixel estimate per half-width display unit (a CJK char is 2 units) and the
+ * horizontal padding inside a cell. Rough constants used only to size columns
+ * to their content; they don't need to match Feishu's font metrics exactly.
+ */
+const PX_PER_UNIT = 8;
+const CELL_PADDING = 20;
+
+/** A single column may take at most this fraction of the target width. */
+const MAX_COLUMN_RATIO = 0.6;
+
+/** Display width of a string: CJK/fullwidth chars count as 2, others as 1. */
+function displayWidth(text: string): number {
+  let width = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    width += isWideChar(cp) ? 2 : 1;
+  }
+  return width;
+}
+
+function isWideChar(cp: number): boolean {
+  return (
+    (cp >= 0x1100 && cp <= 0x115f) || // Hangul Jamo
+    (cp >= 0x2e80 && cp <= 0x303e) || // CJK radicals, Kangxi
+    (cp >= 0x3041 && cp <= 0x33ff) || // Hiragana..CJK symbols
+    (cp >= 0x3400 && cp <= 0x4dbf) || // CJK Ext A
+    (cp >= 0x4e00 && cp <= 0x9fff) || // CJK Unified
+    (cp >= 0xa000 && cp <= 0xa4cf) || // Yi
+    (cp >= 0xac00 && cp <= 0xd7a3) || // Hangul syllables
+    (cp >= 0xf900 && cp <= 0xfaff) || // CJK compat
+    (cp >= 0xfe30 && cp <= 0xfe4f) || // CJK compat forms
+    (cp >= 0xff00 && cp <= 0xff60) || // Fullwidth forms
+    (cp >= 0xffe0 && cp <= 0xffe6) ||
+    (cp >= 0x20000 && cp <= 0x3fffd) // CJK Ext B+
+  );
+}
+
+/** Plain text of a table cell: concatenate text of its child text blocks. */
+function cellText(cellId: string, byId: Map<string, Block>): string {
+  const cell = byId.get(cellId);
+  const children = (cell as { children?: string[] } | undefined)?.children ?? [];
+  let text = "";
+  for (const childId of children) {
+    const elements = byId.get(childId)?.text?.elements;
+    if (!elements) continue;
+    for (const element of elements) {
+      text += element.text_run?.content ?? "";
+    }
+  }
+  return text;
+}
+
+/**
+ * Compute column widths from per-column content `units` (half-width char = 1,
+ * CJK char = 2).
+ *
+ * Each column first gets a "natural" width from its content, clamped to
+ * [MIN_COLUMN_WIDTH, MAX_COLUMN_RATIO × target] so a short column never gets
+ * stretched and one long/outlier column can't dominate. Then:
+ *  - if the natural widths fit within `target`, they're used as-is — a small
+ *    table stays compact instead of being stretched to fill the page width;
+ *  - otherwise they're scaled down proportionally to exactly fill `target`,
+ *    with the rounding remainder absorbed by the widest column.
+ */
+function computeColumnWidths(units: number[], target: number): number[] {
+  const maxCol = Math.round(target * MAX_COLUMN_RATIO);
+  const natural = units.map((u) =>
+    Math.min(maxCol, Math.max(MIN_COLUMN_WIDTH, u * PX_PER_UNIT + CELL_PADDING)),
+  );
+  const sum = natural.reduce((a, b) => a + b, 0);
+  if (sum <= target) return natural;
+
+  const scaled = natural.map((n) =>
+    Math.max(MIN_COLUMN_WIDTH, Math.round((n * target) / sum)),
+  );
+  const diff = target - scaled.reduce((a, b) => a + b, 0);
+  if (diff !== 0) {
+    const widest = natural.indexOf(Math.max(...natural));
+    if (scaled[widest] + diff >= MIN_COLUMN_WIDTH) scaled[widest] += diff;
+  }
+  return scaled;
+}
+
+/**
+ * Re-fit each table's column widths to its content, mimicking the "列宽自适应"
+ * action in the Feishu UI. The Convert API splits a fixed 732px total evenly
+ * across columns regardless of content. This sizes each column to its content
+ * instead (see computeColumnWidths): short columns stay narrow, a long/outlier
+ * column is capped, content-heavy tables are scaled to fill `targetWidth`, and
+ * small tables stay compact rather than being stretched across the page.
+ *
+ * Returns a new array; inputs are not mutated. Tables without a `column_width`
+ * baseline or with no cell text pass through unchanged. Like the UI action,
+ * this is a one-time fit at write time — it does not track later edits, and
+ * because column widths are absolute pixels it cannot track window resizes.
+ */
+export function applyTableColumnWidth(
+  blocks: Block[],
+  targetWidth: number = DEFAULT_TABLE_WIDTH,
+): Block[] {
+  const byId = new Map<string, Block>();
+  for (const block of blocks) {
+    const id = (block as { block_id?: string }).block_id;
+    if (id) byId.set(id, block);
+  }
+
+  return blocks.map((block) => {
+    if ((block as { block_type?: number }).block_type !== BlockType.TABLE) {
+      return block;
+    }
+    const table = block.table;
+    const widths = table?.property?.column_width;
+    if (!table?.property || !widths?.length || !table.cells?.length) {
+      return block;
+    }
+
+    const colCount = widths.length;
+    const perColumn = new Array(colCount).fill(0);
+    table.cells.forEach((cellId, i) => {
+      const col = i % colCount;
+      const w = displayWidth(cellText(cellId, byId));
+      if (w > perColumn[col]) perColumn[col] = w;
+    });
+    if (perColumn.every((w) => w === 0)) return block;
+
+    const next = computeColumnWidths(perColumn, targetWidth);
+    if (next.every((v, i) => v === widths[i])) return block;
+
+    return {
+      ...block,
+      table: {
+        ...table,
+        property: { ...table.property, column_width: next },
+      },
+    };
+  });
+}
+
 function readBlockPlainText(block: Block): string | null {
   const elements = block.text?.elements;
   if (!elements || elements.length === 0) return null;
@@ -529,15 +681,22 @@ export async function convertAndWriteWithLocalImages(
     sourcePath?: string;
     /** Set each table's first row as a header row. Defaults to true. */
     tableHeaderRow?: boolean;
+    /** Re-fit each table's column widths to its content. Defaults to true. */
+    tableColumnWidth?: boolean;
+    /** Target total table width in pixels (defaults to DEFAULT_TABLE_WIDTH). */
+    tableWidth?: number;
   } = {},
   index: number = 0,
 ): Promise<number> {
   const prepared = await prepareMarkdownLocalImages(markdown, options);
   const converted = await convertMarkdown(authInfo, prepared.markdown);
+  let blocks = converted.blocks;
+  if (options.tableHeaderRow !== false) blocks = applyTableHeaderRow(blocks);
+  if (options.tableColumnWidth !== false) {
+    blocks = applyTableColumnWidth(blocks, options.tableWidth);
+  }
   const headered =
-    options.tableHeaderRow === false
-      ? converted
-      : { ...converted, blocks: applyTableHeaderRow(converted.blocks) };
+    blocks === converted.blocks ? converted : { ...converted, blocks };
   const withImages = replacePlaceholderBlocksWithImageShells(
     headered,
     prepared.images,

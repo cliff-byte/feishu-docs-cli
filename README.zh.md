@@ -191,7 +191,18 @@ feishu-docs create "API 文档"
 
 # 从标准输入读取
 cat design.md | feishu-docs create "设计文档" --wiki <space_id> --body -
+
+# 朴素表格：不设标题行、列宽均分
+feishu-docs create "API 文档" --folder <folder_token> --body ./api.md --no-table-header --no-table-column-width
+
+# 为更宽的页宽模式适配表格宽度
+feishu-docs create "API 文档" --folder <folder_token> --body ./api.md --table-width 1100
 ```
+
+写入 Markdown 表格时，默认会做两项可读性增强（`create`/`update` 均生效）：
+
+- **标题行** —— 首行设为标题行（对应飞书界面的「设置为标题行」）。用 `--no-table-header` 关闭。
+- **列宽自适应** —— 短列（如编号列）保持窄、长文本列分到更多空间、超长的单列会被封顶以免独占、内容多的表格缩放占满页宽、小表格保持紧凑不被拉伸（对应「列宽自适应」）。用 `--no-table-column-width` 关闭。默认按 docx **默认页宽**（约 815px）适配；「较宽/全宽」页宽请用 `--table-width <px>`（200–2000）。这是写入时的一次性像素估算（非精确，且绝对像素不随窗口缩放变化）。
 
 ### 更新
 

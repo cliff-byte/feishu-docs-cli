@@ -17,6 +17,7 @@ import {
   writeDescendant,
 } from "../services/markdown-convert.js";
 import { resolveDocument } from "../utils/document-resolver.js";
+import { parseTableWidth } from "../utils/validate.js";
 import {
   readBodyInput,
   getDocumentInfo,
@@ -30,6 +31,7 @@ import {
   GlobalOpts,
   AuthInfo,
   Block,
+  TableWriteOptions,
 } from "../types/index.js";
 
 export const meta: CommandMeta = {
@@ -38,6 +40,8 @@ export const meta: CommandMeta = {
     append: { type: "boolean", default: false },
     restore: { type: "string" },
     "no-table-header": { type: "boolean", default: false },
+    "no-table-column-width": { type: "boolean", default: false },
+    "table-width": { type: "string" },
   },
   positionals: true,
   handler: update,
@@ -58,7 +62,11 @@ export async function update(
   const { authInfo } = await createClient(globalOpts);
   const doc = await resolveDocument(authInfo, input);
   const documentId = doc.objToken;
-  const tableHeaderRow = !args.noTableHeader;
+  const tableOpts: TableWriteOptions = {
+    tableHeaderRow: !args.noTableHeader,
+    tableColumnWidth: !args.noTableColumnWidth,
+    tableWidth: parseTableWidth(args.tableWidth),
+  };
 
   if (doc.objType !== "docx") {
     throw new CliError(
@@ -94,7 +102,7 @@ export async function update(
       authInfo,
       documentId,
       bodyInput,
-      tableHeaderRow,
+      tableOpts,
       globalOpts,
     );
   }
@@ -103,7 +111,7 @@ export async function update(
     authInfo,
     documentId,
     bodyInput,
-    tableHeaderRow,
+    tableOpts,
     globalOpts,
     doc.spaceId,
     doc.nodeToken,
@@ -114,7 +122,7 @@ async function appendToDocument(
   authInfo: AuthInfo,
   documentId: string,
   bodyInput: { content: string; sourcePath?: string; sourceDir?: string },
-  tableHeaderRow: boolean,
+  tableOpts: TableWriteOptions,
   globalOpts: GlobalOpts,
 ): Promise<void> {
   const docInfo = await getDocumentInfo(authInfo, documentId);
@@ -127,7 +135,7 @@ async function appendToDocument(
     {
       sourcePath: bodyInput.sourcePath,
       sourceDir: bodyInput.sourceDir,
-      tableHeaderRow,
+      ...tableOpts,
     },
     -1,
   );
@@ -149,7 +157,7 @@ async function overwriteDocument(
   authInfo: AuthInfo,
   documentId: string,
   bodyInput: { content: string; sourcePath?: string; sourceDir?: string },
-  tableHeaderRow: boolean,
+  tableOpts: TableWriteOptions,
   globalOpts: GlobalOpts,
   spaceId?: string,
   nodeToken?: string,
@@ -193,7 +201,7 @@ async function overwriteDocument(
         {
           sourcePath: bodyInput.sourcePath,
           sourceDir: bodyInput.sourceDir,
-          tableHeaderRow,
+          ...tableOpts,
         },
       );
     }

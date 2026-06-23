@@ -59,6 +59,16 @@ export interface CommandArgs {
   [key: string]: unknown;
 }
 
+/** Table formatting options applied when writing Markdown (create/update). */
+export interface TableWriteOptions {
+  /** Set each table's first row as a header row. */
+  tableHeaderRow: boolean;
+  /** Re-fit each table's column widths to its content. */
+  tableColumnWidth: boolean;
+  /** Target total table width in pixels (omit to use the default). */
+  tableWidth?: number;
+}
+
 export type CommandHandler = (
   args: CommandArgs,
   globalOpts: GlobalOpts,

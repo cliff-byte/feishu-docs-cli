@@ -111,7 +111,11 @@ echo "# Hello" | feishu-docs create "Title" --wiki <space_id> --body -
 
 The `--body` flag accepts a file path or `-` for stdin. Content is Markdown — the API converts it to Feishu blocks server-side.
 
-Markdown tables are written with their first row set as a header row (the "设置为标题行" style in the Feishu UI) by default, since a Markdown table's first row is its header. Pass `--no-table-header` to write plain tables with no header row instead. This applies to `create` and `update` (overwrite and `--append`).
+Markdown tables are written with their first row set as a header row (the "设置为标题行" style in the Feishu UI) by default, since a Markdown table's first row is its header. Pass `--no-table-header` to write plain tables with no header row instead.
+
+Column widths are also auto-fit to each column's content by default (like the "列宽自适应" UI action): short columns (e.g. an id column) stay narrow, text-heavy columns get more room, a single very-long column is capped so it can't dominate, content-heavy tables are scaled to fill the page width, and small tables stay compact instead of being stretched. Pass `--no-table-column-width` to keep the API's even split. The fit targets the docx **default page width** (~815px); for the "较宽/全宽" page-width modes pass `--table-width <px>` (200–2000) to set the total. Note this is a one-time pixel estimate at write time (not exact, and absolute pixels don't track window resizes), matching how the UI action behaves.
+
+All three table options (`--no-table-header`, `--no-table-column-width`, `--table-width`) apply to `create` and `update` (overwrite and `--append`).
 
 Local images referenced in the markdown are uploaded to Feishu and embedded automatically — both relative paths (`![alt](./images/demo.png)`) and `file://` URIs work, alongside remote `http(s)` image URLs. Only standalone block-level images whose path lives inside the markdown file's directory tree are uploaded (see Limitations). When piping via stdin (`--body -`), relative image paths resolve against the current working directory.
 
