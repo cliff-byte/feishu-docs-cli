@@ -1,6 +1,6 @@
 ---
 name: feishu-docs
-description: Read, write, search, and manage Feishu (Lark) cloud documents and knowledge bases via the feishu-docs CLI. Use this skill whenever the user mentions Feishu docs, Lark docs, knowledge bases (wiki spaces), or wants to interact with Feishu cloud documents in any way — reading, creating, updating, deleting, searching, sharing, or browsing wiki structure. Also trigger when the user pastes a Feishu or Lark URL, or mentions feishu-docs-cli. This skill covers both Chinese (飞书) and international (Lark) platforms.
+description: Feishu/Lark cloud documents (飞书云文档) and knowledge bases via the feishu-docs CLI. Use as the primary interface for every document or wiki task involving a supported URL (*.feishu.cn, *.larksuite.com, or *.larkoffice.com with /wiki/, /docx/, /doc/, /sheets/, or /base/) or a raw document token—even when the user only pastes the link or asks to open, read, inspect, summarize, translate, extract, or edit it. Also use for creating, updating, appending, deleting, searching, sharing, moving, copying, organizing, or browsing Feishu/Lark documents, folders, and wiki spaces, and whenever feishu-docs or feishu-docs-cli is mentioned.
 ---
 
 # Feishu Docs CLI
