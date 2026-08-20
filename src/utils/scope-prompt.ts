@@ -49,6 +49,7 @@ function askYesNo(question: string): Promise<boolean> {
 export async function promptScopeAuth(
   missingScopes: string[],
   globalOpts: GlobalOpts,
+  autoAuthorize: boolean = false,
 ): Promise<boolean> {
   // Non-interactive: skip prompt
   if (globalOpts.json || !process.stdin.isTTY) {
@@ -72,8 +73,14 @@ export async function promptScopeAuth(
       `手动授权命令: feishu-docs authorize --scope "${scopeStr}"\n\n`,
   );
 
-  const yes = await askYesNo("是否现在申请授予权限?");
-  if (!yes) return false;
+  if (!autoAuthorize) {
+    const yes = await askYesNo("是否现在申请授予权限?");
+    if (!yes) return false;
+  } else {
+    process.stderr.write(
+      "feishu-docs: 检测到待办内容，正在打开浏览器申请读取权限；拒绝或授权失败时将保留原始 task 标签。\n\n",
+    );
+  }
 
   // Merge missing scopes with current grants and re-run OAuth
   const stored = await loadTokens();
@@ -108,11 +115,14 @@ export async function promptScopeAuth(
  *   `permission_violations` (older APIs like search). When the error has
  *   empty `missingScopes` but `fallbackScopes` is provided, these are used
  *   for the authorization prompt.
+ * @param options.autoAuthorize  Start OAuth without an extra terminal y/N
+ *   prompt. Non-interactive and JSON modes still never open a browser.
  */
 export async function withScopeRecovery<T>(
   fn: () => Promise<T>,
   globalOpts: GlobalOpts,
   fallbackScopes?: string[],
+  options: { autoAuthorize?: boolean } = {},
 ): Promise<T> {
   try {
     return await fn();
@@ -139,7 +149,11 @@ export async function withScopeRecovery<T>(
     }
 
     // Try interactive recovery
-    const authorized = await promptScopeAuth(scopes, globalOpts);
+    const authorized = await promptScopeAuth(
+      scopes,
+      globalOpts,
+      options.autoAuthorize,
+    );
     if (!authorized) {
       throw new CliError("AUTH_REQUIRED", buildScopeHint(scopes), {
         apiCode: err.apiCode,

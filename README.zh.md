@@ -136,7 +136,7 @@ feishu-docs login --port 4567
 ### 读取
 
 ```bash
-# 读取文档，输出 Markdown（图片自动下载到 ~/.feishu-docs/images/）
+# 读取文档，输出飞书服务端生成的 Markdown
 feishu-docs read https://xxx.feishu.cn/wiki/wikcnXXX
 
 # 通过 token 读取
@@ -152,7 +152,7 @@ feishu-docs read <url> --raw
 feishu-docs read <url> --with-meta
 ```
 
-文档中的图片会自动下载到 `~/.feishu-docs/images/`，在 Markdown 输出中引用本地文件路径。缓存有效期 30 天。
+默认读取使用飞书 `docs_ai` 输出的 Markdown。检测到待办标签时，CLI 会通过 Task v2 补全标题、状态和负责人；交互模式下若缺少 `task:task:read`，会自动打开 OAuth 授权页。用户拒绝、授权失败或处于非交互模式时，保留原始 task 标签并继续读取文档。`--blocks` 仍返回原始 Block JSON；`docs_ai` 不可用时回退到原有本地渲染器。
 
 ### 知识库
 
@@ -433,8 +433,8 @@ feishu-docs-cli 和 lark-cli 在写入 Mermaid 时的处理方式不同：
 - **嵌入内容**：电子表格（渲染为表格）、多维表格（渲染为表格）、画板/白板（导出为图片）
 - **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
-- Markdown 转换有损（颜色、合并单元格、布局会丢失）。使用 `--blocks` 获取无损 JSON。
-- 图片读取时自动下载到本地（`~/.feishu-docs/images/`，30 天缓存）。
+- `docs_ai` 返回飞书风格 Markdown，特殊块可能保留为类 XML 标签。使用 `--blocks` 获取无损 JSON。
+- `docs_ai` 不可用时，回退渲染器会把图片下载到本地（`~/.feishu-docs/images/`，30 天缓存）。
 - 支持写入独立成段的本地 Markdown 图片，例如 `![截图](./images/demo.png)`。当前不支持行内图片、列表/表格中的本地图片，且图片路径必须位于 Markdown 文件所在目录及其子目录内。
 
 ## 许可证

@@ -67,7 +67,7 @@ feishu-docs read <url> --with-meta     # Prepend front-matter: title/URL/revisio
 
 Accepts full Feishu/Lark URLs or raw tokens (e.g., `wikcnXXX`, `doxcnXXX`). The URL format is automatically detected — wiki pages, docx, sheets, and bitable links all work.
 
-Markdown conversion is lossy (colors, merged cells, complex layouts are dropped). When fidelity matters, use `--blocks` to get the raw Block JSON.
+Default reads use Feishu's server-rendered Lark-flavored Markdown. Task tags are enriched through Task v2; in interactive mode, missing `task:task:read` authorization opens automatically. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and reading continues. When fidelity matters, use `--blocks` to get the raw Block JSON.
 
 ## Browsing Knowledge Bases
 
@@ -239,7 +239,7 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 - Embedded `sheet` and `bitable` are rendered as tables (lossy)
 - Embedded `board`/`whiteboard` are exported as local PNG images
 - `mindnote` renders as a link only
-- On read, images are downloaded to `~/.feishu-docs/images/` with 30-day cache. On write, local markdown images are uploaded to Feishu and embedded — but only standalone block-level images (e.g. `![alt](./images/demo.png)`) with relative paths or `file://` URIs, where the path is inside the markdown file's directory tree, and each file is under 20MB. Inline images, images inside lists/tables, and paths outside that directory tree are skipped (remote `http(s)` image URLs always work).
+- On read, `docs_ai` returns Feishu-hosted image references; if it is unavailable, the fallback renderer downloads images to `~/.feishu-docs/images/` with a 30-day cache. On write, local markdown images are uploaded to Feishu and embedded — but only standalone block-level images (e.g. `![alt](./images/demo.png)`) with relative paths or `file://` URIs, where the path is inside the markdown file's directory tree, and each file is under 20MB. Inline images, images inside lists/tables, and paths outside that directory tree are skipped (remote `http(s)` image URLs always work).
 - Mermaid code blocks are preserved as-is (code block, not visual diagram) — the Open API does not support creating visual "text diagram" blocks
-- Markdown conversion is lossy — use `--blocks` for lossless JSON when precision matters
+- `docs_ai` returns Lark-flavored Markdown and may preserve special blocks as XML-like tags — use `--blocks` for lossless JSON when precision matters
 - Search requires user-level auth (run `feishu-docs login` first)

@@ -75,7 +75,7 @@ describe("cat command", { concurrency: 1 }, () => {
         FEISHU_USER_TOKEN: undefined,
       },
       async () => {
-        // fetchChildren (2 responses) + fetchAllBlocks for docx node (2 responses) = 4 responses
+        // fetchChildren (2 responses) + docs_ai for docx node (2 responses) = 4 responses
         const { restore: r } = setupMockFetch({
           responses: [
             // fetchChildren
@@ -96,29 +96,11 @@ describe("cat command", { concurrency: 1 }, () => {
                 has_more: false,
               },
             }),
-            // fetchAllBlocks for docx node
+            // docs_ai for docx node
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "docxTk12345678901234",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "docxTk12345678901234",
-                    children: [],
-                    text: {
-                      elements: [{ text_run: { content: "Cat content" } }],
-                    },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "Cat content" } },
             }),
           ],
         });
@@ -150,7 +132,7 @@ describe("cat command", { concurrency: 1 }, () => {
       },
       async () => {
         // fetchChildren returns 2 nodes, but maxDocs=1 so only first is processed.
-        // fetchChildren (2) + fetchAllBlocks for first doc (2) = 4 responses.
+        // fetchChildren (2) + docs_ai for first doc (2) = 4 responses.
         // The second doc triggers the limit warning before fetching.
         const { restore: r } = setupMockFetch({
           responses: [
@@ -180,29 +162,11 @@ describe("cat command", { concurrency: 1 }, () => {
                 has_more: false,
               },
             }),
-            // fetchAllBlocks for first doc
+            // docs_ai for first doc
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "docxTk12345678901234",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "docxTk12345678901234",
-                    children: [],
-                    text: {
-                      elements: [{ text_run: { content: "First" } }],
-                    },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "First" } },
             }),
           ],
           strictCount: false,

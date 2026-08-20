@@ -168,31 +168,13 @@ describe("read command", { concurrency: 1 }, () => {
         FEISHU_USER_TOKEN: undefined,
       },
       async () => {
-        // blocksToMarkdown needs a PAGE root block with child text blocks.
+        // Default reads server-rendered Markdown from docs_ai.
         const { restore: r } = setupMockFetch({
           responses: [
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "abc123def456789012",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "abc123def456789012",
-                    children: [],
-                    text: {
-                      elements: [{ text_run: { content: "Hello Markdown" } }],
-                    },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "Hello Markdown" } },
             }),
           ],
         });
@@ -272,32 +254,14 @@ describe("read command", { concurrency: 1 }, () => {
         FEISHU_USER_TOKEN: undefined,
       },
       async () => {
-        // fetchAllBlocks (2 responses) + getDocumentInfo (2 responses) = 4 responses.
+        // docs_ai (2 responses) + getDocumentInfo (2 responses) = 4 responses.
         const { restore: r } = setupMockFetch({
           responses: [
-            // fetchAllBlocks
+            // docs_ai
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "abc123def456789012",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "abc123def456789012",
-                    children: [],
-                    text: {
-                      elements: [{ text_run: { content: "Content" } }],
-                    },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "Content" } },
             }),
             // getDocumentInfo
             tenantTokenResponse(),
@@ -347,7 +311,7 @@ describe("read command", { concurrency: 1 }, () => {
       },
       async () => {
         // wiki URL: resolveWikiToken (with metadata, docx type) +
-        // fetchAllBlocks + getDocumentInfo. strictCount:false for any slack.
+        // docs_ai + getDocumentInfo. strictCount:false for any slack.
         const { restore: r } = setupMockFetch({
           responses: [
             // resolveWikiToken
@@ -369,27 +333,11 @@ describe("read command", { concurrency: 1 }, () => {
                 },
               },
             }),
-            // fetchAllBlocks
+            // docs_ai
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "abc123def456789012",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "abc123def456789012",
-                    children: [],
-                    text: { elements: [{ text_run: { content: "Content" } }] },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "Content" } },
             }),
             // getDocumentInfo
             tenantTokenResponse(),
@@ -457,30 +405,14 @@ describe("read command", { concurrency: 1 }, () => {
         FEISHU_USER_TOKEN: undefined,
       },
       async () => {
-        // docx URL: fetchAllBlocks + getDocumentInfo + getDriveMeta.
+        // docx URL: docs_ai + getDocumentInfo + getDriveMeta.
         const { restore: r } = setupMockFetch({
           responses: [
-            // fetchAllBlocks
+            // docs_ai
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "abc123def456789012",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "abc123def456789012",
-                    children: [],
-                    text: { elements: [{ text_run: { content: "Content" } }] },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "Content" } },
             }),
             // getDocumentInfo
             tenantTokenResponse(),
@@ -550,31 +482,13 @@ describe("read command", { concurrency: 1 }, () => {
         FEISHU_USER_TOKEN: undefined,
       },
       async () => {
-        // blocksToMarkdown needs a PAGE root block with child text blocks.
+        // Human-readable mode uses docs_ai too.
         const { restore: r } = setupMockFetch({
           responses: [
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: {
-                items: [
-                  {
-                    block_id: "abc123def456789012",
-                    block_type: 1,
-                    children: ["blk1"],
-                  },
-                  {
-                    block_id: "blk1",
-                    block_type: 2,
-                    parent_id: "abc123def456789012",
-                    children: [],
-                    text: {
-                      elements: [{ text_run: { content: "Human text" } }],
-                    },
-                  },
-                ],
-                has_more: false,
-              },
+              data: { document: { content: "Human text" } },
             }),
           ],
         });
@@ -621,6 +535,8 @@ describe("read command", { concurrency: 1 }, () => {
         ]);
         const { restore: r } = setupMockFetch({
           responses: [
+            tenantTokenResponse(),
+            jsonResponse({ code: 999999, msg: "docs_ai unavailable" }),
             // fetchAllBlocks
             tenantTokenResponse(),
             jsonResponse({
@@ -711,6 +627,8 @@ describe("read command", { concurrency: 1 }, () => {
         //    Interleaved: tenantToken(fields), tenantToken(records), fields API, records API
         const { restore: r } = setupMockFetch({
           responses: [
+            tenantTokenResponse(),
+            jsonResponse({ code: 999999, msg: "docs_ai unavailable" }),
             // fetchAllBlocks
             tenantTokenResponse(),
             jsonResponse({
@@ -795,6 +713,8 @@ describe("read command", { concurrency: 1 }, () => {
         // 2. fetchSheetData: metainfo (tenantToken + API) + values (tenantToken + API)
         const { restore: r } = setupMockFetch({
           responses: [
+            tenantTokenResponse(),
+            jsonResponse({ code: 999999, msg: "docs_ai unavailable" }),
             // fetchAllBlocks
             tenantTokenResponse(),
             jsonResponse({
@@ -882,6 +802,8 @@ describe("read command", { concurrency: 1 }, () => {
         //    (tenantToken already set) just calls fetch directly (no extra getTenantToken).
         const { restore: r } = setupMockFetch({
           responses: [
+            tenantTokenResponse(),
+            jsonResponse({ code: 999999, msg: "docs_ai unavailable" }),
             // fetchAllBlocks
             tenantTokenResponse(),
             jsonResponse({
@@ -963,6 +885,8 @@ describe("read command", { concurrency: 1 }, () => {
         ]);
         const { restore: r } = setupMockFetch({
           responses: [
+            tenantTokenResponse(),
+            jsonResponse({ code: 999999, msg: "docs_ai unavailable" }),
             // fetchAllBlocks
             tenantTokenResponse(),
             jsonResponse({
@@ -1033,6 +957,8 @@ describe("read command", { concurrency: 1 }, () => {
         // Using strictCount: false so excess calls return {code: 0} defaults.
         const { restore: r } = setupMockFetch({
           responses: [
+            tenantTokenResponse(),
+            jsonResponse({ code: 999999, msg: "docs_ai unavailable" }),
             // fetchAllBlocks
             tenantTokenResponse(),
             jsonResponse({

@@ -521,11 +521,30 @@ export async function oauthLogin(
 
         const code = url.searchParams.get("code");
         const returnedState = url.searchParams.get("state");
+        const oauthError = url.searchParams.get("error");
 
         // Validate state to prevent CSRF
         if (!returnedState || returnedState !== state) {
           res.writeHead(400);
           res.end("Invalid state parameter");
+          return;
+        }
+
+        if (oauthError) {
+          res.writeHead(400, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Content-Security-Policy": CSP_HEADER,
+            Connection: "close",
+          });
+          res.end("<h1>授权已取消</h1><p>你可以关闭此页面。</p>");
+          clearTimeout(timeout);
+          server.close();
+          for (const socket of openSockets) socket.destroy();
+          reject(
+            new CliError("AUTH_REQUIRED", "用户拒绝了 OAuth 授权", {
+              recovery: "重新读取并同意授权，或继续使用降级结果",
+            }),
+          );
           return;
         }
 

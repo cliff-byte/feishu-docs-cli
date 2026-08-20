@@ -154,7 +154,7 @@ With these three variables set, all commands work without `feishu-docs login`. T
 ### Read
 
 ```bash
-# Read document as Markdown (images auto-downloaded to ~/.feishu-docs/images/)
+# Read document as server-rendered Lark-flavored Markdown
 feishu-docs read https://xxx.feishu.cn/wiki/wikcnXXX
 
 # Read by token
@@ -170,7 +170,7 @@ feishu-docs read <url> --raw
 feishu-docs read <url> --with-meta
 ```
 
-Images in documents are automatically downloaded to `~/.feishu-docs/images/` and referenced as local file paths in the Markdown output. Cached images are reused for 30 days.
+Default reads use Feishu's `docs_ai` Markdown output. When task tags are present, the CLI enriches them through Task v2 and automatically opens OAuth in interactive mode if `task:task:read` is missing. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and document reading continues. `--blocks` still returns the original block JSON, and the previous local renderer remains the fallback when `docs_ai` is unavailable.
 
 ### Knowledge Base
 
@@ -451,8 +451,8 @@ feishu-docs-cli and lark-cli handle Mermaid differently when writing:
 - **Embedded content**: sheet (rendered as table), bitable (rendered as table), board/whiteboard (exported as image)
 - **Link only**: mindnote
 - **Not supported**: doc (legacy format)
-- Markdown conversion is lossy (colors, merged cells, layouts are dropped). Use `--blocks` for lossless JSON.
-- Image read downloads to local files (`~/.feishu-docs/images/`) with 30-day cache.
+- `docs_ai` returns Lark-flavored Markdown and may preserve special blocks as XML-like tags. Use `--blocks` for lossless JSON.
+- If `docs_ai` is unavailable, the fallback renderer downloads images to `~/.feishu-docs/images/` with a 30-day cache.
 - Local markdown images are uploaded on write when they appear as standalone block-level images, e.g. `![screenshot](./images/demo.png)`. Inline images, images inside lists/tables, and image paths outside the markdown file's directory tree are not supported.
 
 ## License

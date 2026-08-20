@@ -39,4 +39,14 @@ describe("OAuth CSP headers", () => {
       "500 response must include Content-Security-Policy header",
     );
   });
+
+  it("OAuth denial closes the callback server and rejects immediately", () => {
+    const denialBlock = authSource.match(
+      /const oauthError = url\.searchParams\.get\("error"\);[\s\S]+?if \(oauthError\) \{([\s\S]+?)\n        \}/,
+    );
+    assert.ok(denialBlock, "Must handle OAuth error callbacks");
+    assert.ok(denialBlock[1].includes("clearTimeout(timeout)"));
+    assert.ok(denialBlock[1].includes("server.close()"));
+    assert.ok(denialBlock[1].includes("reject("));
+  });
 });

@@ -6,6 +6,8 @@ import { createClient } from "../client.js";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { fetchChildren } from "../services/wiki-nodes.js";
 import { fetchAllBlocks } from "../services/doc-blocks.js";
+import { fetchDocumentMarkdown } from "../services/doc-markdown.js";
+import { enrichTaskTags } from "../services/task-enrichment.js";
 import { CliError } from "../utils/errors.js";
 import { validateToken } from "../utils/validate.js";
 import {
@@ -26,6 +28,7 @@ interface WalkCtx {
   skipped: number;
   stopped: boolean;
   currentDepth: number;
+  globalOpts: GlobalOpts;
 }
 
 /**
@@ -107,8 +110,23 @@ async function walkNodes(
       ctx.docsRead++;
     } else if (objType === "docx") {
       try {
-        const blocks = await fetchAllBlocks(authInfo, node.obj_token);
-        const md = blocksToMarkdown(blocks);
+        let md: string;
+        try {
+          md = await fetchDocumentMarkdown(authInfo, node.obj_token);
+          try {
+            md = await enrichTaskTags(md, ctx.globalOpts);
+          } catch (err) {
+            process.stderr.write(
+              `feishu-docs: warning: 待办详情读取 ${nodePath} 失败，保留 docs_ai task 标签: ${(err as Error).message}\n`,
+            );
+          }
+        } catch (err) {
+          process.stderr.write(
+            `feishu-docs: warning: docs_ai 读取 ${nodePath} 失败，回退到文档块解析: ${(err as Error).message}\n`,
+          );
+          const blocks = await fetchAllBlocks(authInfo, node.obj_token);
+          md = blocksToMarkdown(blocks);
+        }
         const output = header + md + "\n";
 
         // Check byte limit before writing
@@ -197,6 +215,7 @@ export async function cat(
     skipped: 0,
     stopped: false,
     currentDepth: 0,
+    globalOpts,
   };
 
   await walkNodes(authInfo, spaceId, parentNode, "", ctx);

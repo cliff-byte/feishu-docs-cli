@@ -6,6 +6,8 @@ import { createClient, fetchWithAuth } from "../client.js";
 import { blocksToMarkdown } from "../parser/blocks-to-md.js";
 import { CliError } from "../utils/errors.js";
 import { fetchAllBlocks } from "../services/doc-blocks.js";
+import { fetchDocumentMarkdown } from "../services/doc-markdown.js";
+import { enrichTaskTags } from "../services/task-enrichment.js";
 import { getDocumentInfo } from "../services/block-writer.js";
 import { resolveDocument } from "../utils/document-resolver.js";
 import { enrichBlocks } from "../services/doc-enrichment.js";
@@ -95,35 +97,39 @@ export async function read(
     return;
   }
 
-  // Fetch all blocks
-  let blocks: Block[];
-  try {
-    blocks = await fetchAllBlocks(authInfo, documentId);
-  } catch (err) {
-    if (
-      err instanceof CliError &&
-      (err.errorType === "PERMISSION_DENIED" ||
-        err.errorType === "SCOPE_MISSING")
-    ) {
-      throw new CliError(
-        "PERMISSION_DENIED",
-        "读取文档内容权限不足。可能原因:\n" +
-          "  1. 应用未在飞书开发者后台开通 docx:document 权限 → 请前往 https://open.feishu.cn/app 开通\n" +
-          "  2. 文档未对当前用户/应用开放访问 → 请联系文档拥有者授权\n" +
-          '开通权限后，运行 feishu-docs authorize --scope "docx:document" 重新授权',
-      );
-    }
-    throw err;
-  }
-
   // --blocks mode: output raw JSON
   if (args.blocks) {
+    const blocks = await fetchBlocks(authInfo, documentId);
     process.stdout.write(JSON.stringify(blocks, null, 2) + "\n");
     return;
   }
 
-  // Default: convert to Markdown with enrichment
-  const enrichment = await enrichBlocks(authInfo, blocks, globalOpts);
+  // Default: use Feishu's server-rendered Markdown. Keep the block renderer as
+  // a compatibility fallback because docs_ai is not yet in the public API docs.
+  let markdown: string;
+  try {
+    markdown = await fetchDocumentMarkdown(authInfo, documentId);
+    try {
+      markdown = await enrichTaskTags(markdown, globalOpts);
+    } catch (err) {
+      process.stderr.write(
+        `feishu-docs: warning: 待办详情读取失败，保留 docs_ai task 标签: ${(err as Error).message}\n`,
+      );
+    }
+  } catch (err) {
+    process.stderr.write(
+      `feishu-docs: warning: docs_ai 读取失败，回退到文档块解析: ${(err as Error).message}\n`,
+    );
+    const blocks = await fetchBlocks(authInfo, documentId);
+    const enrichment = await enrichBlocks(authInfo, blocks, globalOpts);
+    markdown = blocksToMarkdown(blocks, {
+      imageUrlMap: enrichment.imageUrlMap,
+      userNameMap: enrichment.userNameMap,
+      bitableDataMap: enrichment.bitableDataMap,
+      boardImageMap: enrichment.boardImageMap,
+      sheetDataMap: enrichment.sheetDataMap,
+    });
+  }
 
   // Add metadata header if requested
   let output = "";
@@ -180,12 +186,30 @@ export async function read(
     output += "---\n\n";
   }
 
-  output += blocksToMarkdown(blocks, {
-    imageUrlMap: enrichment.imageUrlMap,
-    userNameMap: enrichment.userNameMap,
-    bitableDataMap: enrichment.bitableDataMap,
-    boardImageMap: enrichment.boardImageMap,
-    sheetDataMap: enrichment.sheetDataMap,
-  });
+  output += markdown;
   process.stdout.write(output);
+}
+
+async function fetchBlocks(
+  authInfo: AuthInfo,
+  documentId: string,
+): Promise<Block[]> {
+  try {
+    return await fetchAllBlocks(authInfo, documentId);
+  } catch (err) {
+    if (
+      err instanceof CliError &&
+      (err.errorType === "PERMISSION_DENIED" ||
+        err.errorType === "SCOPE_MISSING")
+    ) {
+      throw new CliError(
+        "PERMISSION_DENIED",
+        "读取文档内容权限不足。可能原因:\n" +
+          "  1. 应用未在飞书开发者后台开通 docx:document 权限 → 请前往 https://open.feishu.cn/app 开通\n" +
+          "  2. 文档未对当前用户/应用开放访问 → 请联系文档拥有者授权\n" +
+          '开通权限后，运行 feishu-docs authorize --scope "docx:document" 重新授权',
+      );
+    }
+    throw err;
+  }
 }
