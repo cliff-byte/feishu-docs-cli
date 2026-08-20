@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0] - 2026-08-20
+
+### Added
+
+- **Server-rendered Markdown reads.** `read` and `cat` now use Feishu's `docs_ai` Markdown output by default, while `--blocks` remains lossless and the existing block renderer remains the compatibility fallback. Document writes are unchanged and still use the Convert + Descendant API pipeline.
+- **Task enrichment with least-privilege OAuth.** Task tags in `docs_ai` output are resolved through Task v2 into Markdown checkboxes with status, summary, and assignees. Interactive reads automatically request only `task:task:read`; denied or unavailable authorization keeps the original task tags and continues reading.
+
+### Fixed
+
+- **OAuth denial no longer waits for timeout.** A rejected authorization callback now closes the local callback server immediately and lets document reading degrade gracefully.
+
 ## [1.4.0] - 2026-06-23
 
 ### Added
