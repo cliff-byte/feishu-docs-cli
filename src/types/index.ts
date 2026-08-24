@@ -91,11 +91,20 @@ export interface SubcommandMeta {
 
 // ── Document types ──
 
-export type DocType = "wiki" | "docx" | "doc" | "sheet" | "bitable" | "unknown";
+export type DocType =
+  | "wiki"
+  | "docx"
+  | "doc"
+  | "sheet"
+  | "bitable"
+  | "bitable_record"
+  | "unknown";
 
 export interface ParsedDoc {
   type: DocType;
   token: string;
+  tableId?: string;
+  viewId?: string;
 }
 
 // ── API types ──

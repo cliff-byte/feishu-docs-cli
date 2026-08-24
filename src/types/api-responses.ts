@@ -46,3 +46,44 @@ export interface WikiGetNodeResponse {
     node_creator?: string;
   };
 }
+
+// -- Bitable API --
+
+export interface BitableField {
+  field_id?: string;
+  field_name: string;
+  type?: number;
+  ui_type?: string;
+  [key: string]: unknown;
+}
+
+export interface BitableRecord {
+  record_id?: string;
+  fields: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface BitableFieldsResponse {
+  items?: BitableField[];
+  has_more?: boolean;
+  page_token?: string;
+  total?: number;
+}
+
+export interface BitableRecordsResponse {
+  items?: BitableRecord[];
+  has_more?: boolean;
+  page_token?: string;
+  total?: number;
+}
+
+export interface BitableRecordResponse {
+  record?: BitableRecord;
+}
+
+export interface BitableRecordShareMetaResponse {
+  base_token?: string;
+  table_id?: string;
+  record_id?: string;
+  record_share_token?: string;
+}

@@ -5,6 +5,7 @@
 
 import { parseDocUrl } from "./url-parser.js";
 import { resolveWikiToken } from "../services/wiki-nodes.js";
+import { CliError } from "./errors.js";
 import { AuthInfo, ParsedDoc } from "../types/index.js";
 
 export interface ResolvedDocument {
@@ -40,6 +41,13 @@ export async function resolveDocument(
 ): Promise<ResolvedDocument> {
   const { allowFallback = true } = options;
   const parsed = parseDocUrl(input);
+  if (parsed.type === "bitable_record") {
+    throw new CliError(
+      "NOT_SUPPORTED",
+      "记录分享链接不是云文档，仅支持通过 read 命令读取",
+      { recovery: `运行 feishu-docs read '${input}' --json` },
+    );
+  }
   let objToken = parsed.token;
   let objType: string = parsed.type === "unknown" ? "docx" : parsed.type;
   let title: string | undefined;

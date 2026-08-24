@@ -29,6 +29,28 @@ describe('parseDocUrl', () => {
       assert.deepEqual(result, { type: 'bitable', token: 'bascnAbcDef123456' });
     });
 
+    it('should preserve bitable table and view coordinates', () => {
+      const result = parseDocUrl(
+        'https://xxx.feishu.cn/wiki/wikcnToken123?table=tblABC_123&view=vewXYZ-456'
+      );
+      assert.deepEqual(result, {
+        type: 'wiki',
+        token: 'wikcnToken123',
+        tableId: 'tblABC_123',
+        viewId: 'vewXYZ-456',
+      });
+    });
+
+    it('should parse record share URL without treating it as a record ID', () => {
+      const result = parseDocUrl(
+        'https://xxx.feishu.cn/record/recordTokenForTesting123'
+      );
+      assert.deepEqual(result, {
+        type: 'bitable_record',
+        token: 'recordTokenForTesting123',
+      });
+    });
+
     it('should parse Lark URL', () => {
       const result = parseDocUrl('https://xxx.larksuite.com/wiki/wikcnAbc123');
       assert.deepEqual(result, { type: 'wiki', token: 'wikcnAbc123' });
@@ -82,6 +104,17 @@ describe('parseDocUrl', () => {
       assert.throws(
         () => parseDocUrl('https://xxx.feishu.cn/unknown/path'),
         /无法识别的 URL 路径/
+      );
+    });
+
+    it('should reject unsafe bitable coordinates', () => {
+      assert.throws(
+        () => parseDocUrl('https://xxx.feishu.cn/base/baseToken?table=..%2Fsecret'),
+        /无效的 table_id 格式/
+      );
+      assert.throws(
+        () => parseDocUrl('https://xxx.feishu.cn/wiki/wikiToken?view=%2Fetc'),
+        /无效的 view_id 格式/
       );
     });
 

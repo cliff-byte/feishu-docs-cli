@@ -55,6 +55,29 @@ describe("resolveDocument logic (via parseDocUrl branching)", () => {
 });
 
 describe("resolveDocument", { concurrency: 1 }, () => {
+  it("rejects record share URLs outside the read command", async () => {
+    const auth = makeUserAuthInfo();
+    const { calls, restore } = setupMockFetch({ responses: [], strictCount: true });
+
+    try {
+      await assert.rejects(
+        resolveDocument(
+          auth,
+          "https://test.feishu.cn/record/recordTokenForTesting123",
+        ),
+        (err: unknown) => {
+          assert.ok(err instanceof CliError);
+          assert.equal(err.errorType, "NOT_SUPPORTED");
+          assert.match(err.recovery || "", /feishu-docs read/);
+          return true;
+        },
+      );
+      assert.equal(calls.length, 0);
+    } finally {
+      restore();
+    }
+  });
+
   it("docx URL passes through without wiki API call", async () => {
     const auth = makeUserAuthInfo();
     // No mock needed -- resolveDocument should NOT call any API for docx type

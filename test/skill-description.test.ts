@@ -22,7 +22,14 @@ describe("feishu-docs skill description", () => {
     for (const domain of ["feishu.cn", "larksuite.com", "larkoffice.com"]) {
       assert.ok(description.includes(domain), `should mention ${domain}`);
     }
-    for (const path of ["/wiki/", "/docx/", "/doc/", "/sheets/", "/base/"]) {
+    for (const path of [
+      "/wiki/",
+      "/docx/",
+      "/doc/",
+      "/sheets/",
+      "/base/",
+      "/record/",
+    ]) {
       assert.ok(description.includes(path), `should mention ${path}`);
     }
   });

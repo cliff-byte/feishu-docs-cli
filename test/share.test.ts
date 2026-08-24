@@ -138,7 +138,7 @@ describe("share list", { concurrency: 1 }, () => {
         output = captureOutput();
         await meta.subcommands.list.handler(
           { positionals: ["https://example.feishu.cn/docx/abc123"] },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson() as Record<string, unknown>;
@@ -183,7 +183,7 @@ describe("share list", { concurrency: 1 }, () => {
         output = captureOutput();
         await meta.subcommands.list.handler(
           { positionals: ["https://example.feishu.cn/docx/abc123"] },
-          makeGlobalOpts({ json: false }),
+          makeGlobalOpts({ auth: "tenant", json: false }),
         );
 
         const out = output.stdout();
@@ -229,7 +229,7 @@ describe("share add", { concurrency: 1 }, () => {
             ],
             role: "view",
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson() as Record<string, unknown>;
@@ -272,7 +272,7 @@ describe("share add", { concurrency: 1 }, () => {
             ],
             role: "edit",
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson() as Record<string, unknown>;
@@ -333,7 +333,7 @@ describe("share remove", { concurrency: 1 }, () => {
               "user@test.com",
             ],
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson() as Record<string, unknown>;
@@ -379,7 +379,7 @@ describe("share update", { concurrency: 1 }, () => {
             ],
             role: "edit",
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson() as Record<string, unknown>;
@@ -422,7 +422,7 @@ describe("share set", { concurrency: 1 }, () => {
             positionals: ["https://example.feishu.cn/docx/abc123"],
             public: "tenant",
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson() as Record<string, unknown>;

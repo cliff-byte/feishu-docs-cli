@@ -53,7 +53,7 @@ describe("ls command", { concurrency: 1 }, () => {
         output = captureOutput();
         await ls(
           { positionals: ["fldcnTest"] },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -93,7 +93,7 @@ describe("ls command", { concurrency: 1 }, () => {
         output = captureOutput();
         await ls(
           { positionals: ["fldcnTest"], type: "sheet" },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         // Verify the fetch URL includes type=sheet
@@ -135,7 +135,7 @@ describe("ls command", { concurrency: 1 }, () => {
         output = captureOutput();
         await ls(
           { positionals: ["fldcnTest"], limit: "2" },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -193,7 +193,7 @@ describe("ls command", { concurrency: 1 }, () => {
         output = captureOutput();
         await ls(
           { positionals: ["fldcnTest"] },
-          makeGlobalOpts({ json: false }),
+          makeGlobalOpts({ auth: "tenant", json: false }),
         );
 
         assert.ok(
@@ -229,7 +229,7 @@ describe("ls command", { concurrency: 1 }, () => {
         output = captureOutput();
         await ls(
           { positionals: ["fldcnTest"] },
-          makeGlobalOpts({ json: false }),
+          makeGlobalOpts({ auth: "tenant", json: false }),
         );
 
         const out = output.stdout();
@@ -280,7 +280,7 @@ describe("ls command", { concurrency: 1 }, () => {
         output = captureOutput();
         await ls(
           { positionals: ["fldcnTest"] },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();

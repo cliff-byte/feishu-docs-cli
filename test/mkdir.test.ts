@@ -45,7 +45,7 @@ describe("mkdir command", { concurrency: 1 }, () => {
         output = captureOutput();
         await mkdir(
           { positionals: ["NewFolder"] },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -88,7 +88,7 @@ describe("mkdir command", { concurrency: 1 }, () => {
         output = captureOutput();
         await mkdir(
           { positionals: ["SubFolder"], parent: "fldcnParent" },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         // Verify the POST body contains the parent folder token
@@ -121,7 +121,7 @@ describe("mkdir command", { concurrency: 1 }, () => {
         output = captureOutput();
         await mkdir(
           { positionals: ["TestDir"] },
-          makeGlobalOpts({ json: false }),
+          makeGlobalOpts({ auth: "tenant", json: false }),
         );
 
         const out = output.stdout();

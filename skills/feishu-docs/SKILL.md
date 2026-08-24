@@ -1,6 +1,6 @@
 ---
 name: feishu-docs
-description: Feishu/Lark cloud documents (飞书云文档) and knowledge bases via the feishu-docs CLI. Use as the primary interface for every document or wiki task involving a supported URL (*.feishu.cn, *.larksuite.com, or *.larkoffice.com with /wiki/, /docx/, /doc/, /sheets/, or /base/) or a raw document token—even when the user only pastes the link or asks to open, read, inspect, summarize, translate, extract, or edit it. Also use for creating, updating, appending, deleting, searching, sharing, moving, copying, organizing, or browsing Feishu/Lark documents, folders, and wiki spaces, and whenever feishu-docs or feishu-docs-cli is mentioned.
+description: Feishu/Lark cloud documents (飞书云文档), knowledge bases, and Bitable records via the feishu-docs CLI. Use as the primary interface for every document, wiki, or Bitable read task involving a supported URL (*.feishu.cn, *.larksuite.com, or *.larkoffice.com with /wiki/, /docx/, /doc/, /sheets/, /base/, or /record/) or a raw document token—even when the user only pastes the link or asks to open, read, inspect, summarize, translate, extract, or edit it. Also use for creating, updating, appending, deleting, searching, sharing, moving, copying, organizing, or browsing Feishu/Lark documents, folders, and wiki spaces, and whenever feishu-docs or feishu-docs-cli is mentioned.
 ---
 
 # Feishu Docs CLI
@@ -63,11 +63,15 @@ feishu-docs read <url|token>
 feishu-docs read <url> --blocks        # Lossless Block JSON
 feishu-docs read <url> --raw           # Plain text
 feishu-docs read <url> --with-meta     # Prepend front-matter: title/URL/revision + creator, create/edit time, owner
+feishu-docs read <bitable-url> --json  # Complete table/view records with raw field values
+feishu-docs read <record-url> --json   # Resolve a record-share URL and read one record
 ```
 
-Accepts full Feishu/Lark URLs or raw tokens (e.g., `wikcnXXX`, `doxcnXXX`). The URL format is automatically detected — wiki pages, docx, sheets, and bitable links all work.
+Accepts full Feishu/Lark URLs or raw tokens (e.g., `wikcnXXX`, `doxcnXXX`). The URL format is automatically detected — wiki pages, docx, sheets, bitable table/view links, and `/record/` share links all work.
 
-Default reads use Feishu's server-rendered Lark-flavored Markdown. Task tags are enriched through Task v2; in interactive mode, missing `task:task:read` authorization opens automatically. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and reading continues. When fidelity matters, use `--blocks` to get the raw Block JSON.
+Document reads use Feishu's server-rendered Lark-flavored Markdown. Task tags are enriched through Task v2; in interactive mode, missing `task:task:read` authorization opens automatically. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and reading continues. When docx fidelity matters, use `--blocks` to get the raw Block JSON.
+
+Standalone bitable reads use the Bitable API, not `docs_ai`. A table/view URL renders all matching records as a Markdown table; a record-share URL renders one record as a field/value table. Prefer `--json` for agent use because it preserves raw arrays and objects. `--raw`, `--blocks`, and `--with-meta` do not apply to standalone bitable reads.
 
 ## Browsing Knowledge Bases
 
@@ -234,7 +238,7 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 
 ## Limitations
 
-- Only `docx` (new document format) is fully supported for read/write
+- `docx` is fully supported for read/write; standalone bitable table/view and record-share URLs are read-only
 - Legacy `doc` format is not supported
 - Embedded `sheet` and `bitable` are rendered as tables (lossy)
 - Embedded `board`/`whiteboard` are exported as local PNG images
@@ -242,4 +246,5 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 - On read, `docs_ai` returns Feishu-hosted image references; if it is unavailable, the fallback renderer downloads images to `~/.feishu-docs/images/` with a 30-day cache. On write, local markdown images are uploaded to Feishu and embedded — but only standalone block-level images (e.g. `![alt](./images/demo.png)`) with relative paths or `file://` URIs, where the path is inside the markdown file's directory tree, and each file is under 20MB. Inline images, images inside lists/tables, and paths outside that directory tree are skipped (remote `http(s)` image URLs always work).
 - Mermaid code blocks are preserved as-is (code block, not visual diagram) — the Open API does not support creating visual "text diagram" blocks
 - `docs_ai` returns Lark-flavored Markdown and may preserve special blocks as XML-like tags — use `--blocks` for lossless JSON when precision matters
+- Standalone bitable views apply record filtering and sorting but still output the table's complete field schema
 - Search requires user-level auth (run `feishu-docs login` first)

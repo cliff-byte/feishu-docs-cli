@@ -4,6 +4,7 @@
 
 import { ParsedDoc, DocType } from "../types/index.js";
 import { CliError } from "./errors.js";
+import { validateToken } from "./validate.js";
 
 const FEISHU_DOMAINS = /(?:^|\.)(feishu\.cn|larksuite\.com|larkoffice\.com)$/;
 
@@ -13,6 +14,7 @@ const PATH_PATTERNS: Array<{ pattern: RegExp; type: DocType }> = [
   { pattern: /^\/doc\/([A-Za-z0-9]+)/, type: "doc" },
   { pattern: /^\/sheets\/([A-Za-z0-9]+)/, type: "sheet" },
   { pattern: /^\/base\/([A-Za-z0-9]+)/, type: "bitable" },
+  { pattern: /^\/record\/([A-Za-z0-9]+)/, type: "bitable_record" },
 ];
 
 const RAW_TOKEN_RE = /^[A-Za-z][A-Za-z0-9]{19,}$/;
@@ -50,6 +52,18 @@ export function parseDocUrl(input: unknown): ParsedDoc {
         if (!token) {
           throw new CliError("INVALID_ARGS", "URL 中缺少文档 token");
         }
+        if (type === "wiki" || type === "bitable") {
+          const tableId = url.searchParams.get("table") || undefined;
+          const viewId = url.searchParams.get("view") || undefined;
+          if (tableId) validateToken(tableId, "table_id");
+          if (viewId) validateToken(viewId, "view_id");
+          return {
+            type,
+            token,
+            ...(tableId && { tableId }),
+            ...(viewId && { viewId }),
+          };
+        }
         return { type, token };
       }
     }
@@ -57,7 +71,10 @@ export function parseDocUrl(input: unknown): ParsedDoc {
     throw new CliError(
       "INVALID_ARGS",
       `无法识别的 URL 路径: ${url.pathname}`,
-      { recovery: "支持的路径: /wiki/, /docx/, /doc/, /sheets/, /base/" },
+      {
+        recovery:
+          "支持的路径: /wiki/, /docx/, /doc/, /sheets/, /base/, /record/",
+      },
     );
   }
 

@@ -244,6 +244,242 @@ describe("read command", { concurrency: 1 }, () => {
     );
   });
 
+  it("reads a standalone bitable view as Markdown without calling docs_ai", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        const { calls, restore: r } = setupMockFetch({
+          responses: [
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                node: {
+                  obj_token: "baseToken",
+                  obj_type: "bitable",
+                  title: "Weekly Plan",
+                  node_token: "wikiToken",
+                  space_id: "space1",
+                  has_child: false,
+                },
+              },
+            }),
+            tenantTokenResponse(),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                items: [
+                  { field_id: "fld1", field_name: "Name" },
+                  { field_id: "fld2", field_name: "Notes" },
+                ],
+              },
+            }),
+            jsonResponse({
+              code: 0,
+              data: {
+                items: [
+                  {
+                    record_id: "rec1",
+                    fields: { Name: "Alice", Notes: "a|b\nnext" },
+                  },
+                ],
+                total: 1,
+              },
+            }),
+          ],
+        });
+        mockRestore = r;
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await read(
+          {
+            positionals: [
+              "https://example.feishu.cn/wiki/wikiToken?table=tblABC&view=vewXYZ",
+            ],
+          },
+          makeGlobalOpts(),
+        );
+
+        assert.match(cap.stdout(), /\| Name \| Notes \|/);
+        assert.ok(cap.stdout().includes("a\\|b next"));
+        assert.ok(calls.some((call) => call.url.includes("view_id=vewXYZ")));
+        assert.ok(calls.every((call) => !call.url.includes("/docs_ai/")));
+      },
+    );
+  });
+
+  it("reads a standalone bitable view as structured JSON", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        const { restore: r } = setupMockFetch({
+          responses: [
+            tenantTokenResponse(),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: { items: [{ field_id: "fld1", field_name: "Meta" }] },
+            }),
+            jsonResponse({
+              code: 0,
+              data: {
+                items: [
+                  {
+                    record_id: "rec1",
+                    fields: { Meta: { active: true } },
+                  },
+                ],
+                total: 1,
+              },
+            }),
+          ],
+        });
+        mockRestore = r;
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await read(
+          {
+            positionals: [
+              "https://example.feishu.cn/base/baseToken?table=tblABC&view=vewXYZ",
+            ],
+          },
+          makeGlobalOpts({ json: true }),
+        );
+
+        const output = cap.stdoutJson() as Record<string, unknown>;
+        assert.equal(output.success, true);
+        assert.equal(output.type, "bitable");
+        assert.equal(output.total, 1);
+        assert.deepEqual(
+          (output.records as Array<{ fields: Record<string, unknown> }>)[0]
+            .fields.Meta,
+          { active: true },
+        );
+      },
+    );
+  });
+
+  it("resolves and reads a record-share URL", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        const { calls, restore: r } = setupMockFetch({
+          responses: [
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                base_token: "baseToken",
+                table_id: "tblABC",
+                record_id: "recREAL",
+                record_share_token: "shareToken",
+              },
+            }),
+            tenantTokenResponse(),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: { items: [{ field_id: "fld1", field_name: "Name" }] },
+            }),
+            jsonResponse({
+              code: 0,
+              data: {
+                record: {
+                  record_id: "recREAL",
+                  fields: { Name: "Alice" },
+                },
+              },
+            }),
+          ],
+        });
+        mockRestore = r;
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await read(
+          {
+            positionals: ["https://example.feishu.cn/record/shareToken"],
+          },
+          makeGlobalOpts({ json: true }),
+        );
+
+        const output = cap.stdoutJson() as Record<string, unknown>;
+        assert.equal(output.type, "bitable_record");
+        assert.equal(output.record_id, "recREAL");
+        assert.deepEqual(
+          (output.record as { fields: Record<string, unknown> }).fields,
+          { Name: "Alice" },
+        );
+        assert.ok(calls.some((call) => call.url.endsWith("/records/recREAL")));
+        assert.ok(calls.every((call) => !call.url.includes("/docs_ai/")));
+      },
+    );
+  });
+
+  it("rejects missing table coordinates and docx-only flags for bitable", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        await assert.rejects(
+          read(
+            { positionals: ["https://example.feishu.cn/base/baseToken"] },
+            makeGlobalOpts(),
+          ),
+          (err: unknown) => {
+            assert.ok(err instanceof CliError);
+            assert.equal(err.errorType, "INVALID_ARGS");
+            assert.match(err.recovery || "", /table/);
+            return true;
+          },
+        );
+        await assert.rejects(
+          read(
+            {
+              positionals: [
+                "https://example.feishu.cn/base/baseToken?table=tblABC",
+              ],
+              blocks: true,
+            },
+            makeGlobalOpts(),
+          ),
+          (err: unknown) => {
+            assert.ok(err instanceof CliError);
+            assert.equal(err.errorType, "NOT_SUPPORTED");
+            assert.match(err.recovery || "", /--json/);
+            return true;
+          },
+        );
+      },
+    );
+  });
+
   it("read --with-meta includes frontmatter", async () => {
     testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
     await withCleanEnv(

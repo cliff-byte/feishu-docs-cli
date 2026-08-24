@@ -20,6 +20,7 @@ import { CliError } from "../utils/errors.js";
 import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { downloadImages } from "./image-download.js";
 import { pLimit } from "../utils/concurrency.js";
+import { fetchBitableTable } from "./bitable.js";
 import type { AuthInfo, GlobalOpts, Block } from "../types/index.js";
 
 // ── Types ──
@@ -185,29 +186,11 @@ export async function fetchBitableData(
   const appToken = fullToken.slice(0, idx);
   const tableId = fullToken.slice(idx + 1);
 
-  const [fieldsRes, recordsRes] = await Promise.all([
-    fetchWithAuth(
-      authInfo,
-      `/open-apis/bitable/v1/apps/${encodeURIComponent(appToken)}/tables/${encodeURIComponent(tableId)}/fields`,
-      {},
-    ),
-    fetchWithAuth(
-      authInfo,
-      `/open-apis/bitable/v1/apps/${encodeURIComponent(appToken)}/tables/${encodeURIComponent(tableId)}/records`,
-      { params: { page_size: 100 } },
-    ),
-  ]);
-
-  const fieldsData = fieldsRes.data as Record<string, unknown> | undefined;
-  const recordsData = recordsRes.data as Record<string, unknown> | undefined;
-  const fields = (
-    (fieldsData?.items || []) as Array<Record<string, string>>
-  ).map((f) => f.field_name);
-  const records = (
-    (recordsData?.items || []) as Array<Record<string, unknown>>
-  ).map((r) => {
+  const data = await fetchBitableTable(authInfo, { baseToken: appToken, tableId });
+  const fields = data.fields.map((field) => field.field_name);
+  const records = data.records.map((record) => {
     return fields.map((name) => {
-      const val = (r.fields as Record<string, unknown>)?.[name];
+      const val = record.fields[name];
       if (val === undefined || val === null) return "";
       if (typeof val === "object") return JSON.stringify(val);
       return String(val);

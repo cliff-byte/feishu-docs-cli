@@ -27,7 +27,7 @@ Based on real-world testing against the same knowledge base (2026-03-29):
 | **Share / permissions** | `share list/add/remove/update/set` — fully wrapped | No wrapper — requires raw API calls |
 | **JSON output** | Clean, pipe-friendly `--json` | Mixes progress text (`[page 1] fetching...`) into stdout |
 | **Error messages** | Chinese messages with recovery hints, missing scope auto-detection | English errors, manual scope lookup |
-| **API coverage** | Documents, wiki, drive, search, permissions | **Full platform** — IM, calendar, tasks, contacts, bitable, mail, video conference, etc. |
+| **API coverage** | Documents, wiki, drive, search, permissions, bitable read | **Full platform** — IM, calendar, tasks, contacts, bitable, mail, video conference, etc. |
 | **Dependencies** | Zero runtime deps (Node.js built-ins only) | Go binary |
 | **Cold start** | ~0.5s (Node.js) | ~0.1s (Go) |
 
@@ -35,6 +35,7 @@ Based on real-world testing against the same knowledge base (2026-03-29):
 ## Features
 
 - **Read** documents as Markdown (images downloaded to local files), raw text, or original Block JSON
+- **Read Bitable** table/view URLs and record-share URLs as Markdown or structured JSON
 - **Create** documents in knowledge bases or cloud folders
 - **Update** documents with overwrite or append mode (auto-batch for large content)
 - **Delete** documents (move to recycle bin)
@@ -86,7 +87,7 @@ Requires Node.js >= 18.3.
    | `docx:document.block:convert` | Markdown to block conversion (create/update) |
    | `sheets:spreadsheet:readonly` | Embedded spreadsheet read (read command) |
    | `board:whiteboard:node:read` | Whiteboard export as image (read command) |
-   | `bitable:app:readonly` | Embedded bitable/table read (read command) |
+   | `bitable:app:readonly` | Bitable and embedded table read (read command) |
    | `docs:document.media:download` | Download images and attachments from documents |
 
    **Additional scopes** are requested reactively — when an API call needs a scope you haven't authorized, the CLI detects this from the API error response and prompts you. Common ones:
@@ -168,9 +169,17 @@ feishu-docs read <url> --raw
 
 # With metadata header
 feishu-docs read <url> --with-meta
+
+# Read a standalone Bitable table/view as Markdown
+feishu-docs read 'https://xxx.feishu.cn/base/bascnXXX?table=tblXXX&view=vewXXX'
+
+# Read Bitable data or a record-share link as structured JSON
+feishu-docs read '<bitable-or-record-url>' --json
 ```
 
-Default reads use Feishu's `docs_ai` Markdown output. When task tags are present, the CLI enriches them through Task v2 and automatically opens OAuth in interactive mode if `task:task:read` is missing. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and document reading continues. `--blocks` still returns the original block JSON, and the previous local renderer remains the fallback when `docs_ai` is unavailable.
+Document reads use Feishu's `docs_ai` Markdown output. When task tags are present, the CLI enriches them through Task v2 and automatically opens OAuth in interactive mode if `task:task:read` is missing. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and document reading continues. `--blocks` still returns the original block JSON, and the previous local renderer remains the fallback when `docs_ai` is unavailable.
+
+Standalone Bitable reads use the Bitable API instead: table/view URLs return all records as a Markdown table, while record-share URLs return one record as a field/value table. Use `--json` to preserve raw arrays and objects. A view controls record filtering and sorting; output still includes the table's complete field schema.
 
 ### Knowledge Base
 
@@ -427,9 +436,10 @@ dist/             # Compiled output (git-ignored)
 
 - [x] Feishu cloud document operations (read, create, update, delete, info)
 - [x] Knowledge base operations (spaces, tree, cat, wiki management, share, search)
-- [x] Quality hardening — 456 tests, retry logic, error recovery, dead code cleanup
+- [x] Read-only Bitable table/view and record-share URLs
+- [x] Quality hardening — 535 tests, retry logic, error recovery, dead code cleanup
 
-> Bitable and Sheets operations are not planned. For those, use the official [lark-cli](https://github.com/larksuite/cli).
+> Bitable writes and standalone Sheets operations are not planned. For those, use the official [lark-cli](https://github.com/larksuite/cli).
 
 ## Mermaid Diagrams
 
@@ -447,11 +457,12 @@ feishu-docs-cli and lark-cli handle Mermaid differently when writing:
 
 ## Limitations
 
-- **Supported**: docx (new documents)
+- **Supported**: docx (read/write), standalone bitable table/view and record-share URLs (read-only)
 - **Embedded content**: sheet (rendered as table), bitable (rendered as table), board/whiteboard (exported as image)
 - **Link only**: mindnote
 - **Not supported**: doc (legacy format)
 - `docs_ai` returns Lark-flavored Markdown and may preserve special blocks as XML-like tags. Use `--blocks` for lossless JSON.
+- Standalone Bitable reads do not use `docs_ai`; use `--json` for raw field values. `--raw`, `--blocks`, and `--with-meta` are docx-only.
 - If `docs_ai` is unavailable, the fallback renderer downloads images to `~/.feishu-docs/images/` with a 30-day cache.
 - Local markdown images are uploaded on write when they appear as standalone block-level images, e.g. `![screenshot](./images/demo.png)`. Inline images, images inside lists/tables, and image paths outside the markdown file's directory tree are not supported.
 

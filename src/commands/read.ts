@@ -15,6 +15,11 @@ import { getDriveMeta, DRIVE_META_SCOPE } from "../services/drive-meta.js";
 import { resolveUserNames } from "../services/doc-enrichment.js";
 import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { formatEpochSeconds } from "../utils/format-time.js";
+import { parseDocUrl } from "../utils/url-parser.js";
+import {
+  fetchBitableRecord,
+  fetchBitableTable,
+} from "../services/bitable.js";
 import type {
   CommandMeta,
   CommandArgs,
@@ -22,6 +27,10 @@ import type {
   AuthInfo,
   Block,
 } from "../types/index.js";
+import type {
+  BitableField,
+  BitableRecord,
+} from "../types/api-responses.js";
 
 /**
  * Fetch raw text content of a document.
@@ -59,11 +68,41 @@ export async function read(
     );
   }
 
+  const parsedInput = parseDocUrl(input);
   const { authInfo } = await createClient(globalOpts);
+  if (parsedInput.type === "bitable_record") {
+    rejectUnsupportedBitableFlags(args);
+    const data = await fetchBitableRecord(authInfo, parsedInput.token);
+    outputBitableRecord(data, globalOpts.json);
+    return;
+  }
+
   const doc = await resolveDocument(authInfo, input);
   const documentId = doc.objToken;
   const docType = doc.objType;
   const docTitle = doc.title;
+
+  if (docType === "bitable") {
+    rejectUnsupportedBitableFlags(args);
+    const tableId = doc.parsed.tableId;
+    if (!tableId) {
+      throw new CliError(
+        "INVALID_ARGS",
+        "多维表格 URL 缺少 table 参数，无法确定要读取的数据表",
+        {
+          recovery:
+            "请在飞书中打开目标数据表，并复制包含 ?table=<table_id> 的完整 URL",
+        },
+      );
+    }
+    const data = await fetchBitableTable(authInfo, {
+      baseToken: documentId,
+      tableId,
+      ...(doc.parsed.viewId && { viewId: doc.parsed.viewId }),
+    });
+    outputBitableTable(data, docTitle, globalOpts.json);
+    return;
+  }
 
   if (
     (doc.parsed.type === "wiki" || doc.parsed.type === "unknown") &&
@@ -188,6 +227,127 @@ export async function read(
 
   output += markdown;
   process.stdout.write(output);
+}
+
+function rejectUnsupportedBitableFlags(args: CommandArgs): void {
+  const flag = args.raw
+    ? "--raw"
+    : args.blocks
+      ? "--blocks"
+      : args.withMeta
+        ? "--with-meta"
+        : undefined;
+  if (flag) {
+    throw new CliError("NOT_SUPPORTED", `多维表格读取不支持 ${flag}`, {
+      recovery: "使用 feishu-docs read <url> --json 获取结构化数据",
+    });
+  }
+}
+
+function formatBitableValue(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "object") return JSON.stringify(value) ?? "";
+  return String(value);
+}
+
+function escapeMarkdownCell(value: unknown): string {
+  return formatBitableValue(value)
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, " ");
+}
+
+function markdownTable(headers: string[], rows: unknown[][]): string {
+  const header = `| ${headers.map(escapeMarkdownCell).join(" | ")} |`;
+  const separator = `| ${headers.map(() => "---").join(" | ")} |`;
+  const body = rows.map(
+    (row) => `| ${row.map(escapeMarkdownCell).join(" | ")} |`,
+  );
+  return [header, separator, ...body].join("\n") + "\n";
+}
+
+function outputBitableTable(
+  data: Awaited<ReturnType<typeof fetchBitableTable>>,
+  title: string | undefined,
+  json: boolean,
+): void {
+  if (json) {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          success: true,
+          type: "bitable",
+          ...(title && { title }),
+          base_token: data.baseToken,
+          table_id: data.tableId,
+          ...(data.viewId && { view_id: data.viewId }),
+          total: data.total,
+          fields: data.fields,
+          records: data.records,
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    return;
+  }
+
+  const fieldNames = data.fields.map((field) => field.field_name);
+  if (fieldNames.length === 0) {
+    process.stdout.write("多维表格没有可读取的字段\n");
+    return;
+  }
+  const rows = data.records.map((record) =>
+    fieldNames.map((name) => record.fields[name]),
+  );
+  process.stdout.write(markdownTable(fieldNames, rows));
+}
+
+function outputBitableRecord(
+  data: Awaited<ReturnType<typeof fetchBitableRecord>>,
+  json: boolean,
+): void {
+  if (json) {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          success: true,
+          type: "bitable_record",
+          record_share_token: data.recordShareToken,
+          base_token: data.baseToken,
+          table_id: data.tableId,
+          record_id: data.recordId,
+          fields: data.fields,
+          record: data.record,
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    return;
+  }
+
+  const names = orderedRecordFieldNames(data.fields, data.record);
+  if (names.length === 0) {
+    process.stdout.write("记录没有字段值\n");
+    return;
+  }
+  process.stdout.write(
+    markdownTable(
+      ["字段", "值"],
+      names.map((name) => [name, data.record.fields[name]]),
+    ),
+  );
+}
+
+function orderedRecordFieldNames(
+  fields: BitableField[],
+  record: BitableRecord,
+): string[] {
+  const schemaNames = fields.map((field) => field.field_name);
+  const extraNames = Object.keys(record.fields).filter(
+    (name) => !schemaNames.includes(name),
+  );
+  return [...schemaNames, ...extraNames];
 }
 
 async function fetchBlocks(

@@ -27,7 +27,7 @@
 | **权限管理** | `share list/add/remove/update/set` — 完整封装 | 无封装 — 需手写原始 API 路径 |
 | **JSON 输出** | 纯净可管道的 `--json` | stdout 混入进度文本（`[page 1] fetching...`），破坏 JSON 管道 |
 | **错误提示** | 中文提示 + 恢复建议 + 缺失 scope 自动检测 | 英文错误提示，需手动查找 scope |
-| **API 覆盖面** | 文档、知识库、云空间、搜索、权限 | **全平台** — IM、日历、任务、通讯录、多维表格、邮件、视频会议等 |
+| **API 覆盖面** | 文档、知识库、云空间、搜索、权限、多维表格读取 | **全平台** — IM、日历、任务、通讯录、多维表格、邮件、视频会议等 |
 | **依赖** | 零运行时依赖（仅 Node.js 内置模块） | Go 二进制 |
 | **冷启动** | ~0.5 秒（Node.js） | ~0.1 秒（Go） |
 
@@ -35,6 +35,7 @@
 ## 功能
 
 - **读取** 文档，输出 Markdown（图片自动下载到本地）、纯文本或原始 Block JSON
+- **读取多维表格** — 表格/视图 URL 和记录分享 URL，输出 Markdown 或结构化 JSON
 - **创建** 文档到知识库或云空间文件夹
 - **更新** 文档，支持覆盖写入或追加模式（大文档自动分批）
 - **删除** 文档（移至回收站）
@@ -85,7 +86,7 @@ npm install -g github:cliff-byte/feishu-docs-cli
    | `docx:document.block:convert` | Markdown 转 Block（创建/更新需要） |
    | `sheets:spreadsheet:readonly` | 嵌入式电子表格只读（read 命令） |
    | `board:whiteboard:node:read` | 画板导出为图片（read 命令） |
-   | `bitable:app:readonly` | 嵌入式多维表格只读（read 命令） |
+   | `bitable:app:readonly` | 多维表格及内嵌表格只读（read 命令） |
    | `docs:document.media:download` | 下载云文档中的图片和附件 |
 
    **额外权限**会按需自动提示 — 当 API 调用需要你未授权的权限时，CLI 会从 API 错误响应中检测并提示你授权。常见权限：
@@ -150,9 +151,17 @@ feishu-docs read <url> --raw
 
 # 带元信息头
 feishu-docs read <url> --with-meta
+
+# 读取独立多维表格/视图，输出 Markdown
+feishu-docs read 'https://xxx.feishu.cn/base/bascnXXX?table=tblXXX&view=vewXXX'
+
+# 读取多维表格或记录分享链接，保留原始字段值
+feishu-docs read '<bitable-or-record-url>' --json
 ```
 
-默认读取使用飞书 `docs_ai` 输出的 Markdown。检测到待办标签时，CLI 会通过 Task v2 补全标题、状态和负责人；交互模式下若缺少 `task:task:read`，会自动打开 OAuth 授权页。用户拒绝、授权失败或处于非交互模式时，保留原始 task 标签并继续读取文档。`--blocks` 仍返回原始 Block JSON；`docs_ai` 不可用时回退到原有本地渲染器。
+文档读取使用飞书 `docs_ai` 输出的 Markdown。检测到待办标签时，CLI 会通过 Task v2 补全标题、状态和负责人；交互模式下若缺少 `task:task:read`，会自动打开 OAuth 授权页。用户拒绝、授权失败或处于非交互模式时，保留原始 task 标签并继续读取文档。`--blocks` 仍返回原始 Block JSON；`docs_ai` 不可用时回退到原有本地渲染器。
+
+独立多维表格改用 Bitable API：表格/视图 URL 返回完整记录的 Markdown 表格，记录分享 URL 返回单条字段/值表格。使用 `--json` 可保留数组和对象原值。视图会控制记录筛选和排序，但输出仍包含数据表的完整字段结构。
 
 ### 知识库
 
@@ -409,9 +418,10 @@ dist/             # 编译输出（不提交到 git）
 
 - [x] 飞书云文档操作（读取、创建、更新、删除、详情）
 - [x] 知识库操作（空间列表、目录树、批量读取、Wiki 管理、分享、搜索）
-- [x] 质量加固 — 456 个测试、重试逻辑、错误恢复、死代码清理
+- [x] 只读多维表格/视图和记录分享链接
+- [x] 质量加固 — 535 个测试、重试逻辑、错误恢复、死代码清理
 
-> 多维表格和电子表格操作不再计划。如有需要，请使用官方 [lark-cli](https://github.com/larksuite/cli)。
+> 多维表格写入和独立电子表格操作不再计划。如有需要，请使用官方 [lark-cli](https://github.com/larksuite/cli)。
 
 ## Mermaid 图表
 
@@ -429,11 +439,12 @@ feishu-docs-cli 和 lark-cli 在写入 Mermaid 时的处理方式不同：
 
 ## 限制
 
-- **支持**：docx（新版文档）
+- **支持**：docx（读写）、独立多维表格/视图和记录分享链接（只读）
 - **嵌入内容**：电子表格（渲染为表格）、多维表格（渲染为表格）、画板/白板（导出为图片）
 - **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
 - `docs_ai` 返回飞书风格 Markdown，特殊块可能保留为类 XML 标签。使用 `--blocks` 获取无损 JSON。
+- 独立多维表格不使用 `docs_ai`；使用 `--json` 保留原始字段值。`--raw`、`--blocks`、`--with-meta` 仅适用于 docx。
 - `docs_ai` 不可用时，回退渲染器会把图片下载到本地（`~/.feishu-docs/images/`，30 天缓存）。
 - 支持写入独立成段的本地 Markdown 图片，例如 `![截图](./images/demo.png)`。当前不支持行内图片、列表/表格中的本地图片，且图片路径必须位于 Markdown 文件所在目录及其子目录内。
 

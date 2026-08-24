@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Standalone Bitable reads.** `read` now supports table/view URLs with complete pagination and record-share URLs, with Markdown output by default and lossless field values under `--json`.
+
+### Fixed
+
+- **Tenant-mode command tests no longer depend on local login state.** Drive and share tests now select tenant auth explicitly, keeping their mocked request sequences deterministic.
+
 ## [1.5.0] - 2026-08-20
 
 ### Added

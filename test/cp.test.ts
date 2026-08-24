@@ -65,7 +65,7 @@ describe("cp command", { concurrency: 1 }, () => {
             ],
             name: "My Copy",
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -124,7 +124,7 @@ describe("cp command", { concurrency: 1 }, () => {
               "fldcnTarget",
             ],
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -195,7 +195,7 @@ describe("cp command", { concurrency: 1 }, () => {
             ],
             name: "CopiedDoc",
           },
-          makeGlobalOpts({ json: false }),
+          makeGlobalOpts({ auth: "tenant", json: false }),
         );
 
         const out = output.stdout();
