@@ -54,7 +54,7 @@ describe("mv command", { concurrency: 1 }, () => {
               "fldcnTarget",
             ],
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -95,7 +95,7 @@ describe("mv command", { concurrency: 1 }, () => {
               "fldcnTarget",
             ],
           },
-          makeGlobalOpts({ json: true }),
+          makeGlobalOpts({ auth: "tenant", json: true }),
         );
 
         const json = output.stdoutJson();
@@ -145,7 +145,7 @@ describe("mv command", { concurrency: 1 }, () => {
               "fldcnTarget",
             ],
           },
-          makeGlobalOpts({ json: false }),
+          makeGlobalOpts({ auth: "tenant", json: false }),
         );
 
         const out = output.stdout();
