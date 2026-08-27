@@ -428,34 +428,34 @@ function renderAddons(node: TreeNode, rctx: RenderContext): void {
 function renderMdTable(
   fields: string[],
   records: unknown[][],
-  lines: string[],
-): void {
-  lines.push(
+): string[] {
+  return [
     "| " + fields.map((f) => f.replace(/\|/g, "\\|")).join(" | ") + " |",
-  );
-  lines.push("| " + fields.map(() => "---").join(" | ") + " |");
-  for (const row of records) {
-    lines.push(
+    "| " + fields.map(() => "---").join(" | ") + " |",
+    ...records.map(
+      (row) =>
       "| " +
         (row as unknown[])
           .map((c) => String(c).replace(/\|/g, "\\|").replace(/\n/g, " "))
           .join(" | ") +
         " |",
-    );
-  }
+    ),
+  ];
 }
 
-export function sheetDataToMarkdown(data: SheetData): string {
-  const lines = data.title ? [`**${data.title}**`, ""] : [];
-  renderMdTable(data.fields, data.records, lines);
-  return lines.join("\n");
+/** Render enriched Sheet data as a Markdown table. */
+export function renderSheetDataMarkdown(data: SheetData): string {
+  return [
+    ...(data.title ? [`**${data.title}**`, ""] : []),
+    ...renderMdTable(data.fields, data.records),
+  ].join("\n");
 }
 
 function renderBitable(node: TreeNode, rctx: RenderContext): void {
   const token = (node.bitable as { token?: string })?.token || "";
   const data = rctx.ctx.bitableDataMap.get(token);
   if (data && data.fields.length > 0) {
-    renderMdTable(data.fields, data.records, rctx.lines);
+    rctx.lines.push(...renderMdTable(data.fields, data.records));
   } else {
     rctx.lines.push(`[多维表格: ${token}]`);
   }
@@ -475,7 +475,7 @@ function renderSheet(node: TreeNode, rctx: RenderContext): void {
   const token = (node.sheet as { token?: string })?.token || "";
   const data = rctx.ctx.sheetDataMap.get(token);
   if (data && data.fields.length > 0) {
-    rctx.lines.push(sheetDataToMarkdown(data));
+    rctx.lines.push(renderSheetDataMarkdown(data));
   } else {
     rctx.lines.push(`[电子表格: ${token}]`);
   }

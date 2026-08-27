@@ -81,7 +81,7 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
     );
   });
 
-  it("reuses one Sheet read for repeated embedded tags", async () => {
+  it("keeps multiple Sheets ordered and reuses repeated data", async () => {
     const mock = setupMockFetch({
       responses: [
         jsonResponse({
@@ -89,7 +89,7 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
           data: {
             document: {
               content:
-                "<sheet token='shtTk123' sheet-id='sheetId1'/>\n<sheet sheet-id=\"sheetId1\" token=\"shtTk123\"></sheet>",
+                "<sheet token='shtTk123' sheet-id='sheetId1'/>\n<sheet sheet-id=\"sheetId2\" token=\"shtTk456\"></sheet>\n<sheet sheet-id=\"sheetId1\" token=\"shtTk123\"></sheet>",
             },
           },
         }),
@@ -99,7 +99,15 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
         }),
         jsonResponse({
           code: 0,
+          data: { sheets: [{ sheetId: "sheetId2", title: "" }] },
+        }),
+        jsonResponse({
+          code: 0,
           data: { valueRange: { values: [["Name"], ["Alice"]] } },
+        }),
+        jsonResponse({
+          code: 0,
+          data: { valueRange: { values: [["Name"], ["Bob"]] } },
         }),
       ],
     });
@@ -112,15 +120,15 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
 
     assert.equal(
       markdown,
-      "| Name |\n| --- |\n| Alice |\n| Name |\n| --- |\n| Alice |",
+      "| Name |\n| --- |\n| Alice |\n| Name |\n| --- |\n| Bob |\n| Name |\n| --- |\n| Alice |",
     );
     assert.equal(
       mock.calls.filter((call) => call.url.includes("/metainfo")).length,
-      1,
+      2,
     );
     assert.equal(
       mock.calls.filter((call) => call.url.includes("/values/")).length,
-      1,
+      2,
     );
   });
 
@@ -148,13 +156,45 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
     assert.match(output.stderr(), /请求文档拥有者授予访问权限/);
   });
 
-  it("keeps an invalid Sheet tag without requesting it", async () => {
-    const tag = '<sheet sheet-id="sheetId1" token="../secret"></sheet>';
-    const mock = setupMockFetch({
+  it("keeps the Sheet tag when it has no renderable data", async () => {
+    const tag = '<sheet sheet-id="sheetId1" token="shtTk123"></sheet>';
+    ({ restore } = setupMockFetch({
       responses: [
         jsonResponse({
           code: 0,
           data: { document: { content: tag } },
+        }),
+        jsonResponse({
+          code: 0,
+          data: { sheets: [{ sheetId: "sheetId1", title: "Data" }] },
+        }),
+        jsonResponse({
+          code: 0,
+          data: { valueRange: { values: [] } },
+        }),
+      ],
+    }));
+    const output = captureOutput();
+    restoreOutput = output.restore;
+
+    const markdown = await fetchDocumentMarkdown(
+      makeUserAuthInfo(),
+      "docxTk123",
+    );
+
+    assert.equal(markdown, tag);
+    assert.match(output.stderr(), /电子表格未返回可渲染数据/);
+    assert.match(output.stderr(), /请确认工作表非空/);
+  });
+
+  it("keeps invalid or incomplete Sheet tags without requesting them", async () => {
+    const tags =
+      '<sheet sheet-id="sheetId1" token="../secret"></sheet>\n<sheet token="shtTk123"></sheet>';
+    const mock = setupMockFetch({
+      responses: [
+        jsonResponse({
+          code: 0,
+          data: { document: { content: tags } },
         }),
       ],
     });
@@ -167,7 +207,7 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
       "docxTk123",
     );
 
-    assert.equal(markdown, tag);
+    assert.equal(markdown, tags);
     assert.equal(mock.calls.length, 1);
     assert.match(output.stderr(), /warning: 无法解析嵌入式电子表格标签/);
   });
