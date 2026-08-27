@@ -177,7 +177,7 @@ feishu-docs read 'https://xxx.feishu.cn/base/bascnXXX?table=tblXXX&view=vewXXX'
 feishu-docs read '<bitable-or-record-url>' --json
 ```
 
-Document reads use Feishu's `docs_ai` Markdown output. When task tags are present, the CLI enriches them through Task v2 and automatically opens OAuth in interactive mode if `task:task:read` is missing. If authorization is denied, fails, or the command is non-interactive, the original task tags are kept and document reading continues. `--blocks` still returns the original block JSON, and the previous local renderer remains the fallback when `docs_ai` is unavailable.
+Document reads use Feishu's `docs_ai` Markdown output. Embedded Sheet tags are expanded into Markdown tables, and task tags are enriched through Task v2. Interactive task reads automatically open OAuth if `task:task:read` is missing; denied, failed, or non-interactive enrichment keeps the original tag and continues. `--blocks` still returns the original block JSON, and the previous local renderer remains the fallback when `docs_ai` is unavailable.
 
 Standalone Bitable reads use the Bitable API instead: table/view URLs return all records as a Markdown table, while record-share URLs return one record as a field/value table. Use `--json` to preserve raw arrays and objects. A view controls record filtering and sorting; output still includes the table's complete field schema.
 
@@ -461,7 +461,7 @@ feishu-docs-cli and lark-cli handle Mermaid differently when writing:
 - **Embedded content**: sheet (rendered as table), bitable (rendered as table), board/whiteboard (exported as image)
 - **Link only**: mindnote
 - **Not supported**: doc (legacy format)
-- `docs_ai` returns Lark-flavored Markdown and may preserve special blocks as XML-like tags. Use `--blocks` for lossless JSON.
+- `docs_ai` returns Lark-flavored Markdown. Embedded Sheet and task tags are enriched; other special blocks may remain as XML-like tags. Use `--blocks` for lossless JSON.
 - Standalone Bitable reads do not use `docs_ai`; use `--json` for raw field values. `--raw`, `--blocks`, and `--with-meta` are docx-only.
 - If `docs_ai` is unavailable, the fallback renderer downloads images to `~/.feishu-docs/images/` with a 30-day cache.
 - Local markdown images are uploaded on write when they appear as standalone block-level images, e.g. `![screenshot](./images/demo.png)`. Inline images, images inside lists/tables, and image paths outside the markdown file's directory tree are not supported.

@@ -445,6 +445,12 @@ function renderMdTable(
   }
 }
 
+export function sheetDataToMarkdown(data: SheetData): string {
+  const lines = data.title ? [`**${data.title}**`, ""] : [];
+  renderMdTable(data.fields, data.records, lines);
+  return lines.join("\n");
+}
+
 function renderBitable(node: TreeNode, rctx: RenderContext): void {
   const token = (node.bitable as { token?: string })?.token || "";
   const data = rctx.ctx.bitableDataMap.get(token);
@@ -469,10 +475,7 @@ function renderSheet(node: TreeNode, rctx: RenderContext): void {
   const token = (node.sheet as { token?: string })?.token || "";
   const data = rctx.ctx.sheetDataMap.get(token);
   if (data && data.fields.length > 0) {
-    if (data.title) {
-      rctx.lines.push(`**${data.title}**`, "");
-    }
-    renderMdTable(data.fields, data.records, rctx.lines);
+    rctx.lines.push(sheetDataToMarkdown(data));
   } else {
     rctx.lines.push(`[电子表格: ${token}]`);
   }

@@ -195,6 +195,62 @@ describe("read command", { concurrency: 1 }, () => {
     );
   });
 
+  it("read default mode expands embedded Sheet data", async () => {
+    testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
+    await withCleanEnv(
+      {
+        HOME: testDir,
+        FEISHU_APP_ID: "cli_test",
+        FEISHU_APP_SECRET: "secret",
+        FEISHU_USER_TOKEN: undefined,
+      },
+      async () => {
+        const { restore: r } = setupMockFetch({
+          responses: [
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                document: {
+                  content:
+                    '<sheet sheet-id="sheetId1" token="shtTk123"></sheet>',
+                },
+              },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: { sheets: [{ sheetId: "sheetId1", title: "Data" }] },
+            }),
+            tenantTokenResponse(),
+            jsonResponse({
+              code: 0,
+              data: {
+                valueRange: { values: [["Name"], ["Alice"]] },
+              },
+            }),
+          ],
+        });
+        mockRestore = r;
+
+        const cap = captureOutput();
+        outputRestore = cap.restore;
+
+        await read(
+          {
+            positionals: ["https://example.feishu.cn/docx/abc123def456789012"],
+          },
+          makeGlobalOpts(),
+        );
+
+        assert.equal(
+          cap.stdout(),
+          "**Data**\n\n| Name |\n| --- |\n| Alice |",
+        );
+      },
+    );
+  });
+
   it("read non-docx wiki type outputs placeholder", async () => {
     testDir = await mkdtemp(join(tmpdir(), "feishu-read-"));
     await withCleanEnv(

@@ -159,7 +159,7 @@ feishu-docs read 'https://xxx.feishu.cn/base/bascnXXX?table=tblXXX&view=vewXXX'
 feishu-docs read '<bitable-or-record-url>' --json
 ```
 
-文档读取使用飞书 `docs_ai` 输出的 Markdown。检测到待办标签时，CLI 会通过 Task v2 补全标题、状态和负责人；交互模式下若缺少 `task:task:read`，会自动打开 OAuth 授权页。用户拒绝、授权失败或处于非交互模式时，保留原始 task 标签并继续读取文档。`--blocks` 仍返回原始 Block JSON；`docs_ai` 不可用时回退到原有本地渲染器。
+文档读取使用飞书 `docs_ai` 输出的 Markdown。嵌入式电子表格标签会展开为 Markdown 表格，待办标签会通过 Task v2 补全标题、状态和负责人。交互模式下若缺少 `task:task:read`，会自动打开 OAuth 授权页；用户拒绝、授权失败或处于非交互模式时，保留原始标签并继续读取文档。`--blocks` 仍返回原始 Block JSON；`docs_ai` 不可用时回退到原有本地渲染器。
 
 独立多维表格改用 Bitable API：表格/视图 URL 返回完整记录的 Markdown 表格，记录分享 URL 返回单条字段/值表格。使用 `--json` 可保留数组和对象原值。视图会控制记录筛选和排序，但输出仍包含数据表的完整字段结构。
 
@@ -443,7 +443,7 @@ feishu-docs-cli 和 lark-cli 在写入 Mermaid 时的处理方式不同：
 - **嵌入内容**：电子表格（渲染为表格）、多维表格（渲染为表格）、画板/白板（导出为图片）
 - **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
-- `docs_ai` 返回飞书风格 Markdown，特殊块可能保留为类 XML 标签。使用 `--blocks` 获取无损 JSON。
+- `docs_ai` 返回飞书风格 Markdown。嵌入式电子表格和待办标签会被补全，其他特殊块仍可能保留为类 XML 标签。使用 `--blocks` 获取无损 JSON。
 - 独立多维表格不使用 `docs_ai`；使用 `--json` 保留原始字段值。`--raw`、`--blocks`、`--with-meta` 仅适用于 docx。
 - `docs_ai` 不可用时，回退渲染器会把图片下载到本地（`~/.feishu-docs/images/`，30 天缓存）。
 - 支持写入独立成段的本地 Markdown 图片，例如 `![截图](./images/demo.png)`。当前不支持行内图片、列表/表格中的本地图片，且图片路径必须位于 Markdown 文件所在目录及其子目录内。

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Embedded Sheets in `docs_ai` reads.** `read` and `cat` now replace embedded Sheet tags with Markdown tables while preserving the surrounding server-rendered Markdown. Unreadable Sheets keep their original tag and emit a recovery warning.
+
 ## [1.6.0] - 2026-08-24
 
 ### Added
