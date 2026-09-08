@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-08
+
+### Fixed
+
+- Export tests wait for the mocked query to start before advancing timeout timers, and use real retry delays instead of fixed event-loop counts. This prevents slow CI filesystem operations from racing test cleanup and leaking pending requests.
+
+### Notes
+
+- Includes the Sheets features below. The `v1.7.0` Git tag was created, but its npm/GitHub release was held after CI exposed the test timing failure.
+
 ## [1.7.0] - 2026-09-08
 
 ### Added

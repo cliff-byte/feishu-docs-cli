@@ -30,16 +30,19 @@ describe("Sheet xlsx export", { concurrency: 1 }, () => {
 
   it("creates, waits and streams the exact bytes before publishing success", async (t) => {
     enableTimerMock(t);
+    let started!: () => void;
+    const polling = new Promise<void>(resolve => { started = resolve; });
     const mock = setupMockFetch({ responses: [
-      created(), jsonResponse({ code: 0, data: { result: { job_status: 2 } } }),
+      created(), () => { started(); return jsonResponse({ code: 0, data: { result: { job_status: 2 } } }); },
       completed(content.length), new Response(new ReadableStream({ start(controller) {
         controller.enqueue(content.subarray(0, 4)); controller.enqueue(content.subarray(4)); controller.close();
       } })),
     ] });
     restore = mock.restore;
     const promise = exportSheet(auth, { spreadsheetToken: token, outputPath: path });
-    // Filesystem preparation may need several event-loop turns before polling starts.
-    for (let i = 0; i < 100 && mock.calls.length < 2; i++) await setImmediate();
+    // Wait for the query, then let its response schedule the polling delay.
+    await polling;
+    await setImmediate();
     assert.equal(mock.calls.length, 2);
     t.mock.timers.tick(2000);
     const result = await promise;
@@ -105,15 +108,20 @@ describe("Sheet xlsx export", { concurrency: 1 }, () => {
     enableTimerMock(t);
     const original = globalThis.fetch;
     let calls = 0;
+    let started!: () => void;
+    const polling = new Promise<void>(resolve => { started = resolve; });
     globalThis.fetch = async (_input, init) => {
       calls++;
       if (calls === 1) return created();
-      return new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true }));
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+        started();
+      });
     };
     restore = () => { globalThis.fetch = original; };
     const promise = exportSheet(auth, { spreadsheetToken: token, outputPath: path, waitTimeoutMs: 50 });
     const assertion = assert.rejects(promise, (e: any) => /1234567/.test(e.message) && /超时/.test(e.message));
-    for (let i = 0; i < 100 && calls < 2; i++) await setImmediate();
+    await polling;
     assert.equal(calls, 2);
     t.mock.timers.tick(50);
     await assertion;
@@ -132,19 +140,14 @@ describe("Sheet xlsx export", { concurrency: 1 }, () => {
       assert.deepEqual(await readFile(path), content);
     });
   });
-  it("retries queries and restarts an interrupted download without recreating the task", async (t) => {
-    enableTimerMock(t);
+  it("retries queries and restarts an interrupted download without recreating the task", async () => {
     let pulls = 0;
     const mock = setupMockFetch({ responses: [created(), jsonResponse({ code: 1 }, 503), completed(content.length),
       () => new Response(new ReadableStream({ pull(controller) {
         if (pulls++ === 0) controller.enqueue(content.subarray(0, 4));
         else controller.error(new TypeError("connection reset"));
       } })), new Response(content)] }); restore = mock.restore;
-    const promise = exportSheet(auth, { spreadsheetToken: token, outputPath: path });
-    let done = false;
-    void promise.then(() => { done = true; }, () => { done = true; });
-    for (let i = 0; i < 500 && !done; i++) { await setImmediate(); t.mock.timers.tick(100); }
-    await promise;
+    await exportSheet(auth, { spreadsheetToken: token, outputPath: path });
     assert.deepEqual(await readFile(path), content);
     assert.equal(mock.calls.filter(call => call.init?.method === "POST").length, 1);
     assert.equal(mock.calls.filter(call => call.url.endsWith("/download")).length, 2);
@@ -179,10 +182,15 @@ describe("Sheet xlsx export", { concurrency: 1 }, () => {
 
   it("stops Retry-After at the wait deadline and cleans up on cancellation", async (t) => {
     enableTimerMock(t);
-    const mock = setupMockFetch({ responses: [created(), new Response("busy", { status: 429, headers: { "Retry-After": "30" } })] }); restore = mock.restore;
+    let started!: () => void;
+    const polling = new Promise<void>(resolve => { started = resolve; });
+    const mock = setupMockFetch({ responses: [created(), () => {
+      started(); return new Response("busy", { status: 429, headers: { "Retry-After": "30" } });
+    }] }); restore = mock.restore;
     const promise = exportSheet(auth, { spreadsheetToken: token, outputPath: path, waitTimeoutMs: 50 });
     const assertion = assert.rejects(promise, /超时/);
-    for (let i = 0; i < 100 && mock.calls.length < 2; i++) await setImmediate();
+    await polling;
+    await setImmediate();
     t.mock.timers.tick(50);
     await assertion;
     assert.equal(mock.calls.length, 2);
@@ -211,15 +219,10 @@ describe("Sheet xlsx export", { concurrency: 1 }, () => {
     assert.deepEqual(await readdir(dir), []);
   });
 
-  it("exhausts download retries without retaining partial data", async (t) => {
-    enableTimerMock(t);
+  it("exhausts download retries without retaining partial data", async () => {
     const interrupted = () => new Response(new ReadableStream({ start(controller) { controller.error(new TypeError("reset")); } }));
     const mock = setupMockFetch({ responses: [created(), completed(content.length), interrupted, interrupted, interrupted] }); restore = mock.restore;
-    let done = false;
-    const assertion = assert.rejects(exportSheet(auth, { spreadsheetToken: token, outputPath: path }), { errorType: "API_ERROR" });
-    void assertion.finally(() => { done = true; });
-    for (let i = 0; i < 500 && !done; i++) { await setImmediate(); t.mock.timers.tick(100); }
-    await assertion;
+    await assert.rejects(exportSheet(auth, { spreadsheetToken: token, outputPath: path }), { errorType: "API_ERROR" });
     assert.equal(mock.calls.length, 5);
     assert.deepEqual(await readdir(dir), []);
   });
