@@ -25,8 +25,9 @@ const ERROR_MAP: Record<string, { exit: number; type: string }> = {
 
 export class CliError extends Error {
   exitCode: number;
-  errorType: string;
+  errorType: ErrorType;
   apiCode?: number;
+  retryAfterMs?: number;
   retryable: boolean;
   recovery?: string;
   /** Scope names from API permission_violations (only for SCOPE_MISSING). */
@@ -37,6 +38,7 @@ export class CliError extends Error {
     message: string,
     {
       apiCode,
+      retryAfterMs,
       retryable = false,
       recovery,
       missingScopes,
@@ -46,8 +48,9 @@ export class CliError extends Error {
     this.name = "CliError";
     const info = ERROR_MAP[type] || ERROR_MAP.API_ERROR;
     this.exitCode = info.exit;
-    this.errorType = info.type;
+    this.errorType = info.type as ErrorType;
     this.apiCode = apiCode;
+    this.retryAfterMs = retryAfterMs;
     this.retryable = retryable;
     this.recovery = recovery;
     this.missingScopes = missingScopes;

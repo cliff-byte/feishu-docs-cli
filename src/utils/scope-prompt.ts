@@ -23,15 +23,22 @@ import type { GlobalOpts } from "../types/index.js";
  * Ask a yes/no question on stderr, read from stdin.
  * Returns true only if user answers "y" or "yes".
  */
-function askYesNo(question: string): Promise<boolean> {
+function askYesNo(question: string, signal?: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stderr,
     });
+    const cancel = () => rl.close();
+    rl.once("close", () => {
+      signal?.removeEventListener("abort", cancel);
+      resolve(false);
+    });
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) { cancel(); return; }
     rl.question(`${question} (y/N) `, (answer) => {
-      rl.close();
       resolve(["y", "yes"].includes(answer.trim().toLowerCase()));
+      rl.close();
     });
   });
 }
@@ -50,9 +57,10 @@ export async function promptScopeAuth(
   missingScopes: string[],
   globalOpts: GlobalOpts,
   autoAuthorize: boolean = false,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   // Non-interactive: skip prompt
-  if (globalOpts.json || !process.stdin.isTTY) {
+  if (signal?.aborted || globalOpts.json || !process.stdin.isTTY) {
     return false;
   }
 
@@ -74,7 +82,7 @@ export async function promptScopeAuth(
   );
 
   if (!autoAuthorize) {
-    const yes = await askYesNo("是否现在申请授予权限?");
+    const yes = await askYesNo("是否现在申请授予权限?", signal);
     if (!yes) return false;
   } else {
     process.stderr.write(
@@ -94,6 +102,7 @@ export async function promptScopeAuth(
       scope: merged.join(" "),
       appSecret,
       useLark: globalOpts.lark,
+      signal,
     });
     process.stderr.write("feishu-docs: 授权成功！\n\n");
     return true;

@@ -37,10 +37,19 @@ export interface ResolvedDocument {
 export async function resolveDocument(
   authInfo: AuthInfo,
   input: string,
-  options: { allowFallback?: boolean } = {},
+  options: { allowFallback?: boolean; type?: unknown } = {},
 ): Promise<ResolvedDocument> {
   const { allowFallback = true } = options;
   const parsed = parseDocUrl(input);
+  if (options.type !== undefined) {
+    if (options.type !== "sheet" || parsed.type !== "unknown") {
+      throw new CliError("INVALID_ARGS", "--type sheet 仅用于明确裸 token 的电子表格类型", {
+        recovery: "使用完整表格 URL 时移除 --type；裸电子表格 token 使用 --type sheet",
+      });
+    }
+    return { objToken: parsed.token, objType: "sheet", title: undefined,
+      nodeToken: undefined, spaceId: undefined, hasChild: false, parsed };
+  }
   if (parsed.type === "bitable_record") {
     throw new CliError(
       "NOT_SUPPORTED",

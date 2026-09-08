@@ -8,6 +8,7 @@ import { fetchChildren } from "../services/wiki-nodes.js";
 import { fetchAllBlocks } from "../services/doc-blocks.js";
 import { fetchDocumentMarkdown } from "../services/doc-markdown.js";
 import { enrichTaskTags } from "../services/task-enrichment.js";
+import { enrichBlocks } from "../services/doc-enrichment.js";
 import { CliError } from "../utils/errors.js";
 import { validateToken } from "../utils/validate.js";
 import {
@@ -125,7 +126,10 @@ async function walkNodes(
             `feishu-docs: warning: docs_ai 读取 ${nodePath} 失败，回退到文档块解析: ${(err as Error).message}\n`,
           );
           const blocks = await fetchAllBlocks(authInfo, node.obj_token);
-          md = blocksToMarkdown(blocks);
+          const enrichment = await enrichBlocks(authInfo, blocks, ctx.globalOpts, {
+            images: false, bitable: false, board: false, mentions: false,
+          });
+          md = blocksToMarkdown(blocks, { sheetDataMap: enrichment.sheetDataMap });
         }
         const output = header + md + "\n";
 

@@ -163,6 +163,33 @@ feishu-docs read '<bitable-or-record-url>' --json
 
 独立多维表格改用 Bitable API：表格/视图 URL 返回完整记录的 Markdown 表格，记录分享 URL 返回单条字段/值表格。使用 `--json` 可保留数组和对象原值。视图会控制记录筛选和排序，但输出仍包含数据表的完整字段结构。
 
+### 电子表格
+
+```bash
+# 按工作簿顺序读取所有工作表，包括隐藏表
+feishu-docs read 'https://xxx.feishu.cn/sheets/shtcnXXX' --json
+
+# 按 ID 选择工作表，优先于 URL 中的 sheet 参数
+feishu-docs read '<sheets或wiki链接>' --sheet <sheet_id>
+
+# 精确读取矩形，保留空白单元格的坐标
+feishu-docs read '<sheets或wiki链接>' --sheet <sheet_id> --range B2:AA600 --json
+
+# 裸电子表格 token 必须明确指定类型
+feishu-docs read <spreadsheet_token> --type sheet
+
+# 通过飞书官方导出接口下载整本 xlsx
+feishu-docs export '<sheets或wiki链接>' --format xlsx --output ./workbook.xlsx
+```
+
+`read`、`cat` 的内嵌表格及 Block 回退均按完整网格跨行列分块读取，不再限制为前 100 行。响应过大时继续拆分，请求限频时有界重试。某张表失败或在读取中改变版本时保留占位并给出恢复建议；API 未返回 revision 时，不宣称结果已通过版本一致性验证。
+
+独立读取使用 Sheets API，并在内存中聚合结果；内存占用随所选网格和输出大小增长。未选择工作表时读取整本，包含隐藏表和空表；任何目标失败或类型不支持，整个命令在输出前失败。`--sheet` 优先于 URL 的 `sheet` 参数。`--range` 仅接受网格内正向、有限的矩形，例如 `A1:B20`，且必须明确选择一张表或只有一张可读取的普通工作表。整表 Markdown 用首行作表头并裁掉尾部全空行列；范围 Markdown 用列字母作表头，保留精确的请求尺寸。JSON 包含工作表 ID、顺序、隐藏状态、请求/数据范围和二维值数组。读取的是显示值，不保留公式、样式或合并结构。`--raw`、`--blocks` 用于 docx；`--with-meta` 也支持电子表格。
+
+`export` 直接下载官方 xlsx 字节。它始终导出整本，即使 URL 带有 `sheet`；显式 `--sheet`、`--range` 会被拒绝。输出目录必须存在，目标文件必须不存在。下载流式写入私有临时文件，完成后原子发布，并保护并发出现的同名目标。任务默认等待 120 秒；每次下载的完整传输限时 60 秒。查询、下载的暂态失败最多重试两次，下载重试从空内容重新开始；创建结果不确定时不自动重复创建。
+
+授权只在失败步骤恢复一次，继续原任务前确认仍是同一用户。JSON、非交互、tenant、环境变量固定 token 模式不启动 OAuth。Ctrl-C 停止本地操作并清理临时内容；强制终止可能在目标目录留下隐藏临时目录。本地超时不会取消远端任务。当前没有跨命令恢复、覆盖开关、CSV 或范围导出。
+
 ### 知识库
 
 ```bash
@@ -421,7 +448,7 @@ dist/             # 编译输出（不提交到 git）
 - [x] 只读多维表格/视图和记录分享链接
 - [x] 质量加固 — 535 个测试、重试逻辑、错误恢复、死代码清理
 
-> 多维表格写入和独立电子表格操作不再计划。如有需要，请使用官方 [lark-cli](https://github.com/larksuite/cli)。
+> 多维表格和电子表格写入不在计划内。如有需要，请使用官方 [lark-cli](https://github.com/larksuite/cli)。
 
 ## Mermaid 图表
 
@@ -439,12 +466,12 @@ feishu-docs-cli 和 lark-cli 在写入 Mermaid 时的处理方式不同：
 
 ## 限制
 
-- **支持**：docx（读写）、独立多维表格/视图和记录分享链接（只读）
+- **支持**：docx（读写）、独立电子表格（读取和 xlsx 导出）、独立多维表格/视图和记录分享链接（只读）
 - **嵌入内容**：电子表格（渲染为表格）、多维表格（渲染为表格）、画板/白板（导出为图片）
 - **仅链接**：思维笔记（mindnote）
 - **不支持**：doc（旧版格式）
 - `docs_ai` 返回飞书风格 Markdown。嵌入式电子表格和待办标签会被补全，其他特殊块仍可能保留为类 XML 标签。使用 `--blocks` 获取无损 JSON。
-- 独立多维表格不使用 `docs_ai`；使用 `--json` 保留原始字段值。`--raw`、`--blocks`、`--with-meta` 仅适用于 docx。
+- 独立多维表格不使用 `docs_ai`；使用 `--json` 保留原始字段值。`--raw`、`--blocks` 仅适用于 docx；`--with-meta` 也支持电子表格。
 - `docs_ai` 不可用时，回退渲染器会把图片下载到本地（`~/.feishu-docs/images/`，30 天缓存）。
 - 支持写入独立成段的本地 Markdown 图片，例如 `![截图](./images/demo.png)`。当前不支持行内图片、列表/表格中的本地图片，且图片路径必须位于 Markdown 文件所在目录及其子目录内。
 

@@ -52,6 +52,11 @@ export function parseDocUrl(input: unknown): ParsedDoc {
         if (!token) {
           throw new CliError("INVALID_ARGS", "URL 中缺少文档 token");
         }
+        const sheetId = (type === "wiki" || type === "sheet") ? url.searchParams.get("sheet") : null;
+        if (sheetId !== null) {
+          try { validateToken(sheetId, "sheet_id"); }
+          catch { throw new CliError("INVALID_ARGS", "URL 中的工作表 ID 无效", { recovery: "复制包含合法 sheet 参数的完整表格链接" }); }
+        }
         if (type === "wiki" || type === "bitable") {
           const tableId = url.searchParams.get("table") || undefined;
           const viewId = url.searchParams.get("view") || undefined;
@@ -62,9 +67,10 @@ export function parseDocUrl(input: unknown): ParsedDoc {
             token,
             ...(tableId && { tableId }),
             ...(viewId && { viewId }),
+            ...(sheetId !== null && { sheetId }),
           };
         }
-        return { type, token };
+        return { type, token, ...(sheetId !== null && { sheetId }) };
       }
     }
 

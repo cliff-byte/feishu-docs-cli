@@ -7,6 +7,8 @@ import {
 } from "./block-types.js";
 import { elementsToMarkdown } from "./text-elements.js";
 import { Block, TextElement } from "../types/index.js";
+import type { SheetReadResult } from "../services/sheets.js";
+import { renderSheetMarkdown } from "./sheet-to-md.js";
 
 const EMOJI_MAP: Record<string, string> = {
   round_pushpin: "\u{1F4CD}",
@@ -79,7 +81,7 @@ const EMOJI_MAP: Record<string, string> = {
 
 type TreeNode = Block & { _children: TreeNode[] };
 type TableData = { fields: string[]; records: unknown[][] };
-type SheetData = TableData & { title?: string };
+type SheetData = SheetReadResult;
 
 interface BlocksRenderCtx {
   imageUrlMap: Map<string, string>;
@@ -443,14 +445,6 @@ function renderMdTable(
   ];
 }
 
-/** Render enriched Sheet data as a Markdown table. */
-export function renderSheetDataMarkdown(data: SheetData): string {
-  return [
-    ...(data.title ? [`**${data.title}**`, ""] : []),
-    ...renderMdTable(data.fields, data.records),
-  ].join("\n");
-}
-
 function renderBitable(node: TreeNode, rctx: RenderContext): void {
   const token = (node.bitable as { token?: string })?.token || "";
   const data = rctx.ctx.bitableDataMap.get(token);
@@ -474,8 +468,8 @@ function renderBoard(node: TreeNode, rctx: RenderContext): void {
 function renderSheet(node: TreeNode, rctx: RenderContext): void {
   const token = (node.sheet as { token?: string })?.token || "";
   const data = rctx.ctx.sheetDataMap.get(token);
-  if (data && data.fields.length > 0) {
-    rctx.lines.push(renderSheetDataMarkdown(data));
+  if (data) {
+    rctx.lines.push(renderSheetMarkdown(data, { header: "first-row" }));
   } else {
     rctx.lines.push(`[电子表格: ${token}]`);
   }

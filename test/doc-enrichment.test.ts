@@ -346,18 +346,18 @@ describe("enrichBlocks", { concurrency: 1 }, () => {
               code: 0,
               data: { items: [{ fields: { Col: "val" } }] },
             }),
-            // sheet: fetchSheetData -> metainfo (tenantToken + API)
+            // sheet: readSheet -> sheet metadata (tenantToken + API)
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: { sheets: [{ sheetId: "s1", title: "Sheet1" }] },
+              data: { sheets: [{ sheet_id: "s1", title: "Sheet1", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }] },
             }),
-            // sheet: fetchSheetData -> values (tenantToken + API)
+            // sheet: readSheet -> values (tenantToken + API)
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
               data: {
-                valueRange: { values: [["H1"], ["r1"]] },
+                valueRange: { majorDimension: "ROWS", range: "s1!A1:B3", values: [["H1"], ["r1"]] },
               },
             }),
           ],

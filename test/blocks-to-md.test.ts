@@ -519,8 +519,10 @@ describe("blocksToMarkdown", () => {
       [
         "sheet_token_1",
         {
-          fields: ["Name", "Score"],
-          records: [
+          spreadsheetToken: "sheet_token", sheetId: "1", index: 0, hidden: false,
+          requestedRange: "A1:B3", dataRange: "A1:B3",
+          values: [
+            ["Name", "Score"],
             ["Alice", "95"],
             ["Bob", "87"],
           ],

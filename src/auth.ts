@@ -2,6 +2,7 @@
  * Authentication module: OAuth login, token persistence, auto-refresh.
  */
 
+import { withAbort } from "./utils/abort.js";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse, Server } from "node:http";
 import type { Socket } from "node:net";
@@ -48,6 +49,7 @@ interface StoredTokens {
 }
 
 interface OauthLoginOptions {
+  signal?: AbortSignal;
   appSecret?: string;
   scope?: string;
   port?: number | string;
@@ -72,6 +74,7 @@ interface BuildAuthorizationUrlOptions {
 }
 
 interface ExchangeCodeOptions {
+  signal?: AbortSignal;
   useLark?: boolean;
   codeVerifier?: string;
 }
@@ -451,7 +454,7 @@ async function exchangeCodeForToken(
   appSecret: string | undefined,
   code: string,
   redirectUri: string,
-  { useLark = false, codeVerifier }: ExchangeCodeOptions = {},
+  { useLark = false, codeVerifier, signal }: ExchangeCodeOptions = {},
 ): Promise<ExchangeCodeResponse> {
   const host = useLark
     ? "https://open.larksuite.com"
@@ -466,12 +469,14 @@ async function exchangeCodeForToken(
   if (codeVerifier) {
     requestBody.code_verifier = codeVerifier;
   }
-  const res = await fetch(`${host}/open-apis/authen/v2/oauth/token`, {
+  signal?.throwIfAborted();
+  const res = await withAbort(fetch(`${host}/open-apis/authen/v2/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(requestBody),
-  });
-  const body = (await res.json()) as ExchangeCodeResponse;
+    signal,
+  }), signal);
+  const body = (await withAbort(res.json(), signal)) as ExchangeCodeResponse;
   if (body.code !== 0) {
     throw new CliError("AUTH_REQUIRED", `Token 交换失败: ${body.msg}`, {
       apiCode: body.code,
@@ -487,6 +492,7 @@ export async function oauthLogin(
   appId: string,
   options: OauthLoginOptions = {},
 ): Promise<TokenData> {
+  options.signal?.throwIfAborted();
   const appSecret = options.appSecret || process.env.FEISHU_APP_SECRET;
   const scope = options.scope || BASE_SCOPES.join(" ");
   const { redirectUri, callbackHost, callbackPath, callbackPort } =
@@ -494,6 +500,10 @@ export async function oauthLogin(
   const state = randomBytes(16).toString("hex");
   const { codeVerifier, codeChallenge } = generatePkce();
 
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort();
+  options.signal?.addEventListener("abort", forwardAbort, { once: true });
+  if (options.signal?.aborted) controller.abort();
   return new Promise<TokenData>((resolve, reject) => {
     let timeout: ReturnType<typeof setTimeout>;
     const openSockets = new Set<Socket>();
@@ -560,7 +570,7 @@ export async function oauthLogin(
             appSecret,
             code,
             redirectUri,
-            { useLark: options.useLark, codeVerifier },
+            { useLark: options.useLark, codeVerifier, signal: controller.signal },
           );
 
           const tokenData: TokenData = {
@@ -570,6 +580,7 @@ export async function oauthLogin(
             token_type: tokenRes.token_type,
           };
 
+          controller.signal.throwIfAborted();
           await saveTokens(appId, { ...tokenData, scope: tokenRes.scope });
 
           res.writeHead(200, {
@@ -584,6 +595,7 @@ export async function oauthLogin(
           for (const socket of openSockets) socket.destroy();
           resolve(tokenData);
         } catch (err) {
+          if (controller.signal.aborted) return;
           const error = err as Error;
           res.writeHead(500, {
             "Content-Type": "text/html; charset=utf-8",
@@ -611,6 +623,21 @@ export async function oauthLogin(
       },
     );
 
+    const abort = () => {
+      clearTimeout(timeout);
+      server.close();
+      for (const socket of openSockets) socket.destroy();
+      reject(new CliError("AUTH_REQUIRED", "OAuth 登录已取消或超时", { recovery: "重新运行命令后再授权" }));
+    };
+    controller.signal.addEventListener("abort", abort, { once: true });
+    server.once("close", () => controller.signal.removeEventListener("abort", abort));
+    server.once("error", (error) => {
+      clearTimeout(timeout);
+      controller.signal.removeEventListener("abort", abort);
+      reject(new CliError("AUTH_REQUIRED", `OAuth 回调服务启动失败: ${error.message}`, { recovery: "检查回调端口是否被占用" }));
+    });
+    if (controller.signal.aborted) { abort(); return; }
+
     // Track connections so we can force-close them after callback
     server.on("connection", (socket: Socket) => {
       openSockets.add(socket);
@@ -618,6 +645,7 @@ export async function oauthLogin(
     });
 
     server.listen(callbackPort, callbackHost, () => {
+      if (controller.signal.aborted) { abort(); return; }
       const authUrl = buildAuthorizationUrl({
         appId,
         redirectUri,
@@ -637,14 +665,10 @@ export async function oauthLogin(
     });
 
     timeout = setTimeout(
-      () => {
-        server.close();
-        for (const socket of openSockets) socket.destroy();
-        reject(new Error("OAuth 登录超时（5分钟），请重试"));
-      },
+      () => controller.abort(),
       5 * 60 * 1000,
     );
-  });
+  }).finally(() => options.signal?.removeEventListener("abort", forwardAbort));
 }
 
 /**
@@ -698,12 +722,13 @@ export async function refreshUserToken(
   appId: string,
   appSecret: string,
   refreshToken: string,
-  { useLark = false }: { useLark?: boolean } = {},
+  { useLark = false, signal }: { useLark?: boolean; signal?: AbortSignal } = {},
 ): Promise<TokenData> {
   const host = useLark
     ? "https://open.larksuite.com"
     : "https://open.feishu.cn";
-  const res = await fetch(`${host}/open-apis/authen/v2/oauth/token`, {
+  signal?.throwIfAborted();
+  const res = await withAbort(fetch(`${host}/open-apis/authen/v2/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -712,8 +737,9 @@ export async function refreshUserToken(
       client_secret: appSecret,
       refresh_token: refreshToken,
     }),
-  });
-  const body = (await res.json()) as ExchangeCodeResponse;
+    signal,
+  }), signal);
+  const body = (await withAbort(res.json(), signal)) as ExchangeCodeResponse;
 
   if (body.code !== 0) {
     throw new CliError("TOKEN_EXPIRED", `Token 刷新失败: ${body.msg}`, {
@@ -728,6 +754,7 @@ export async function refreshUserToken(
     token_type: body.token_type,
   };
 
+  signal?.throwIfAborted();
   await saveTokens(appId, { ...tokenData, scope: body.scope });
   return tokenData;
 }
@@ -767,9 +794,10 @@ export interface RefreshResult {
  */
 export async function tryRefreshIfExpired(
   authInfo: AuthInfo,
-  options: { silent?: boolean; maxLockRetries?: number } = {},
+  options: { silent?: boolean; maxLockRetries?: number; signal?: AbortSignal } = {},
 ): Promise<RefreshResult> {
-  const { silent = false, maxLockRetries = 0 } = options;
+  const { silent = false, maxLockRetries = 0, signal } = options;
+  signal?.throwIfAborted();
   if (authInfo.mode !== "user" || !authInfo.expiresAt) {
     return { authInfo, refreshed: false };
   }
@@ -789,6 +817,7 @@ export async function tryRefreshIfExpired(
   }
 
   for (let attempt = 0; attempt <= maxLockRetries; attempt++) {
+    signal?.throwIfAborted();
     const releaseLock = await acquireRefreshLock();
     if (!releaseLock) {
       // Another process is refreshing — wait and reload to see if it succeeded.
@@ -798,7 +827,7 @@ export async function tryRefreshIfExpired(
             "feishu-docs: info: 另一个进程正在刷新 token，等待中...\n",
           );
         }
-        await new Promise((r) => setTimeout(r, 2000));
+        await withAbort(new Promise((r) => setTimeout(r, 2000)), signal);
         const fresh = await loadTokens();
         if (
           fresh?.tokens?.user_access_token &&
@@ -833,6 +862,7 @@ export async function tryRefreshIfExpired(
     try {
       const newTokens = await refreshUserToken(appId, appSecret, refreshToken, {
         useLark: !!useLark,
+        signal,
       });
       return {
         authInfo: {

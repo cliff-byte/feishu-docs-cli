@@ -3,12 +3,12 @@
  */
 
 import { fetchWithAuth } from "../client.js";
-import { renderSheetDataMarkdown } from "../parser/blocks-to-md.js";
+import { renderSheetMarkdown } from "../parser/sheet-to-md.js";
 import type { AuthInfo } from "../types/index.js";
 import { CliError } from "../utils/errors.js";
 import { pLimit } from "../utils/concurrency.js";
 import { validateToken } from "../utils/validate.js";
-import { fetchSheetData } from "./doc-enrichment.js";
+import { readSheet, type SheetSelection } from "./sheets.js";
 
 interface DocsAiMarkdownResponse {
   document?: { content?: string };
@@ -28,7 +28,7 @@ function warnInvalidSheetTag(): void {
   );
 }
 
-function parseSheetToken(attributes: string): string | undefined {
+function parseSheetToken(attributes: string): SheetSelection | undefined {
   const spreadsheetToken = getAttribute(attributes, "token");
   const sheetId = getAttribute(attributes, "sheet-id");
   if (!spreadsheetToken || !sheetId) {
@@ -43,29 +43,23 @@ function parseSheetToken(attributes: string): string | undefined {
     warnInvalidSheetTag();
     return undefined;
   }
-  return `${spreadsheetToken}_${sheetId}`;
+  return { spreadsheetToken, sheetId };
 }
 
 async function fetchSheetMarkdown(
   authInfo: AuthInfo,
-  sheetToken: string,
+  selection: SheetSelection,
 ): Promise<string | null> {
   try {
-    const data = await fetchSheetData(authInfo, sheetToken);
-    if (!data?.fields.length) {
-      process.stderr.write(
-        `feishu-docs: warning: 电子表格未返回可渲染数据: ${sheetToken}；请确认工作表非空且标签指向正确工作表\n`,
-      );
-      return null;
-    }
-    return renderSheetDataMarkdown(data);
+    const data = await readSheet(authInfo, selection);
+    return renderSheetMarkdown(data, { header: "first-row" });
   } catch (err) {
     const recovery =
       err instanceof CliError && err.recovery
         ? `；${err.recovery}`
         : "；请确认当前身份可以读取该电子表格";
     process.stderr.write(
-      `feishu-docs: warning: 获取电子表格数据失败: ${sheetToken} (${(err as Error).message})${recovery}\n`,
+      `feishu-docs: warning: 获取电子表格数据失败: ${selection.sheetId} (${(err as Error).message})${recovery}\n`,
     );
     return null;
   }
@@ -79,13 +73,14 @@ async function enrichSheetTags(
   if (tags.length === 0) return markdown;
 
   const limit = pLimit(5);
-  const sheetTokens = tags.map((tag) => parseSheetToken(tag[1]));
-  const uniqueSheetTokens = [
-    ...new Set(sheetTokens.filter((token): token is string => !!token)),
-  ];
+  const selections = tags.map((tag) => parseSheetToken(tag[1]));
+  const uniqueSelections = new Map(selections.filter((s): s is SheetSelection => !!s)
+    .map((s) => [JSON.stringify(s), s]));
+  const sheetTokens = selections.map((s) => s && JSON.stringify(s));
+  const uniqueSheetTokens = [...uniqueSelections.keys()];
   const sheetMarkdown = await Promise.all(
     uniqueSheetTokens.map((sheetToken) =>
-      limit(() => fetchSheetMarkdown(authInfo, sheetToken)),
+      limit(() => fetchSheetMarkdown(authInfo, uniqueSelections.get(sheetToken)!)),
     ),
   );
   const sheetMarkdownByToken = new Map(

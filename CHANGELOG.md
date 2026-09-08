@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Standalone Sheets reads from Sheets/wiki URLs or explicitly typed tokens, with ordered multi-sheet Markdown/JSON output, worksheet selection and finite rectangle reads.
+- Whole-workbook xlsx export through the official Drive export task API, with bounded polling, streamed private temporary files and atomic publication that never overwrites an existing destination.
+- Export query/download retries and same-user authorization recovery at the failed step, with cancellation propagated through OAuth and credential refresh.
+
+### Fixed
+
+- Embedded Sheet reads in `read` and `cat` now cover the full grid across rows and columns, including Block fallback. Oversized responses split further, business rate limits retry, and differing observed revisions reject mixed results.
+- HTTP rate-limit responses remain failures when automatic retries are disabled.
+
 ## [1.6.1] - 2026-08-27
 
 ### Fixed

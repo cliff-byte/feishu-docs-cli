@@ -602,14 +602,11 @@ describe("fetchWithAuth retry", { concurrency: 1 }, () => {
     });
     restore = r;
 
-    // With retry: false, 429 should fall through to normal error handling
-    // Since the JSON body has code 0, the response is treated as success
-    // but the HTTP status 429 is not retried
-    const result = await fetchWithAuth(auth, "/open-apis/test", {
+    // Disabling retries must not turn an HTTP failure into success.
+    await assert.rejects(() => fetchWithAuth(auth, "/open-apis/test", {
       retry: false,
-    });
+    }), { errorType: "API_ERROR", retryable: true });
     assert.equal(calls.length, 1);
-    assert.equal(result.code, 0);
   });
 
   it("uses Retry-After header value for 429 delay", async (t) => {

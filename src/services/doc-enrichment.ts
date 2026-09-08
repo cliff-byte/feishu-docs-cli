@@ -21,6 +21,7 @@ import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { downloadImages } from "./image-download.js";
 import { pLimit } from "../utils/concurrency.js";
 import { fetchBitableTable } from "./bitable.js";
+import { readSheet, parseEmbeddedSheetToken, type SheetReadResult } from "./sheets.js";
 import type { AuthInfo, GlobalOpts, Block } from "../types/index.js";
 
 // ── Types ──
@@ -39,19 +40,12 @@ export interface BitableData {
   records: string[][];
 }
 
-export interface SheetData {
-  fields: string[];
-  records: string[][];
-  title: string;
-  truncated: boolean;
-}
-
 export interface EnrichmentResult {
   imageUrlMap: Map<string, string>;
   userNameMap: Map<string, string>;
   bitableDataMap: Map<string, BitableData>;
   boardImageMap: Map<string, string>;
-  sheetDataMap: Map<string, SheetData>;
+  sheetDataMap: Map<string, SheetReadResult>;
 }
 
 // ── Constants ──
@@ -198,62 +192,6 @@ export async function fetchBitableData(
   });
 
   return { fields, records };
-}
-
-/**
- * Fetch sheet metadata and cell values, return as renderable data.
- */
-export async function fetchSheetData(
-  authInfo: AuthInfo,
-  sheetToken: string,
-): Promise<SheetData | null> {
-  // Sheet tokens embedded in docs have format: {spreadsheetToken}_{sheetId}
-  // The sheets API needs just the spreadsheet token; sheetId selects the tab.
-  const underscoreIdx = sheetToken.lastIndexOf("_");
-  const spreadsheetToken =
-    underscoreIdx > 0 ? sheetToken.slice(0, underscoreIdx) : sheetToken;
-  const embeddedSheetId =
-    underscoreIdx > 0 ? sheetToken.slice(underscoreIdx + 1) : undefined;
-
-  const metaRes = await fetchWithAuth(
-    authInfo,
-    `/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(spreadsheetToken)}/metainfo`,
-    {},
-  );
-  const metaData = metaRes.data as Record<string, unknown> | undefined;
-  const sheets = (metaData?.sheets || []) as Array<Record<string, string>>;
-  if (sheets.length === 0) return null;
-
-  // Prefer the embedded sheet id; fall back to first sheet
-  // Note: metainfo API returns camelCase field names (sheetId, not sheet_id)
-  const targetSheet = embeddedSheetId
-    ? sheets.find((s) => s.sheetId === embeddedSheetId) || sheets[0]
-    : sheets[0];
-  const sheetId = targetSheet.sheetId;
-  // Suppress title when it equals sheetId (default meaningless title)
-  const rawTitle = targetSheet.title || "";
-  const title = rawTitle === sheetId ? "" : rawTitle;
-
-  const valuesRes = await fetchWithAuth(
-    authInfo,
-    `/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(spreadsheetToken)}/values/${encodeURIComponent(sheetId)}`,
-    { params: { valueRenderOption: "ToString" } },
-  );
-  const valuesData = valuesRes.data as Record<string, unknown> | undefined;
-  const rows = ((valuesData?.valueRange as Record<string, unknown>)?.values ||
-    []) as unknown[][];
-  if (rows.length === 0) return null;
-
-  const maxRows = 101; // first row = header + 100 data rows
-  const limitedRows = rows.length > maxRows ? rows.slice(0, maxRows) : rows;
-  const fields = (limitedRows[0] as unknown[]).map((cell) =>
-    String(cell ?? ""),
-  );
-  const records = limitedRows
-    .slice(1)
-    .map((row) => fields.map((_, i) => String((row as unknown[])[i] ?? "")));
-
-  return { fields, records, title, truncated: rows.length > maxRows };
 }
 
 /**
@@ -493,11 +431,11 @@ export async function enrichBlocks(
 
   // Sheet enrichment
   if (opts.sheet) {
-    const sheetTokens = extractSheetTokens(blocks);
+    const sheetTokens = [...new Set(extractSheetTokens(blocks))];
     for (const token of sheetTokens) {
       tasks.push(limit(async () => {
         try {
-          const data = await fetchSheetData(authInfo, token);
+          const data = await readSheet(authInfo, parseEmbeddedSheetToken(token));
           if (data) result.sheetDataMap.set(token, data);
         } catch (err) {
           if (
@@ -512,7 +450,8 @@ export async function enrichBlocks(
           } else {
             const msg = err instanceof Error ? err.message : String(err);
             process.stderr.write(
-              `feishu-docs: warning: 获取电子表格数据失败: ${token} (${msg})\n`,
+              `feishu-docs: warning: 获取电子表格数据失败: ${token} (${msg})\n` +
+                (err instanceof CliError && err.recovery ? `  ${err.recovery}\n` : ""),
             );
           }
         }

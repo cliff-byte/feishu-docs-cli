@@ -220,13 +220,13 @@ describe("read command", { concurrency: 1 }, () => {
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: { sheets: [{ sheetId: "sheetId1", title: "Data" }] },
+              data: { sheets: [{ sheet_id: "sheetId1", title: "Data", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }] },
             }),
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
               data: {
-                valueRange: { values: [["Name"], ["Alice"]] },
+                valueRange: { majorDimension: "ROWS", range: "sheetId1!A1:B3", values: [["Name"], ["Alice"]] },
               },
             }),
           ],
@@ -262,7 +262,7 @@ describe("read command", { concurrency: 1 }, () => {
       },
       async () => {
         // wiki URL: resolveDocument calls resolveWikiToken via fetchWithAuth (2 responses).
-        // resolveWikiToken returns sheet type, so read outputs a placeholder.
+        // resolveWikiToken returns board type, so read outputs a placeholder.
         const { restore: r } = setupMockFetch({
           responses: [
             tenantTokenResponse(),
@@ -271,7 +271,7 @@ describe("read command", { concurrency: 1 }, () => {
               data: {
                 node: {
                   obj_token: "sht123",
-                  obj_type: "sheet",
+                  obj_type: "board",
                   title: "My Sheet",
                   node_token: "wikiTk1234567890123",
                   space_id: "sp1",
@@ -294,7 +294,7 @@ describe("read command", { concurrency: 1 }, () => {
         );
 
         const output = cap.stdout();
-        assert.ok(output.includes("[sheet:"));
+        assert.ok(output.includes("[board:"));
         assert.ok(output.includes("My Sheet"));
       },
     );
@@ -1002,7 +1002,7 @@ describe("read command", { concurrency: 1 }, () => {
       async () => {
         // Chain:
         // 1. fetchAllBlocks: tenantToken + API (PAGE + SHEET block)
-        // 2. fetchSheetData: metainfo (tenantToken + API) + values (tenantToken + API)
+        // 2. readSheet: sheet metadata (tenantToken + API) + values (tenantToken + API)
         const { restore: r } = setupMockFetch({
           responses: [
             tenantTokenResponse(),
@@ -1029,20 +1029,20 @@ describe("read command", { concurrency: 1 }, () => {
                 has_more: false,
               },
             }),
-            // fetchSheetData -> metainfo
+            // readSheet -> sheet metadata
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
               data: {
-                sheets: [{ sheetId: "sheetId1", title: "Data" }],
+                sheets: [{ sheet_id: "sheetId1", title: "Data", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }],
               },
             }),
-            // fetchSheetData -> values
+            // readSheet -> values
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
               data: {
-                valueRange: {
+                valueRange: { majorDimension: "ROWS", range: "sheetId1!A1:B3",
                   values: [
                     ["Col1", "Col2"],
                     ["a", "b"],

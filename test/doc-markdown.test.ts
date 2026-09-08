@@ -54,12 +54,12 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
         }),
         jsonResponse({
           code: 0,
-          data: { sheets: [{ sheetId: "sheetId1", title: "Data" }] },
+          data: { sheets: [{ sheet_id: "sheetId1", title: "Data", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }] },
         }),
         jsonResponse({
           code: 0,
           data: {
-            valueRange: {
+            valueRange: { majorDimension: "ROWS", range: "sheetId1!A1:B3",
               values: [
                 ["Col1", "Col2"],
                 ["a", "b"],
@@ -95,19 +95,19 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
         }),
         jsonResponse({
           code: 0,
-          data: { sheets: [{ sheetId: "sheetId1", title: "" }] },
+          data: { sheets: [{ sheet_id: "sheetId1", title: "", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }] },
         }),
         jsonResponse({
           code: 0,
-          data: { sheets: [{ sheetId: "sheetId2", title: "" }] },
+          data: { sheets: [{ sheet_id: "sheetId2", title: "", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }] },
         }),
         jsonResponse({
           code: 0,
-          data: { valueRange: { values: [["Name"], ["Alice"]] } },
+          data: { valueRange: { majorDimension: "ROWS", range: "sheetId1!A1:B3", values: [["Name"], ["Alice"]] } },
         }),
         jsonResponse({
           code: 0,
-          data: { valueRange: { values: [["Name"], ["Bob"]] } },
+          data: { valueRange: { majorDimension: "ROWS", range: "sheetId2!A1:B3", values: [["Name"], ["Bob"]] } },
         }),
       ],
     });
@@ -123,7 +123,7 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
       "| Name |\n| --- |\n| Alice |\n| Name |\n| --- |\n| Bob |\n| Name |\n| --- |\n| Alice |",
     );
     assert.equal(
-      mock.calls.filter((call) => call.url.includes("/metainfo")).length,
+      mock.calls.filter((call) => call.url.includes("/sheets/query")).length,
       2,
     );
     assert.equal(
@@ -156,7 +156,7 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
     assert.match(output.stderr(), /请求文档拥有者授予访问权限/);
   });
 
-  it("keeps the Sheet tag when it has no renderable data", async () => {
+  it("renders an empty Sheet distinctly from a failed read", async () => {
     const tag = '<sheet sheet-id="sheetId1" token="shtTk123"></sheet>';
     ({ restore } = setupMockFetch({
       responses: [
@@ -166,11 +166,11 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
         }),
         jsonResponse({
           code: 0,
-          data: { sheets: [{ sheetId: "sheetId1", title: "Data" }] },
+          data: { sheets: [{ sheet_id: "sheetId1", title: "Data", index: 0, hidden: false, resource_type: "sheet", grid_properties: { row_count: 3, column_count: 2 } }] },
         }),
         jsonResponse({
           code: 0,
-          data: { valueRange: { values: [] } },
+          data: { valueRange: { majorDimension: "ROWS", range: "sheetId1!A1:B3", values: [] } },
         }),
       ],
     }));
@@ -182,9 +182,8 @@ describe("fetchDocumentMarkdown", { concurrency: 1 }, () => {
       "docxTk123",
     );
 
-    assert.equal(markdown, tag);
-    assert.match(output.stderr(), /电子表格未返回可渲染数据/);
-    assert.match(output.stderr(), /请确认工作表非空/);
+    assert.match(markdown, /空工作表/);
+    assert.equal(output.stderr(), "");
   });
 
   it("keeps invalid or incomplete Sheet tags without requesting them", async () => {

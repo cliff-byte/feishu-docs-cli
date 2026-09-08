@@ -16,6 +16,10 @@ import { resolveUserNames } from "../services/doc-enrichment.js";
 import { withScopeRecovery } from "../utils/scope-prompt.js";
 import { formatEpochSeconds } from "../utils/format-time.js";
 import { parseDocUrl } from "../utils/url-parser.js";
+import { validateToken } from "../utils/validate.js";
+import { readSpreadsheet } from "../services/sheets.js";
+import { renderSheetMarkdown } from "../parser/sheet-to-md.js";
+import { parseSheetRange } from "../utils/sheet-range.js";
 import {
   fetchBitableRecord,
   fetchBitableTable,
@@ -51,6 +55,9 @@ export const meta: CommandMeta = {
     raw: { type: "boolean", default: false },
     blocks: { type: "boolean", default: false },
     "with-meta": { type: "boolean", default: false },
+    sheet: { type: "string" },
+    type: { type: "string" },
+    range: { type: "string" },
   },
   positionals: true,
   handler: read,
@@ -69,6 +76,19 @@ export async function read(
   }
 
   const parsedInput = parseDocUrl(input);
+  if (args.type !== undefined && (args.type !== "sheet" || parsedInput.type !== "unknown")) {
+    throw new CliError("INVALID_ARGS", "--type sheet 仅适用于裸电子表格 token", { recovery: "完整 URL 不需要 --type；裸表格 token 使用 --type sheet" });
+  }
+  if (args.sheet !== undefined) {
+    try { validateToken(typeof args.sheet === "string" ? args.sheet : undefined, "sheet_id"); }
+    catch { throw new CliError("INVALID_ARGS", "无效的 --sheet", { recovery: "传入合法的工作表 ID" }); }
+  }
+  if (parsedInput.type === "sheet" || args.type === "sheet") rejectUnsupportedSheetFlags(args);
+  if (args.range !== undefined) parseSheetRange(args.range as string);
+  if ((args.range !== undefined || args.sheet !== undefined) &&
+      !["sheet", "wiki", "unknown"].includes(parsedInput.type)) {
+    throw new CliError("NOT_SUPPORTED", "--sheet 和 --range 仅适用于独立电子表格", { recovery: "使用电子表格链接或移除工作表选项" });
+  }
   const { authInfo } = await createClient(globalOpts);
   if (parsedInput.type === "bitable_record") {
     rejectUnsupportedBitableFlags(args);
@@ -77,10 +97,39 @@ export async function read(
     return;
   }
 
-  const doc = await resolveDocument(authInfo, input);
+  const doc = await resolveDocument(authInfo, input, { type: args.type });
   const documentId = doc.objToken;
   const docType = doc.objType;
   const docTitle = doc.title;
+
+  if (docType === "sheet") {
+    rejectUnsupportedSheetFlags(args);
+    const sheets = await readSpreadsheet(authInfo, {
+      spreadsheetToken: documentId,
+      ...((args.sheet ?? doc.parsed.sheetId) !== undefined && { sheetId: (args.sheet ?? doc.parsed.sheetId) as string }),
+      ...(args.range !== undefined && { range: args.range as string }),
+    });
+    if (globalOpts.json) {
+      process.stdout.write(JSON.stringify({
+        success: true, type: "sheet", spreadsheet_token: documentId,
+        ...(docTitle !== undefined && { title: docTitle }),
+        sheets: sheets.map((sheet) => ({
+          sheet_id: sheet.sheetId, title: sheet.title, index: sheet.index, hidden: sheet.hidden,
+          requested_range: sheet.requestedRange, data_range: sheet.dataRange,
+          ...(sheet.revision !== undefined && { revision: sheet.revision }), values: sheet.values,
+        })),
+      }, null, 2) + "\n");
+    } else {
+      const markdown = sheets.map((sheet) => [
+        ...(args.withMeta ? [`> spreadsheet_token: ${documentId}; sheet_id: ${sheet.sheetId}; requested_range: ${sheet.requestedRange}`, ""] : []),
+        ...(sheet.hidden ? ["> hidden: true", ""] : []),
+        renderSheetMarkdown({ ...sheet, title: sheet.title || sheet.sheetId }, { header: args.range === undefined ? "first-row" : "column-letters" }),
+      ].join("\n")).join("\n\n");
+      process.stdout.write((sheets.length ? markdown : "（空工作簿）") + "\n");
+    }
+    return;
+  }
+  if (args.sheet !== undefined || args.range !== undefined) throw new CliError("NOT_SUPPORTED", "--sheet 和 --range 仅适用于独立电子表格", { recovery: "使用电子表格链接或移除工作表选项" });
 
   if (docType === "bitable") {
     rejectUnsupportedBitableFlags(args);
@@ -227,6 +276,12 @@ export async function read(
 
   output += markdown;
   process.stdout.write(output);
+}
+
+function rejectUnsupportedSheetFlags(args: CommandArgs): void {
+  if (args.raw || args.blocks) throw new CliError("NOT_SUPPORTED", "电子表格读取不支持 --raw 或 --blocks", {
+    recovery: "使用默认 Markdown 或 --json 读取电子表格",
+  });
 }
 
 function rejectUnsupportedBitableFlags(args: CommandArgs): void {

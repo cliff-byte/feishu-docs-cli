@@ -73,6 +73,21 @@ Document reads use Feishu's server-rendered Lark-flavored Markdown. Task tags ar
 
 Standalone bitable reads use the Bitable API, not `docs_ai`. A table/view URL renders all matching records as a Markdown table; a record-share URL renders one record as a field/value table. Prefer `--json` for agent use because it preserves raw arrays and objects. `--raw`, `--blocks`, and `--with-meta` do not apply to standalone bitable reads.
 
+## Reading and Exporting Spreadsheets
+
+```bash
+feishu-docs read <sheets-or-wiki-url> --json
+feishu-docs read <url> --sheet <sheet_id> --range B2:AA600 --json
+feishu-docs read <spreadsheet_token> --type sheet --json
+feishu-docs export <url> --output ./workbook.xlsx --json
+```
+
+Use `read` for displayed cell values: the default reads all worksheets, including hidden sheets, in workbook order. Select by `--sheet` or the URL's `sheet` parameter; the flag wins. A raw spreadsheet token requires `--type sheet`. `--range` accepts a finite rectangle inside the grid and requires a selected or uniquely readable ordinary worksheet. JSON preserves coordinates as rectangular arrays with null padding; range Markdown uses column letters as headers. Whole-sheet reads trim trailing empty rows and columns. `--with-meta` adds source/selection details; `--raw` and `--blocks` are docx-only. A failed standalone target fails the whole read; failed embedded tables retain placeholders and warnings. Differing observed revisions fail a read, but missing revisions cannot establish a snapshot.
+
+Use `export` when the user needs an xlsx file with the official workbook representation. It exports the whole workbook, even with a URL `sheet` parameter; it rejects `--sheet`, `--range` and formats other than xlsx. The parent directory must exist and the destination must not exist. Success JSON reports `path`, `format` and byte `size` only after download and safe publication. Reads do not preserve formulas, formatting or merge structures; exports do not reconstruct these from Markdown.
+
+Export retries transient queries/downloads at the current step, without recreating an existing task or mixing partial downloads. Local timeout does not cancel the remote task. Missing-scope errors carry recovery instructions; JSON, non-interactive, tenant and fixed-token modes never open OAuth. After a failure, follow the returned recovery and consider whether the remote task may still be running before starting a new export. Force-killing the CLI can leave a hidden temporary directory beside the output path.
+
 ## Browsing Knowledge Bases
 
 Discover what's available before reading:

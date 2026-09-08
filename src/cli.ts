@@ -6,6 +6,7 @@
 import { parseArgs } from "node:util";
 import { loginMeta, logoutMeta, whoamiMeta } from "./commands/login.js";
 import { meta as authorizeMeta } from "./commands/authorize.js";
+import { meta as exportMeta } from "./commands/export.js";
 import { meta as readMeta } from "./commands/read.js";
 import { meta as spaceMeta } from "./commands/spaces.js";
 import { meta as treeMeta } from "./commands/tree.js";
@@ -45,6 +46,10 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
 
 文档:
   read   <url|token>                       读取文档，输出 Markdown
+         [--sheet <id>] [--range A1:B20]   选择电子表格工作表或有限矩形范围
+         [--type sheet] [--with-meta]      裸表格 token 指定类型；附加来源信息
+  export <url|token> --output <path.xlsx>   导出整本电子表格，不覆盖已有文件
+         [--type sheet] [--format xlsx]    仅支持 xlsx，不接受 --sheet/--range
   create <title> [options]                 创建文档
   update <url|token> [options]             更新文档内容
   delete <url|token>                       删除文档
@@ -105,6 +110,7 @@ const COMMANDS: Record<string, CommandMeta | SubcommandMeta> = {
   logout: logoutMeta,
   whoami: whoamiMeta,
   read: readMeta,
+  export: exportMeta,
   spaces: spaceMeta,
   tree: treeMeta,
   cat: catMeta,

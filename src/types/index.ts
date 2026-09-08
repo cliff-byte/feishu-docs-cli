@@ -17,6 +17,7 @@ export type ErrorType =
   | "API_ERROR";
 
 export interface CliErrorOptions {
+  retryAfterMs?: number;
   apiCode?: number;
   retryable?: boolean;
   recovery?: string;
@@ -105,6 +106,7 @@ export interface ParsedDoc {
   token: string;
   tableId?: string;
   viewId?: string;
+  sheetId?: string;
 }
 
 // ── API types ──
@@ -122,6 +124,7 @@ export interface RetryConfig {
 }
 
 export interface FetchOptions {
+  signal?: AbortSignal;
   method?: string;
   params?: Record<string, string | number | string[] | undefined>;
   body?: unknown;

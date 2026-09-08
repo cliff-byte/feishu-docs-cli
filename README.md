@@ -85,7 +85,7 @@ Requires Node.js >= 18.3.
    | `wiki:wiki` | Knowledge base read/write |
    | `docx:document` | Document read/write |
    | `docx:document.block:convert` | Markdown to block conversion (create/update) |
-   | `sheets:spreadsheet:readonly` | Embedded spreadsheet read (read command) |
+   | `sheets:spreadsheet:readonly` | Spreadsheet read (embedded and standalone) |
    | `board:whiteboard:node:read` | Whiteboard export as image (read command) |
    | `bitable:app:readonly` | Bitable and embedded table read (read command) |
    | `docs:document.media:download` | Download images and attachments from documents |
@@ -180,6 +180,33 @@ feishu-docs read '<bitable-or-record-url>' --json
 Document reads use Feishu's `docs_ai` Markdown output. Embedded Sheet tags are expanded into Markdown tables, and task tags are enriched through Task v2. Interactive task reads automatically open OAuth if `task:task:read` is missing; denied, failed, or non-interactive enrichment keeps the original tag and continues. `--blocks` still returns the original block JSON, and the previous local renderer remains the fallback when `docs_ai` is unavailable.
 
 Standalone Bitable reads use the Bitable API instead: table/view URLs return all records as a Markdown table, while record-share URLs return one record as a field/value table. Use `--json` to preserve raw arrays and objects. A view controls record filtering and sorting; output still includes the table's complete field schema.
+
+### Spreadsheets
+
+```bash
+# Read every worksheet, including hidden sheets, in workbook order
+feishu-docs read 'https://xxx.feishu.cn/sheets/shtcnXXX' --json
+
+# Select one worksheet (overrides the URL's sheet parameter)
+feishu-docs read '<sheets-or-wiki-url>' --sheet <sheet_id>
+
+# Read an exact rectangle; blank cells retain their coordinates
+feishu-docs read '<sheets-or-wiki-url>' --sheet <sheet_id> --range B2:AA600 --json
+
+# A raw spreadsheet token requires an explicit type
+feishu-docs read <spreadsheet_token> --type sheet
+
+# Export the entire workbook through Feishu's official export API
+feishu-docs export '<sheets-or-wiki-url>' --format xlsx --output ./workbook.xlsx
+```
+
+Embedded tables in `read` and `cat`, including the Block fallback, read the full worksheet grid in bounded row/column chunks. Oversized responses split further; rate limits receive bounded retries. A failed or changing worksheet retains its placeholder with a recovery warning. Successful chunks with different revisions are rejected; when the API omits revisions, the result does not claim a verified snapshot.
+
+Standalone reads use the Sheets API. Reads aggregate results in memory; memory use grows with the selected grid and output size. With no selection, all worksheets are read, including hidden and empty sheets; an unsupported or failed target fails the entire read before stdout is written. `--sheet` selects an ID, ahead of the URL's `sheet` query parameter. `--range` requires a finite forward rectangle such as `A1:B20` within the grid and one selected or uniquely readable ordinary worksheet. Whole-sheet Markdown uses the first row as its header and trims trailing blank rows/columns. Range Markdown uses column letters as headers and keeps the exact requested dimensions. JSON includes worksheet IDs, order, visibility, requested/data ranges and a two-dimensional values array. This reads displayed values, not formulas, formatting or merge structures. `--raw` and `--blocks` apply to docx; `--with-meta` also supports Sheets.
+
+`export` downloads the official xlsx bytes without generating an Excel file from Markdown. It always exports the entire workbook, even if a URL contains `sheet`; `--sheet` and `--range` are rejected. The output directory must exist and the destination must not exist. Downloads stream into a private temporary file and publish atomically without overwriting a concurrent destination. Polling waits up to 120 seconds; each download attempt has a 60-second transfer deadline. Transient queries/downloads retry at most twice; interrupted transfers restart from empty content. An uncertain creation response is never retried automatically.
+
+Scope recovery runs only at the failed step, at most once, and verifies the same user before continuing an existing task. JSON, non-interactive, tenant and fixed environment-token modes do not open OAuth. Ctrl-C cancels local work and cleans up temporary files; force-killing the process can leave a hidden temporary directory beside the destination. Local timeout does not cancel the remote export task. There is no cross-command resume, overwrite option, CSV export or range export.
 
 ### Knowledge Base
 
@@ -439,7 +466,7 @@ dist/             # Compiled output (git-ignored)
 - [x] Read-only Bitable table/view and record-share URLs
 - [x] Quality hardening — 535 tests, retry logic, error recovery, dead code cleanup
 
-> Bitable writes and standalone Sheets operations are not planned. For those, use the official [lark-cli](https://github.com/larksuite/cli).
+> Bitable and Sheets writes are not planned. For those, use the official [lark-cli](https://github.com/larksuite/cli).
 
 ## Mermaid Diagrams
 
@@ -457,12 +484,12 @@ feishu-docs-cli and lark-cli handle Mermaid differently when writing:
 
 ## Limitations
 
-- **Supported**: docx (read/write), standalone bitable table/view and record-share URLs (read-only)
+- **Supported**: docx (read/write), standalone Sheets (read and xlsx export), standalone bitable table/view and record-share URLs (read-only)
 - **Embedded content**: sheet (rendered as table), bitable (rendered as table), board/whiteboard (exported as image)
 - **Link only**: mindnote
 - **Not supported**: doc (legacy format)
 - `docs_ai` returns Lark-flavored Markdown. Embedded Sheet and task tags are enriched; other special blocks may remain as XML-like tags. Use `--blocks` for lossless JSON.
-- Standalone Bitable reads do not use `docs_ai`; use `--json` for raw field values. `--raw`, `--blocks`, and `--with-meta` are docx-only.
+- Standalone Bitable reads do not use `docs_ai`; use `--json` for raw field values. `--raw` and `--blocks` are docx-only; `--with-meta` also supports Sheets.
 - If `docs_ai` is unavailable, the fallback renderer downloads images to `~/.feishu-docs/images/` with a 30-day cache.
 - Local markdown images are uploaded on write when they appear as standalone block-level images, e.g. `![screenshot](./images/demo.png)`. Inline images, images inside lists/tables, and image paths outside the markdown file's directory tree are not supported.
 

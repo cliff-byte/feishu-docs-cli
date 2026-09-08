@@ -2,6 +2,8 @@
  * Auth client factory and API utilities.
  */
 
+import { withAbort as abortable } from "./utils/abort.js";
+import { open, rm } from "node:fs/promises";
 import { resolveAuth, tryRefreshIfExpired } from "./auth.js";
 import { CliError, mapApiError } from "./utils/errors.js";
 import {
@@ -104,7 +106,7 @@ export function getApiBase(authInfo: AuthInfo): string {
 /**
  * Get tenant_access_token for tenant mode API calls.
  */
-export async function getTenantToken(authInfo: AuthInfo): Promise<string> {
+export async function getTenantToken(authInfo: AuthInfo, signal?: AbortSignal): Promise<string> {
   const res = await fetch(
     `${getApiBase(authInfo)}/open-apis/auth/v3/tenant_access_token/internal`,
     {
@@ -114,6 +116,7 @@ export async function getTenantToken(authInfo: AuthInfo): Promise<string> {
         app_id: authInfo.appId,
         app_secret: authInfo.appSecret,
       }),
+      signal,
     },
   );
   const body = (await res.json()) as ApiResponse<never> & {
@@ -140,27 +143,28 @@ export async function getTenantToken(authInfo: AuthInfo): Promise<string> {
 /**
  * Build Authorization header value for any auth mode.
  */
-async function resolveBearer(authInfo: AuthInfo): Promise<string> {
+async function resolveBearer(authInfo: AuthInfo, signal?: AbortSignal): Promise<string> {
   if (authInfo.mode === "user" && authInfo.userToken) {
     return `Bearer ${authInfo.userToken}`;
   }
   if (authInfo.tenantToken) {
     return `Bearer ${authInfo.tenantToken}`;
   }
-  const tenantToken = await getTenantToken(authInfo);
+  const tenantToken = await getTenantToken(authInfo, signal);
   return `Bearer ${tenantToken}`;
 }
 
 /**
  * Direct fetch wrapper that correctly passes user/tenant token.
  */
-export async function fetchWithAuth<T = unknown>(
+async function fetchJsonWithAuth<T = unknown>(
   authInfo: AuthInfo,
   path: string,
   options: FetchOptions = {},
 ): Promise<ApiResponse<T>> {
   const base = getApiBase(authInfo);
-  const bearer = await resolveBearer(authInfo);
+  options.signal?.throwIfAborted();
+  const bearer = await resolveBearer(authInfo, options.signal);
   const url = new URL(path, base);
 
   if (options.params) {
@@ -199,17 +203,19 @@ export async function fetchWithAuth<T = unknown>(
   const maxAttempts = retryOpts.maxRetries + 1;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    options.signal?.throwIfAborted();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
     let res: Response;
     try {
       res = await fetch(url.toString(), {
         ...fetchOpts,
-        signal: controller.signal,
+        signal: options.signal ?? controller.signal,
       });
     } catch (err) {
       const error = err as Error;
       clearTimeout(timeoutId);
+      if (options.signal?.aborted) throw err;
       if (error.name === "AbortError") {
         if (retryEnabled && attempt < retryOpts.maxRetries) {
           process.stderr.write(
@@ -220,7 +226,7 @@ export async function fetchWithAuth<T = unknown>(
             retryOpts.initialDelay,
             retryOpts.maxDelay,
           );
-          await sleep(delay);
+          await abortable(sleep(delay), options.signal);
           continue;
         }
         throw new CliError("API_ERROR", "API 请求超时（30秒）", {
@@ -233,8 +239,8 @@ export async function fetchWithAuth<T = unknown>(
     }
 
     // Check for retryable HTTP status (only when retry is enabled)
-    if (retryEnabled && isRetryable(res.status)) {
-      if (attempt < retryOpts.maxRetries) {
+    if (isRetryable(res.status)) {
+      if (retryEnabled && attempt < retryOpts.maxRetries) {
         process.stderr.write(
           `feishu-docs: info: API 请求失败（${res.status}），第 ${attempt + 1} 次重试...\n`,
         );
@@ -245,13 +251,13 @@ export async function fetchWithAuth<T = unknown>(
         const delay =
           retryAfterDelay ??
           calculateDelay(attempt, retryOpts.initialDelay, retryOpts.maxDelay);
-        await sleep(delay);
+        await abortable(sleep(delay), options.signal);
         continue;
       }
       throw new CliError(
         "API_ERROR",
         `API 请求失败: HTTP ${res.status} ${res.statusText}`,
-        { retryable: true },
+        { retryable: true, retryAfterMs: res.status === 429 ? parseRetryAfter(res.headers.get("Retry-After")) ?? undefined : undefined },
       );
     }
 
@@ -283,6 +289,86 @@ export async function fetchWithAuth<T = unknown>(
 
   // Unreachable — loop always returns or throws
   throw new CliError("API_ERROR", "API 请求异常：重试逻辑未正常退出");
+}
+
+export function fetchWithAuth<T = unknown>(
+  authInfo: AuthInfo, path: string, options: FetchOptions = {},
+): Promise<ApiResponse<T>> {
+  return abortable(fetchJsonWithAuth<T>(authInfo, path, options), options.signal);
+}
+
+/** Stream one download attempt into an exclusively created file. The caller owns retries. */
+export async function fetchBinaryToFileWithAuth(
+  authInfo: AuthInfo, path: string, outputPath: string,
+  options: { expectedSize: number; signal?: AbortSignal; timeoutMs?: number },
+): Promise<number> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  if (options.signal?.aborted) controller.abort();
+  const timer = setTimeout(abort, options.timeoutMs ?? 60_000);
+  let ownsFile = false;
+  try {
+    const bearer = await abortable(resolveBearer(authInfo, controller.signal), controller.signal);
+    const res = await abortable(fetch(new URL(path, getApiBase(authInfo)), {
+      headers: { Authorization: bearer }, signal: controller.signal,
+    }), controller.signal);
+    if (isRetryable(res.status)) {
+      await res.body?.cancel();
+      throw new CliError("API_ERROR", `下载失败: HTTP ${res.status}`, { retryable: true, retryAfterMs: res.status === 429 ? parseRetryAfter(res.headers.get("Retry-After")) ?? undefined : undefined });
+    }
+    if (res.headers.get("content-type")?.includes("json")) {
+      const body = await abortable(res.json(), controller.signal) as ApiResponse;
+      if (body.code === 99991672 || body.code === 99991679) {
+        const scopes = extractScopesFromError(body);
+        throw new CliError("SCOPE_MISSING", "下载缺少权限", {
+          apiCode: body.code, missingScopes: scopes,
+          recovery: scopes.length ? `feishu-docs authorize --scope "${scopes.join(" ")}"` : "检查应用权限配置",
+        });
+      }
+      if (body.code) throw mapApiError({ code: body.code, msg: body.msg });
+      throw new CliError("API_ERROR", "下载返回 JSON，未返回 xlsx 文件");
+    }
+    if (!res.ok) throw new CliError("API_ERROR", `下载失败: HTTP ${res.status}`, { retryable: isRetryable(res.status) });
+    if (!res.body) throw new CliError("API_ERROR", "下载响应体为空", { retryable: true });
+    const file = await open(outputPath, "wx", 0o600);
+    ownsFile = true;
+    const reader = res.body.getReader();
+    let size = 0;
+    try {
+      while (true) {
+        const chunk = await abortable(reader.read(), controller.signal);
+        if (chunk.done) break;
+        size += chunk.value.byteLength;
+        if (size > options.expectedSize) throw new CliError("API_ERROR", "下载大小超出任务声明的文件大小");
+        // FileHandle.write can make a partial write; finish each chunk before reading more.
+        let offset = 0;
+        while (offset < chunk.value.byteLength) {
+          const { bytesWritten } = await file.write(chunk.value.subarray(offset));
+          if (!bytesWritten) throw new CliError("API_ERROR", "写入下载文件失败");
+          offset += bytesWritten;
+        }
+      }
+      if (size !== options.expectedSize) throw new CliError("API_ERROR", "下载大小与任务声明不一致");
+      controller.signal.throwIfAborted();
+      return size;
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+      await file.close();
+    }
+  } catch (error) {
+    if (ownsFile) await rm(outputPath, { force: true });
+    if (error instanceof CliError) throw error;
+    const localError = (error as NodeJS.ErrnoException).code;
+    throw new CliError("API_ERROR", controller.signal.aborted ? "下载超时或已取消" : "下载传输或文件写入失败", {
+      retryable: !localError || ["ECONNRESET", "ETIMEDOUT"].includes(localError),
+      recovery: "检查网络、目录权限和磁盘空间后重试导出",
+    });
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
+  }
 }
 
 /**
