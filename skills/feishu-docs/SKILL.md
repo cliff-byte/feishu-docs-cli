@@ -84,7 +84,13 @@ feishu-docs export <url> --output ./workbook.xlsx --json
 
 Use `read` for displayed cell values: the default reads all worksheets, including hidden sheets, in workbook order. Select by `--sheet` or the URL's `sheet` parameter; the flag wins. A raw spreadsheet token requires `--type sheet`. `--range` accepts a finite rectangle inside the grid and requires a selected or uniquely readable ordinary worksheet. JSON preserves coordinates as rectangular arrays with null padding; range Markdown uses column letters as headers. Whole-sheet reads trim trailing empty rows and columns. `--with-meta` adds source/selection details; `--raw` and `--blocks` are docx-only. A failed standalone target fails the whole read; failed embedded tables retain placeholders and warnings. Differing observed revisions fail a read, but missing revisions cannot establish a snapshot.
 
+If a Sheets read returns `90235: Data not ready`, wait and rerun the read; the CLI does not automatically retry this business error. Check embedded-table warnings and placeholders before reporting complete document content.
+
 Use `export` when the user needs an xlsx file with the official workbook representation. It exports the whole workbook, even with a URL `sheet` parameter; it rejects `--sheet`, `--range` and formats other than xlsx. The parent directory must exist and the destination must not exist. Success JSON reports `path`, `format` and byte `size` only after download and safe publication. Reads do not preserve formulas, formatting or merge structures; exports do not reconstruct these from Markdown.
+
+Export success confirms download, not Excel formula compatibility. Feishu `IMPORTRANGE` can remain unchanged in the official xlsx and cause Excel `#NAME?`, including errors in dependent formulas. The CLI neither translates formulas nor embeds external source data; recalculation alone cannot repair unsupported functions. Formula cells may also lack cached results: a reader using `data_only=True` can see empty values despite existing formulas. Distinguish missing caches, which need a compatible calculation engine, from unsupported functions. Do not claim the export changed source values based only on either symptom.
+
+Export needs either `docs:document:export` or `drive:export:readonly`, not both. App-console enablement does not update an existing user token's OAuth grant. If `docs:document:export` is enabled but the user token lacks it, use `feishu-docs authorize --scope "docs:document:export"` before retrying. A fixed `FEISHU_USER_TOKEN` takes precedence over saved OAuth tokens and must itself carry the required grant.
 
 Export retries transient queries/downloads at the current step, without recreating an existing task or mixing partial downloads. Local timeout does not cancel the remote task. Missing-scope errors carry recovery instructions; JSON, non-interactive, tenant and fixed-token modes never open OAuth. After a failure, follow the returned recovery and consider whether the remote task may still be running before starting a new export. Force-killing the CLI can leave a hidden temporary directory beside the output path.
 
@@ -254,6 +260,7 @@ Default auth mode is `auto` — tries user token first, falls back to tenant.
 ## Limitations
 
 - `docx` is fully supported for read/write; standalone bitable table/view and record-share URLs are read-only
+- Standalone Sheets support displayed-value reads and whole-workbook xlsx export; see [Reading and Exporting Spreadsheets](#reading-and-exporting-spreadsheets) for formula and cache limitations
 - Legacy `doc` format is not supported
 - Embedded `sheet` and `bitable` are rendered as tables (lossy)
 - Embedded `board`/`whiteboard` are exported as local PNG images

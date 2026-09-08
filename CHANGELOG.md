@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-08
+
 ### Added
 
 - Standalone Sheets reads from Sheets/wiki URLs or explicitly typed tokens, with ordered multi-sheet Markdown/JSON output, worksheet selection and finite rectangle reads.
@@ -12,6 +14,10 @@
 
 - Embedded Sheet reads in `read` and `cat` now cover the full grid across rows and columns, including Block fallback. Oversized responses split further, business rate limits retry, and differing observed revisions reject mixed results.
 - HTTP rate-limit responses remain failures when automatic retries are disabled.
+
+### Docs
+
+- Updated both READMEs and the packaged Skill with export scope alternatives and user-token authorization, manual recovery for Sheets `90235: Data not ready`, Excel formula compatibility limits such as `IMPORTRANGE`, and missing formula caches in official xlsx exports.
 
 ## [1.6.1] - 2026-08-27
 

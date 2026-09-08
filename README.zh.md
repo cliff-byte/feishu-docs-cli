@@ -84,7 +84,7 @@ npm install -g github:cliff-byte/feishu-docs-cli
    | `wiki:wiki` | 知识库读写 |
    | `docx:document` | 文档读写 |
    | `docx:document.block:convert` | Markdown 转 Block（创建/更新需要） |
-   | `sheets:spreadsheet:readonly` | 嵌入式电子表格只读（read 命令） |
+   | `sheets:spreadsheet:readonly` | 内嵌及独立电子表格只读 |
    | `board:whiteboard:node:read` | 画板导出为图片（read 命令） |
    | `bitable:app:readonly` | 多维表格及内嵌表格只读（read 命令） |
    | `docs:document.media:download` | 下载云文档中的图片和附件 |
@@ -186,7 +186,13 @@ feishu-docs export '<sheets或wiki链接>' --format xlsx --output ./workbook.xls
 
 独立读取使用 Sheets API，并在内存中聚合结果；内存占用随所选网格和输出大小增长。未选择工作表时读取整本，包含隐藏表和空表；任何目标失败或类型不支持，整个命令在输出前失败。`--sheet` 优先于 URL 的 `sheet` 参数。`--range` 仅接受网格内正向、有限的矩形，例如 `A1:B20`，且必须明确选择一张表或只有一张可读取的普通工作表。整表 Markdown 用首行作表头并裁掉尾部全空行列；范围 Markdown 用列字母作表头，保留精确的请求尺寸。JSON 包含工作表 ID、顺序、隐藏状态、请求/数据范围和二维值数组。读取的是显示值，不保留公式、样式或合并结构。`--raw`、`--blocks` 用于 docx；`--with-meta` 也支持电子表格。
 
+Sheets API 可能返回 `90235: Data not ready`。当前 CLI 不会自动重试此业务错误，请稍后重新执行读取。读取文档内嵌表格时，应检查警告和保留的占位，确认内容是否完整。
+
 `export` 直接下载官方 xlsx 字节。它始终导出整本，即使 URL 带有 `sheet`；显式 `--sheet`、`--range` 会被拒绝。输出目录必须存在，目标文件必须不存在。下载流式写入私有临时文件，完成后原子发布，并保护并发出现的同名目标。任务默认等待 120 秒；每次下载的完整传输限时 60 秒。查询、下载的暂态失败最多重试两次，下载重试从空内容重新开始；创建结果不确定时不自动重复创建。
+
+导出成功仅表示文件下载完成，不保证公式兼容 Excel。线上实测中，飞书 `IMPORTRANGE` 公式原样保留在导出文件中，在 Excel 中产生 `#NAME?`，并传递到依赖它的汇总和比率公式。CLI 不转换公式，也不将外部引用的数据嵌入文件；仅重新计算无法修复不受支持的函数。此外，导出的公式单元格可能没有缓存结果，使用 `openpyxl` 的 `data_only=True` 等方式读取时，即使公式存在也可能返回空值。受支持的公式需要兼容的计算引擎计算并保存结果。
+
+导出权限 `docs:document:export` 与 `drive:export:readonly` 满足其一即可（[官方接口权限说明](https://open.feishu.cn/document/server-docs/docs/drive-v1/export_task/create)）。应用后台开通权限，不代表已有用户访问令牌已获得该权限。若已开通 `docs:document:export`，运行 `feishu-docs authorize --scope "docs:document:export"` 为用户令牌补充授权后再重试导出，无需同时开通两个权限。
 
 授权只在失败步骤恢复一次，继续原任务前确认仍是同一用户。JSON、非交互、tenant、环境变量固定 token 模式不启动 OAuth。Ctrl-C 停止本地操作并清理临时内容；强制终止可能在目标目录留下隐藏临时目录。本地超时不会取消远端任务。当前没有跨命令恢复、覆盖开关、CSV 或范围导出。
 
