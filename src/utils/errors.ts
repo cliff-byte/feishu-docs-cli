@@ -24,6 +24,7 @@ const ERROR_MAP: Record<string, { exit: number; type: string }> = {
 };
 
 export class CliError extends Error {
+  details?: Record<string, unknown>;
   exitCode: number;
   errorType: ErrorType;
   apiCode?: number;
@@ -37,6 +38,7 @@ export class CliError extends Error {
     type: ErrorType,
     message: string,
     {
+      details,
       apiCode,
       retryAfterMs,
       retryable = false,
@@ -46,6 +48,7 @@ export class CliError extends Error {
   ) {
     super(message);
     this.name = "CliError";
+    this.details = details;
     const info = ERROR_MAP[type] || ERROR_MAP.API_ERROR;
     this.exitCode = info.exit;
     this.errorType = info.type as ErrorType;
@@ -68,6 +71,7 @@ export function formatError(err: unknown, json: boolean = false): string {
           api_code: err.apiCode,
           retryable: err.retryable,
           recovery: err.recovery,
+          ...(err.details && { details: err.details }),
           ...(err.missingScopes &&
             err.missingScopes.length > 0 && {
               missing_scopes: err.missingScopes,

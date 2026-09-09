@@ -17,6 +17,7 @@ export type ErrorType =
   | "API_ERROR";
 
 export interface CliErrorOptions {
+  details?: Record<string, unknown>;
   retryAfterMs?: number;
   apiCode?: number;
   retryable?: boolean;
@@ -82,6 +83,7 @@ export interface OptionDef {
 
 export interface CommandMeta {
   options: Record<string, OptionDef>;
+  strictOptions?: boolean;
   positionals?: boolean;
   handler: CommandHandler;
 }

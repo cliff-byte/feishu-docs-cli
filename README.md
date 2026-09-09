@@ -280,6 +280,47 @@ echo "## New Section" | feishu-docs update <url> --body - --append
 feishu-docs update <url> --restore ~/.feishu-docs/backups/xxx.json
 ```
 
+For local edits that preserve existing mentions, use `patch`. First obtain `revision`
+with `info <url> --json`, then find block IDs and text with `read <url> --blocks --json`.
+Save the following as `edits.json`, using the actual revision and block ID:
+
+```json
+{
+  "document_revision_id": 42,
+  "edits": [
+    { "block_id": "actualBlockId", "old_text": "Original text", "new_text": "Replacement text" }
+  ]
+}
+```
+
+```bash
+feishu-docs patch <url> --body edits.json --dry-run --json
+feishu-docs patch <url> --body edits.json --json
+# --body - also accepts patch JSON from stdin
+```
+
+`patch` preserves block IDs, inline styles, mentions and untouched elements. `old_text`
+must match exactly once within a single `text_run` in the block; `new_text` is literal
+text, not Markdown. Cross-format/mention matches, ambiguous matches and absent text
+are rejected. For table cells, target their child text blocks.
+Each patch accepts 1–200 distinct blocks, validates all edits, then submits one write
+request. An explicit revision is required (`-1` is rejected); on a conflict, read again
+and rebuild the patch. `--dry-run` only reads and reports proposed edits. JSON results
+include edits, base/result revisions and the number of blocks actually updated.
+After an unconfirmed write or timeout, read back before retrying. This command does
+not clear the document or perform whole-document backup/restore.
+
+Feishu's revision parameter is not an atomic compare-and-swap guard. A concurrent
+edit between the last check and submission can still be overwritten. A response
+revision jump returns an error with `error.details.write_may_have_applied: true`:
+the write may already have taken effect, so inspect the current blocks and version
+history. This command does not guarantee atomic isolation from concurrent editors.
+
+Live E2E: `npm run build && node scripts/patch-live-e2e.mjs --run` uses the existing
+user login, creates a disposable document with two mentions of the calling user,
+verifies preservation and the final-window race, then attempts to recycle the doc.
+Missing delete permission is reported as a cleanup failure with the document URL.
+
 ### Delete
 
 ```bash

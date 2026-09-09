@@ -14,6 +14,7 @@ import { meta as catMeta } from "./commands/cat.js";
 import { meta as searchMeta } from "./commands/search.js";
 import { meta as createMeta } from "./commands/create.js";
 import { meta as updateMeta } from "./commands/update.js";
+import { meta as patchMeta } from "./commands/patch.js";
 import { meta as deleteMeta } from "./commands/delete.js";
 import { meta as shareMeta } from "./commands/share.js";
 import { meta as infoMeta } from "./commands/info.js";
@@ -52,6 +53,8 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
          [--type sheet] [--format xlsx]    仅支持 xlsx，不接受 --sheet/--range
   create <title> [options]                 创建文档
   update <url|token> [options]             更新文档内容
+  patch  <url|token> --body <edits.json>    按块局部替换文本，保留提及和样式
+         [--dry-run]                      仅预览；补丁需包含文档版本号
   delete <url|token>                       删除文档
   info   <url|token>                       查看文档元信息
 
@@ -117,6 +120,7 @@ const COMMANDS: Record<string, CommandMeta | SubcommandMeta> = {
   search: searchMeta,
   create: createMeta,
   update: updateMeta,
+  patch: patchMeta,
   delete: deleteMeta,
   share: shareMeta,
   info: infoMeta,
@@ -165,15 +169,24 @@ function parseAndRun(
   globalOpts: GlobalOpts;
 } {
   const allOptions = { ...GLOBAL_OPTIONS, ...def.options };
-  const { values, positionals } = parseArgs({
-    args: argv,
-    options: allOptions as Record<
-      string,
-      { type: "string" | "boolean"; default?: string | boolean }
-    >,
-    allowPositionals: def.positionals ?? false,
-    strict: false,
-  });
+  const { values, positionals } = (() => {
+    try {
+      return parseArgs({
+        args: argv,
+        options: allOptions as Record<
+          string,
+          { type: "string" | "boolean"; default?: string | boolean }
+        >,
+        allowPositionals: def.positionals ?? false,
+        strict: def.strictOptions ?? false,
+      });
+    } catch (err) {
+      if (!def.strictOptions) throw err;
+      return handleError(new CliError("INVALID_ARGS", (err as Error).message, {
+        recovery: "运行 feishu-docs --help 检查选项；patch 预览使用 --dry-run",
+      }), argv.includes("--json"));
+    }
+  })();
 
   const globalOpts = extractGlobalOpts(values as Record<string, unknown>);
   const args = remapArgs(values as Record<string, unknown>, def.options);

@@ -262,6 +262,40 @@ echo "## 新章节" | feishu-docs update <url> --body - --append
 feishu-docs update <url> --restore ~/.feishu-docs/backups/xxx.json
 ```
 
+需要修改已有段落并保留人员 @ 提及时，使用 `patch`：先通过 `info <url> --json`
+获取 `revision`，再通过 `read <url> --blocks --json` 找到块 ID 和原文。
+将补丁保存为 `edits.json`，填入实际版本和块 ID：
+
+```json
+{
+  "document_revision_id": 42,
+  "edits": [
+    { "block_id": "actualBlockId", "old_text": "原始文本", "new_text": "替换后的文本" }
+  ]
+}
+```
+
+```bash
+feishu-docs patch <url> --body edits.json --dry-run --json
+feishu-docs patch <url> --body edits.json --json
+# 也可通过 --body - 从 stdin 读取补丁 JSON
+```
+
+`patch` 仅替换指定块中的普通文本，保留原块 ID、文本样式、人员提及及其他未修改元素。
+`old_text` 必须在该块的单个 `text_run` 内唯一匹配，`new_text` 按字面文本写入（不解析 Markdown）。
+跨格式、跨提及、重复或缺失的匹配会报错；表格中的文字应选择单元格内的文本块。
+每次接受 1–200 个不同块的替换，先校验全部操作再发送一次写入请求。
+版本号必须明确指定，不能使用 `-1`；发生版本冲突需重新读取并生成补丁。
+飞书的版本参数不是原子锁：最后一次检查与提交之间的并发修改仍可能被覆盖。
+返回版本跳变时，命令报错并提供 `error.details.write_may_have_applied: true`，
+此时写入可能已生效，需结合回读和版本历史核验；它不提供并发编辑的原子隔离保证。
+`--dry-run` 只读预览；响应列出修改项、基准/结果版本及实际更新块数。
+写入失败或超时后先读取核验，避免直接重试；此命令不清空文档，也不执行整篇备份恢复。
+
+真实端到端测试：`npm run build && node scripts/patch-live-e2e.mjs --run`。
+使用已有用户登录，创建临时文档，以当前用户的两处提及验证保留效果，并验证提交窗口内的竞态。
+结束后尝试移入回收站；缺少删除权限时报告清理失败并输出待清理链接。
+
 ### 删除
 
 ```bash

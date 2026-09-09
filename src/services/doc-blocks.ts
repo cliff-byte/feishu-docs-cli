@@ -12,13 +12,14 @@ import type { DocxBlocksResponse } from "../types/api-responses.js";
 export async function fetchAllBlocks(
   authInfo: AuthInfo,
   documentId: string,
+  revisionId: number = -1,
 ): Promise<Block[]> {
   const blocks: Block[] = [];
   let pageToken: string | undefined;
 
   do {
     const params: Record<string, string | number | undefined> = {
-      document_revision_id: -1,
+      document_revision_id: revisionId,
       page_size: 500,
       ...(pageToken && { page_token: pageToken }),
     };
