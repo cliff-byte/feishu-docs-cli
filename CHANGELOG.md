@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-09
+
+### Added
+
+- `patch` replaces literal text in selected docx blocks while preserving existing mentions, inline styles and untouched blocks. Supports JSON files or stdin, read-only previews, and batches of up to 200 distinct blocks.
+- Patch validation rejects ambiguous matches, unsupported element boundaries and stale preflight revisions. Unconfirmed writes and response revision jumps include structured details for safe recovery.
+- Opt-in live end-to-end coverage for previews, rich-content preservation, invalid batches and concurrent writes.
+
+### Docs
+
+- Added generic patch examples to both READMEs and simplified the packaged Skill while retaining input constraints and recovery guidance.
+
+### Notes
+
+- Feishu can accept an old document revision after the last preflight check. Patch does not guarantee atomic isolation from concurrent editors; revision jumps report that the write may already have applied and require readback and version-history review.
+
 ## [1.7.1] - 2026-09-08
 
 ### Fixed
