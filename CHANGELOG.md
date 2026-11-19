@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Releases are published to npm from GitHub Actions through trusted publishing, with provenance attestations, instead of from a maintainer's machine.
+
 ## [1.9.0] - 2026-11-19
 
 ### Added

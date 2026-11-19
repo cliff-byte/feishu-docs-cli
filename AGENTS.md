@@ -21,6 +21,12 @@ node bin/feishu-docs.js --help   # Run CLI
 > [!IMPORTANT]
 > **Test Coverage**: All new features must include unit tests. Run `npm test` and verify 0 failures before committing. Tests use Node.js built-in `node:test` and `node:assert/strict` — no test frameworks.
 
+## Releasing
+
+1. Commit `chore: release vX.Y.Z` with the version bumped in `package.json` and `package-lock.json` and the CHANGELOG `[Unreleased]` entries moved under a dated `## [X.Y.Z] - YYYY-MM-DD` heading. Push to `main` and wait for CI.
+2. Push an annotated tag `vX.Y.Z` (message `Release vX.Y.Z`), then create the GitHub release from it with that CHANGELOG section as the notes.
+3. Publishing the release runs `.github/workflows/publish.yml`, which tests and publishes to npm through trusted publishing (OIDC, GitHub environment `npm`) with provenance. Do not run `npm publish` locally. The workflow fails before publishing if the tag does not match the `package.json` version; fix the cause and re-run the job.
+
 ## Architecture
 
 ### Source Layout
