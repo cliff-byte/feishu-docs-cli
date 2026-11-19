@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-19
+
 ### Added
 
 - `comment list/add/reply/resolve/reopen` for document comments. `list` follows all pages, completes truncated reply lists, resolves docx block anchors and author names, by default shows only unresolved comments whose anchored text still exists, and orders each comment's replies chronologically with the comment body first. `add` posts whole-document comments or local comments on a block (`--block`). Content accepts plain `--text` or `--elements` with @mentions and Feishu doc links; length, element count and link validity are checked before sending.
