@@ -80,7 +80,7 @@ Implemented after the user chose "augment (keep id + add name)".
 
 ### Live finding (important)
 Against the real account the contact API returns **code 0 with an empty `user_list` for every
-open_id, including the current user** (`杨明福`) — while the `authen` endpoint *does* return that
+open_id, including the current user** — while the `authen` endpoint *does* return that
 name. So resolution is correctly wired but the **app has no contact visibility**: the Feishu
 console needs 通讯录 permission + a 可用范围 (visibility range) covering the relevant users.
 Until then names degrade to bare ids (graceful). Optional follow-up: add a self-only fallback
