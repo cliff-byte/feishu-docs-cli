@@ -110,6 +110,32 @@ describe("patch API workflow", { concurrency: 1 }, () => {
       } finally { mock.restore(); }
     });
   }
+  for (const writeAttempted of [false, true]) {
+    it(`reports DNS failure safely during ${writeAttempted ? "write" : "preflight"}`, async () => {
+      const mock = setupMockFetch({ responses: [
+        ...(writeAttempted ? preflight() : []),
+        () => { throw new TypeError("private request data", {
+          cause: Object.assign(new Error("private proxy credentials"), { code: "ENOTFOUND" }),
+        }); },
+      ] });
+      try {
+        await assert.rejects(() => patchDocument(auth, "doc1", input, false), (err: unknown) => {
+          assert.ok(err instanceof CliError);
+          const output = formatError(err, true);
+          assert.match(err.message, /DNS.*ENOTFOUND/);
+          assert.match(err.message, /open\.feishu\.cn/);
+          assert.match(err.recovery!, /DNS.*代理.*沙箱/);
+          assert.equal(err.details?.write_may_have_applied, writeAttempted);
+          assert.equal(err.details?.network_code, "ENOTFOUND");
+          assert.ok(!output.includes("private"));
+          if (writeAttempted) assert.match(err.recovery!, /勿直接重试/);
+          else assert.match(err.message, /未提交写入/);
+          return true;
+        });
+        assert.equal(mock.calls.length, writeAttempted ? 4 : 1);
+      } finally { mock.restore(); }
+    });
+  }
   it("reports a revision jump as an uncertain write, never a prevented write", async () => {
     const mock = setupMockFetch({ responses: [...preflight(), ok({ document_revision_id: 9 })] });
     try {

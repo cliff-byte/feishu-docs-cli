@@ -1,6 +1,6 @@
 /** Version-checked text replacements that keep existing inline elements intact. */
 import { randomUUID } from "node:crypto";
-import { fetchWithAuth } from "../client.js";
+import { fetchWithAuth, getApiBase } from "../client.js";
 import { CliError } from "../utils/errors.js";
 import { validateToken } from "../utils/validate.js";
 import { getDocumentInfo } from "./block-writer.js";
@@ -105,6 +105,28 @@ export function replaceBlockText(block: Block, edit: TextEdit): TextElement[] {
   });
 }
 
+// Only expose known transport codes, never raw error messages, URLs or causes:
+// these can contain credentials or document content.
+function transportFailure(error: unknown, authInfo: AuthInfo) {
+  const labels: Readonly<Record<string, string>> = {
+    ENOTFOUND: "DNS 域名解析失败",
+    EAI_AGAIN: "DNS 域名解析暂时失败",
+    ECONNREFUSED: "网络连接被拒绝",
+    ECONNRESET: "网络连接被重置",
+    ETIMEDOUT: "网络连接超时",
+    UND_ERR_CONNECT_TIMEOUT: "网络连接超时",
+  };
+  const cause = isRecord(error) && isRecord(error.cause) ? error.cause : undefined;
+  const code = cause?.code ?? (isRecord(error) ? error.code : undefined);
+  if (typeof code !== "string" || !Object.hasOwn(labels, code)) return undefined;
+  const host = new URL(getApiBase(authInfo)).hostname;
+  return {
+    message: `${labels[code]}（${code}，API 主机 ${host}）`,
+    code,
+    recovery: `在运行 CLI 的同一终端或 Agent 环境检查 ${host} 的 DNS、代理和沙箱网络权限；浏览器能打开文档不代表此环境能访问 API`,
+  };
+}
+
 async function checkRevision(authInfo: AuthInfo, documentId: string, expected: number): Promise<void> {
   const { revisionId } = await getDocumentInfo(authInfo, documentId);
   if (!Number.isSafeInteger(revisionId) || revisionId !== expected) {
@@ -179,9 +201,16 @@ export async function patchDocument(
         details: err.details ?? { write_may_have_applied: writeAttempted },
       });
     }
-    throw new CliError("API_ERROR", writeAttempted ? "局部编辑请求失败，写入结果需核验" : "局部编辑预检失败，未提交写入", {
-      recovery: writeAttempted ? `先读取目标块核验写入结果，勿直接重试。${recovery}` : recovery,
-      details: { write_may_have_applied: writeAttempted },
+    const transport = transportFailure(err, authInfo);
+    const status = writeAttempted ? "局部编辑请求失败，写入结果需核验" : "局部编辑预检失败，未提交写入";
+    throw new CliError("API_ERROR", transport ? `${status}：${transport.message}` : status, {
+      recovery: writeAttempted
+        ? `先读取目标块核验写入结果，勿直接重试。${transport?.recovery ?? recovery}`
+        : transport ? `${transport.recovery}；恢复连接后重新运行 patch --dry-run 预检` : recovery,
+      details: {
+        write_may_have_applied: writeAttempted,
+        ...(transport && { network_code: transport.code }),
+      },
     });
   }
 }

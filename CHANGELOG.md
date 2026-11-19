@@ -5,6 +5,7 @@
 ### Changed
 
 - Releases are published to npm from GitHub Actions through trusted publishing, with provenance attestations, instead of from a maintainer's machine.
+- `patch` network failures (DNS lookup, refused or reset connections, timeouts) now name the error code and API host, with recovery hints for checking DNS, proxy and sandbox network access from the environment running the CLI; `--json` details include `network_code`. Raw error messages are never shown, since they can contain credentials or document content.
 
 ## [1.9.0] - 2026-11-19
 
