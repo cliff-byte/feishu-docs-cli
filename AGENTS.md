@@ -21,6 +21,9 @@ node bin/feishu-docs.js --help   # Run CLI
 > [!IMPORTANT]
 > **Test Coverage**: All new features must include unit tests. Run `npm test` and verify 0 failures before committing. Tests use Node.js built-in `node:test` and `node:assert/strict` — no test frameworks.
 
+> [!IMPORTANT]
+> **Live E2E records stay local**: Write live acceptance records to a Markdown file with `e2e` in its name (for example `LIVE_E2E.md`); `.gitignore` excludes them because they contain tenant domains, doc tokens and local paths. Tracked files may summarize the findings but must not link to the records or copy those details.
+
 ## Releasing
 
 1. Commit `chore: release vX.Y.Z` with the version bumped in `package.json` and `package-lock.json` and the CHANGELOG `[Unreleased]` entries moved under a dated `## [X.Y.Z] - YYYY-MM-DD` heading. Push to `main` and wait for CI.

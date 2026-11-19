@@ -19,3 +19,6 @@ docs/
 测试常用元素.*
 TODOS.md
 coverage/
+
+# Live E2E acceptance records contain tenant domains, doc tokens and local paths
+*[Ee]2[Ee]*.md
