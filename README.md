@@ -43,6 +43,7 @@ Based on real-world testing against the same knowledge base (2026-03-29):
 - **Browse** knowledge base structure (spaces, tree, cat)
 - **Search** documents by keyword
 - **Share** — manage collaborators (list, add, set public mode)
+- **Comments** — list comments with replies and block anchors, post whole/local comments, reply, resolve and reopen
 - **List** files in cloud folders
 - Written in TypeScript with strict mode
 - Zero runtime dependencies — uses native `fetch` for all API calls
@@ -97,6 +98,7 @@ Requires Node.js >= 18.3.
    | `drive:drive` | Cloud file management (ls, delete, share, mv, cp, mkdir) |
    | `contact:contact.base:readonly` | User lookup by email/phone |
    | `drive:drive.search:readonly` | Document search |
+   | `docs:document.comment:create` / `docs:document.comment:update` | Post and reply / resolve and reopen comments (`comment list` works with the base scopes) |
 
 5. Go to **Security Settings**, add the OAuth callback URL to the **Redirect URLs** allowlist:
    - Default: `http://127.0.0.1:3456/callback`
@@ -389,6 +391,33 @@ feishu-docs share set <url> --public closed           # disable link sharing
 ```
 
 Roles: `view`, `edit`, `manage`. Member types are auto-detected (email, openid, unionid, openchat, userid).
+
+### Comments
+
+```bash
+# List comments with replies (default: open comments whose text still exists)
+feishu-docs comment list <url> --json
+feishu-docs comment list <url> --status all --scope partial   # status: open|solved|all, scope: all|whole|partial
+
+# Post a whole-document comment, or a local comment on one block
+feishu-docs comment add <url> --text "Please add release notes"
+feishu-docs comment add <url> --text "Check this step" --block <block_id>   # block_id from read --blocks
+
+# Reply; --elements supports @mentions (open_id) and Feishu doc links
+feishu-docs comment reply <url> <comment_id> --text "Done"
+feishu-docs comment reply <url> <comment_id> --elements '[{"type":"text","text":"cc "},{"type":"mention_user","mention_user":"ou_xxx"}]'
+
+# Resolve / reopen
+feishu-docs comment resolve <url> <comment_id>
+feishu-docs comment reopen <url> <comment_id>
+```
+
+`list` supports docx (including wiki links) and spreadsheets; writes support docx. JSON output includes each comment's `anchor` (`exact` with `block_id`, `whole`, `embedded`, `deleted`, `unlocated`). Spreadsheet comments cover the whole workbook and carry no position; `quote` holds the cell text. Comment text is capped at 10,000 characters in total, counted after escaping (`<` and `>` count as 4 each). Whole-document comments do not accept replies (post a new one with `add`); resolved comments do.
+
+Live E2E: `npm run build && node scripts/comment-live-e2e.mjs --run` uses the existing
+user login (and app credentials, when set, for the tenant section), creates a disposable
+document, verifies anchors, round-trips, filters, orphaned comments, error paths and length
+limits, then attempts to recycle the doc. Missing delete permission is reported with the URL.
 
 ### Auth
 

@@ -266,7 +266,8 @@ export async function resolveUserNames(
         "/open-apis/contact/v3/users/batch",
         { params },
       );
-      const items = ((res?.data as Record<string, unknown>)?.user_list ||
+      // contact/v3/users/batch returns users under `items`.
+      const items = ((res?.data as Record<string, unknown>)?.items ||
         []) as Array<Record<string, string>>;
       for (const user of items) {
         if (user.open_id && user.name) {

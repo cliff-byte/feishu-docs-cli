@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+
+- `comment list/add/reply/resolve/reopen` for document comments. `list` follows all pages, completes truncated reply lists, resolves docx block anchors and author names, by default shows only unresolved comments whose anchored text still exists, and orders each comment's replies chronologically with the comment body first. `add` posts whole-document comments or local comments on a block (`--block`). Content accepts plain `--text` or `--elements` with @mentions and Feishu doc links; length, element count and link validity are checked before sending.
+- Comment API error codes (`1069xxx`) map to typed errors with recovery hints. Ambiguous write failures are disambiguated: a missing or deleted `--block` reports `INVALID_ARGS`, a missing comment reports `NOT_FOUND`, and replying to a whole-document comment reports `NOT_SUPPORTED`.
+- Opt-in live E2E script `scripts/comment-live-e2e.mjs`.
+
+### Fixed
+
+- User display names were never resolved because the contact batch response was read from `user_list` instead of `items`; `info`, `read --with-meta`, `tree` and `comment list` now show names for users within the app's contact visibility (others still fall back to open_id).
+- The OAuth cancel test retries on a fresh port when a parallel test process takes its probed ephemeral port (`EADDRINUSE`, about 1 in 7 full runs locally).
+
+### Notes
+
+- Reply creation, local comments (`new_comments`) and block anchors (`need_relation`) are not in Feishu's public API docs; their behavior was verified live with user and app identities.
+
 ## [1.8.0] - 2026-09-09
 
 ### Added

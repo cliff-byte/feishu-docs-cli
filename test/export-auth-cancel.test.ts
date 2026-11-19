@@ -6,7 +6,7 @@ import { promptScopeAuth } from "../src/utils/scope-prompt.js";
 import { withCleanEnv } from "./helpers/env-guard.js";
 import { makeGlobalOpts } from "./helpers/factory.js";
 
-it("cancels OAuth and releases its callback port", { timeout: 3000 }, async () => {
+async function cancelAndReuseFreePort(): Promise<void> {
   const probe = createServer();
   await new Promise<void>(resolve => probe.listen(0, "127.0.0.1", resolve));
   const address = probe.address();
@@ -23,11 +23,15 @@ it("cancels OAuth and releases its callback port", { timeout: 3000 }, async () =
       }
       return true;
     }) as typeof process.stderr.write;
+    let err: { errorType?: string; message?: string } | undefined;
     await withCleanEnv({ PATH: "/nonexistent", FEISHU_REDIRECT_URI: undefined }, async () => {
-      await assert.rejects(() => oauthLogin("cli_test", {
+      err = await oauthLogin("cli_test", {
         appSecret: "test-secret", redirectUri: `http://127.0.0.1:${address.port}/callback`, signal: controller.signal,
-      }), { errorType: "AUTH_REQUIRED" });
+      }).then(() => undefined, (e: unknown) => e as { errorType?: string; message?: string });
     });
+    // Another process took the probed port before the callback server bound it.
+    if (!started && err?.message?.includes("EADDRINUSE")) throw err;
+    assert.equal(err?.errorType, "AUTH_REQUIRED");
     assert.equal(started, true);
     const reuse = createServer();
     await new Promise<void>((resolve, reject) => {
@@ -36,6 +40,21 @@ it("cancels OAuth and releases its callback port", { timeout: 3000 }, async () =
     });
     await new Promise<void>(resolve => reuse.close(() => resolve()));
   } finally { process.stderr.write = write; }
+}
+
+it("cancels OAuth and releases its callback port", { timeout: 5000 }, async () => {
+  // Test files run in parallel processes that share the ephemeral port range,
+  // so a freed probe port is occasionally taken by another process (never
+  // reproduced in isolation). Retry on EADDRINUSE with a fresh port; a port
+  // that is genuinely not released fails every attempt.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await cancelAndReuseFreePort();
+      return;
+    } catch (err) {
+      if (attempt >= 3 || !String((err as Error)?.message).includes("EADDRINUSE")) throw err;
+    }
+  }
 });
 
 it("cancels the scope confirmation without opening OAuth or retaining readline listeners", { timeout: 3000 }, async () => {

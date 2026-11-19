@@ -33,6 +33,8 @@ node bin/feishu-docs.js --help   # Run CLI
 | `src/commands/*.ts` | Command modules — each exports `meta` for routing |
 | `src/services/block-writer.ts` | Document backup, clear, restore helpers |
 | `src/services/wiki-nodes.ts` | Wiki node tree traversal and token resolution |
+| `src/services/comments.ts` | Drive comment list (pagination, reply completion, docx block anchors), reply, create, resolve |
+| `src/utils/comment-content.ts` | Comment `--text`/`--elements` parsing, escaping, limits, reply rendering |
 | `src/services/doc-blocks.ts` | Document block fetching with pagination |
 | `src/services/markdown-convert.ts` | Convert API + Descendant API pipeline |
 | `src/services/doc-enrichment.ts` | Sheet/bitable/whiteboard/image enrichment with parallel execution |
@@ -146,6 +148,12 @@ const memberType = detectMemberType(memberId);  // Auto-detect: email, openid, u
 | **Wiki member API requires admin** | The calling identity must already be a wiki space administrator |
 | **No wiki space delete API** | Feishu does not provide an API to delete wiki spaces (returns 404) |
 | **Convert API returns blocks array** | The `blocks` field from Convert API can be passed directly to Descendant API |
+| **Comment `relation` is double-encoded** | `need_relation=true` (docx only) returns `relation.relation` as a JSON string; block ID is `positionInfo.blockID`. `content_deleted=true` means an orphan comment hidden in the UI |
+| **Local comments use `new_comments`** | v1 `POST .../comments` only creates whole comments; block-anchored comments go through `POST .../new_comments` with `anchor.block_id`. Replies use `POST .../comments/{id}/replies` (v1 element form `text_run`/`person`/`docs_link`) |
+| **Comment write errors are ambiguous** | Missing/deleted anchor blocks and missing comments return generic `1069301`/`1069302`; the services look up the block (`1770002` = gone) or the comment list to report a typed error. Single-comment GET returns `1069307` even for existing docx comments — do not use it |
+| **Comment length counts escaped text** | `<`/`>` are sent as `&lt;`/`&gt;` and count as 4 characters toward the 10,000 cap (verified live). Whole-document comments reject replies; resolved ones accept them |
+| **Inline comment replies are unordered** | The list endpoint's `reply_list.replies` order is unstable (root reply not always first); `comments.ts` sorts by `create_time`, then numeric `reply_id` |
+| **Comment replies endpoint needs an extra scope** | `GET .../comments/{id}/replies` requires `docs:document.comment:read`, while the list endpoint works with base scopes; the list returned 105 inline replies without truncation in live tests |
 | **batch_get_tmp_download_url 5-token limit** | Max 5 `file_tokens` per request; more returns error 1061002. Split into chunks of 5 |
 
 ## Immutability Rules
@@ -226,6 +234,7 @@ Common additional scopes (require admin review):
 - `drive:drive` — cloud drive file management (ls, delete, share, mv, cp, mkdir)
 - `contact:contact.base:readonly` — contact lookup by email/phone
 - `drive:drive.search:readonly` — document search
+- `docs:document.comment:create` / `:update` — comment add+reply / resolve+reopen (`comment list` works with base scopes; `:read` is only needed for the reply-completion fallback)
 
 ## Output Format
 

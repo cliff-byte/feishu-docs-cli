@@ -156,6 +156,39 @@ export function mapApiError(err: unknown): CliError {
       },
     );
   }
+  // 1069xxx: Drive comment API errors.
+  if (code === 1069303) {
+    return new CliError("PERMISSION_DENIED", "没有该文档的评论权限", {
+      apiCode: code,
+      recovery: "请求文档拥有者授予可评论权限，或使用 --auth user 切换身份",
+    });
+  }
+  if (code === 1069304 || code === 1069305 || code === 1069307) {
+    return new CliError("NOT_FOUND", msg || "文档、评论或被 @ 的对象不存在", {
+      apiCode: code,
+      recovery: "运行 feishu-docs comment list <url> 确认评论 ID，并检查 @ 的用户和链接的文档是否存在",
+    });
+  }
+  if (code === 1069306) {
+    return new CliError("API_ERROR", "评论内容未通过内容审核", {
+      apiCode: code,
+      recovery: "修改评论内容后重试",
+    });
+  }
+  if (code === 1069302) {
+    return new CliError("API_ERROR", msg || "评论接口参数无效", {
+      apiCode: code,
+      recovery:
+        "检查：文本合计不超过 10000 字（< 和 > 各计 4 字）；link 仅限飞书云文档链接；全文评论不能回复，可用 comment add 新建评论",
+    });
+  }
+  if (code === 1069301 || code === 1069399) {
+    return new CliError("API_ERROR", msg || "评论服务暂时异常", {
+      apiCode: code,
+      retryable: true,
+      recovery: "确认 comment_id 与 --block 的 block_id 仍然存在（comment list --status all、read --blocks）后重试",
+    });
+  }
   // 99991672 / 99991679 are scope errors — handled directly in fetchWithAuth
   // before mapApiError is called. If they reach here, treat as generic API error.
   return new CliError("API_ERROR", msg || "未知 API 错误", { apiCode: code });

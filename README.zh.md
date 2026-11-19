@@ -43,6 +43,7 @@
 - **浏览** 知识库结构（空间列表、目录树、批量读取）
 - **搜索** 按关键词搜索文档
 - **分享** — 管理协作者（列表、添加、设置公开权限）
+- **评论** — 读取评论及回复与块落点，发表全文/局部评论，回复、解决和重新打开
 - **文件列表** — 浏览云空间文件夹
 - 使用 TypeScript 编写，严格模式
 - 零运行时依赖 — 使用原生 `fetch` 调用所有 API
@@ -96,6 +97,7 @@ npm install -g github:cliff-byte/feishu-docs-cli
    | `drive:drive` | 云空间文件管理（ls、delete、share、mv、cp、mkdir） |
    | `contact:contact.base:readonly` | 通过邮件/手机号查找用户 |
    | `drive:drive.search:readonly` | 搜索云文档 |
+   | `docs:document.comment:create` / `docs:document.comment:update` | 发表与回复 / 解决与重新打开评论（`comment list` 使用基础权限即可） |
 
 4. 进入 **安全设置**，在 **重定向 URL** 白名单中添加 OAuth 回调地址：
    - 默认值：`http://127.0.0.1:3456/callback`
@@ -364,6 +366,32 @@ feishu-docs share set <url> --public closed           # 关闭链接分享
 ```
 
 角色：`view`（查看）、`edit`（编辑）、`manage`（管理）。成员类型自动识别（邮箱、openid、unionid、openchat、userid）。
+
+### 评论
+
+```bash
+# 列出评论及回复（默认仅未解决且原文仍在的评论）
+feishu-docs comment list <url> --json
+feishu-docs comment list <url> --status all --scope partial   # status: open|solved|all，scope: all|whole|partial
+
+# 发表全文评论，或对某个块发表局部评论
+feishu-docs comment add <url> --text "请补充发布说明"
+feishu-docs comment add <url> --text "这一步需要确认" --block <block_id>   # block_id 来自 read --blocks
+
+# 回复评论；--elements 支持 @人（open_id）和飞书云文档链接
+feishu-docs comment reply <url> <comment_id> --text "已处理"
+feishu-docs comment reply <url> <comment_id> --elements '[{"type":"text","text":"请 "},{"type":"mention_user","mention_user":"ou_xxx"},{"type":"text","text":" 确认"}]'
+
+# 解决 / 重新打开
+feishu-docs comment resolve <url> <comment_id>
+feishu-docs comment reopen <url> <comment_id>
+```
+
+`list` 支持 docx（含 wiki 链接）和电子表格；写入仅支持 docx。JSON 输出中每条评论带 `anchor`：`exact`（含 `block_id`）、`whole`、`embedded`、`deleted`、`unlocated`。电子表格评论覆盖整本表格且不含位置信息，`quote` 为单元格内容。评论文本合计上限 10000 字，按转义后计算（`<`、`>` 各计 4 字）。全文评论不接受回复（可用 `add` 新建评论）；已解决的评论仍可回复。
+
+真实端到端测试：`npm run build && node scripts/comment-live-e2e.mjs --run`。
+使用已有用户登录（设置了应用凭证时还会验证应用身份），创建临时文档，验证块落点、内容往返、筛选、原文删除、错误路径和长度上限。
+结束后尝试移入回收站；缺少删除权限时报告清理失败并输出待清理链接。
 
 ### 认证
 

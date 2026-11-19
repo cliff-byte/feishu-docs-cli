@@ -372,7 +372,7 @@ describe("tree command", { concurrency: 1 }, () => {
           jsonResponse({
             code: 0,
             data: {
-              user_list: [
+              items: [
                 { open_id: "ou_creator", name: "张三" },
                 { open_id: "ou_owner", name: "李四" },
               ],

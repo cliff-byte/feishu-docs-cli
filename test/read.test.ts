@@ -648,7 +648,7 @@ describe("read command", { concurrency: 1 }, () => {
             jsonResponse({
               code: 0,
               data: {
-                user_list: [
+                items: [
                   { open_id: "ou_creator", name: "张三" },
                   { open_id: "ou_owner", name: "李四" },
                 ],
@@ -1131,7 +1131,7 @@ describe("read command", { concurrency: 1 }, () => {
             jsonResponse({
               code: 0,
               data: {
-                user_list: [{ open_id: "ou_user123", name: "Zhang San" }],
+                items: [{ open_id: "ou_user123", name: "Zhang San" }],
               },
             }),
           ],

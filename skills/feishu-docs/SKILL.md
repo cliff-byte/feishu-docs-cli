@@ -145,6 +145,18 @@ feishu-docs share set <url> --public tenant
 
 Roles: `view`, `edit`, `manage`; member ID types are detected automatically. Public modes: `tenant` (organization view), `tenant:edit` (organization edit), `open` (internet view), `closed` (disable link sharing).
 
+## Comments
+
+```bash
+feishu-docs comment list <url> --json                     # open comments + replies; --status open|solved|all, --scope all|whole|partial
+feishu-docs comment add <url> --text "..." [--block <block_id>] --json
+feishu-docs comment reply <url> <comment_id> --text "..." --json
+feishu-docs comment resolve <url> <comment_id>
+feishu-docs comment reopen <url> <comment_id>
+```
+
+Default `list` matches the UI: unresolved comments whose anchored text still exists; use `--status all` to include resolved and deleted-anchor comments. Each comment's `anchor.block_id` (status `exact`) matches block IDs from `read --blocks`; locate comments by it, not by `quote`. For a local comment, get the target `block_id` from `read --blocks` first. `--elements` takes `[{"type":"text","text":"..."},{"type":"mention_user","mention_user":"ou_xxx"},{"type":"link","link":"<feishu doc url>"}]`. Text totals ≤10,000 characters after escaping (`<`/`>` count as 4). Whole-document comments reject replies (`NOT_SUPPORTED`) — post a new comment instead; resolved comments still accept replies. Writes support docx only; `list` also accepts spreadsheets (whole workbook, no position — `quote` holds the cell text). These are write operations — confirm intent before posting.
+
 ## Wiki Management
 
 ```bash

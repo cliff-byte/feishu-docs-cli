@@ -17,6 +17,7 @@ import { meta as updateMeta } from "./commands/update.js";
 import { meta as patchMeta } from "./commands/patch.js";
 import { meta as deleteMeta } from "./commands/delete.js";
 import { meta as shareMeta } from "./commands/share.js";
+import { meta as commentMeta } from "./commands/comment.js";
 import { meta as infoMeta } from "./commands/info.js";
 import { meta as lsMeta } from "./commands/ls.js";
 import { meta as mvMeta } from "./commands/mv.js";
@@ -85,6 +86,16 @@ const HELP_TEXT = `feishu-docs - AI Agent 飞书云文档 CLI 工具
   share update <url> <member> --role <role> 修改协作者权限
   share set <url> --public <mode>          修改分享设置
 
+评论:
+  comment list <url> [--status open|solved|all] [--scope all|whole|partial]
+                                           列出评论及回复（默认仅未解决且原文仍在的评论）
+  comment add <url> --text <text> [--block <block_id>]
+                                           发表全文评论；--block 发表局部评论
+  comment reply <url> <comment_id> --text <text>
+                                           回复评论（--elements <json> 支持 @人和文档链接）
+  comment resolve <url> <comment_id>       解决评论
+  comment reopen <url> <comment_id>        重新打开评论
+
 Agent:
   install-skill                            安装 Claude Code Skill
 
@@ -123,6 +134,7 @@ const COMMANDS: Record<string, CommandMeta | SubcommandMeta> = {
   patch: patchMeta,
   delete: deleteMeta,
   share: shareMeta,
+  comment: commentMeta,
   info: infoMeta,
   ls: lsMeta,
   mv: mvMeta,

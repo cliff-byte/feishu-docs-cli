@@ -249,7 +249,7 @@ describe("info command", { concurrency: 1 }, () => {
             jsonResponse({
               code: 0,
               data: {
-                user_list: [
+                items: [
                   { open_id: "ou_creator", name: "张三" },
                   { open_id: "ou_owner", name: "李四" },
                 ],
@@ -309,7 +309,7 @@ describe("info command", { concurrency: 1 }, () => {
             tenantTokenResponse(),
             jsonResponse({
               code: 0,
-              data: { user_list: [{ open_id: "ou_creator", name: "张三" }] },
+              data: { items: [{ open_id: "ou_creator", name: "张三" }] },
             }),
           ],
         });
@@ -366,7 +366,7 @@ describe("info command", { concurrency: 1 }, () => {
           tenantTokenResponse(),
           jsonResponse({
             code: 0,
-            data: { user_list: [{ open_id: "ou_owner", name: "李四" }] },
+            data: { items: [{ open_id: "ou_owner", name: "李四" }] },
           }),
         ],
       });
